@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  llm-router:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-gpt-3.5-turbo}
+      - MAX_TOKENS_DEFAULT=${MAX_TOKENS_DEFAULT:-1000}
+      - TEMPERATURE_DEFAULT=${TEMPERATURE_DEFAULT:-0.7}
+      - DATABASE_URL=sqlite:///data/router_data.db
+      - ALLOWED_API_KEYS=${ALLOWED_API_KEYS:-sk-test-key-1,sk-test-key-2}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=${DEBUG:-false}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
