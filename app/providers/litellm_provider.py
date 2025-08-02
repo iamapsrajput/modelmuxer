@@ -30,10 +30,11 @@ class LiteLLMProvider(LLMProvider):
         if not base_url:
             raise ValueError("LiteLLM base URL is required")
 
-        # Use a placeholder key if none provided (for testing/development)
-        placeholder_key = "litellm-placeholder-key"
+        # Use a clearly marked test placeholder if no API key provided
+        # This is NOT a real secret - it's an obvious test placeholder
+        test_placeholder = "TEST-PLACEHOLDER-NOT-A-REAL-SECRET-FOR-LITELLM-TESTING-ONLY"
         super().__init__(
-            api_key=api_key or placeholder_key,
+            api_key=api_key or test_placeholder,
             base_url=base_url.rstrip("/"),
             provider_name="litellm",
         )
@@ -61,7 +62,8 @@ class LiteLLMProvider(LLMProvider):
             "User-Agent": "ModelMuxer/1.0.0 (LiteLLM Proxy)",
         }
 
-        if self.api_key and self.api_key != "dummy-key":
+        # Only add auth header if we have a real API key (not test placeholder)
+        if self.api_key and not self.api_key.startswith("TEST-PLACEHOLDER") and self.api_key != "dummy-key":
             headers["Authorization"] = f"Bearer {self.api_key}"
 
         return headers

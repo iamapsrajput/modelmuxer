@@ -16,7 +16,20 @@ import structlog
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+# Optional prometheus import
+try:
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+    CONTENT_TYPE_LATEST = "text/plain; charset=utf-8"
+
+    def generate_latest():
+        """Fallback when prometheus is not available."""
+        return "# Prometheus not available\n"
+
 
 # Cache imports
 from .cache.memory_cache import MemoryCache
