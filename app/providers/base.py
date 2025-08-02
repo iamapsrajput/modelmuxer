@@ -13,12 +13,13 @@ from typing import Any
 import httpx
 
 from ..models import ChatCompletionResponse, ChatMessage, Choice, RouterMetadata, Usage
+from ..security.config import SecurityConfig
 
 
 class ProviderError(Exception):
     """Base exception for provider errors."""
 
-    def __init__(self, message: str, status_code: int | None = None, provider: str = None):
+    def __init__(self, message: str, status_code: int | None = None, provider: str | None = None):
         self.message = message
         self.status_code = status_code
         self.provider = provider
@@ -50,7 +51,8 @@ class LLMProvider(ABC):
         self.api_key = api_key
         self.base_url = base_url
         self.provider_name = provider_name
-        self.client = httpx.AsyncClient(timeout=60.0)
+        # Use secure HTTP client configuration
+        self.client = SecurityConfig.get_secure_httpx_client()
 
     async def __aenter__(self):
         return self
@@ -225,9 +227,7 @@ class LLMProvider(ABC):
                 return False
 
             # Use the first available model for health check
-            await self.chat_completion(
-                messages=test_messages, model=models[0], max_tokens=1, temperature=0.0
-            )
+            await self.chat_completion(messages=test_messages, model=models[0], max_tokens=1, temperature=0.0)
             return True
         except Exception:
             return False

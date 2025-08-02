@@ -1,0 +1,69 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.0
+
+# Configuration
+language-settings:
+  python: /Users/rajput/Work/GitHub/ModelMuxer/.venv/bin/python
+
+# Exclude virtual environment and build artifacts from scanning
+exclude:
+  global:
+    - ".venv/**"
+    - "venv/**"
+    - "__pycache__/**"
+    - "*.pyc"
+    - ".pytest_cache/**"
+    - "htmlcov/**"
+    - "coverage.xml"
+    - "cache/**"
+    - "embeddings/**"
+    - ".git/**"
+    - "node_modules/**"
+    - "build/**"
+    - "dist/**"
+    - "*.egg-info/**"
+    - "docs/**"
+    - "*.md"
+
+# Patch or ignore specific vulnerabilities
+patches: {}
+
+# Ignore test-specific hardcoded values that are not security risks
+ignore:
+  # Generic hardcoded secrets in test files
+  "SNYK-PY-*":
+    - "tests/**":
+        reason: Test files with intentionally hardcoded test values, clearly marked as non-production
+        expires: 2026-12-31T23:59:59.999Z
+        created: 2025-08-03T00:00:00.000Z
+
+  # Code quality issues that are false positives
+  "SNYK-CC-*":
+    - "tests/**":
+        reason: Test files with obvious test patterns and clear test-only documentation
+        expires: 2026-12-31T23:59:59.999Z
+        created: 2025-08-03T00:00:00.000Z
+
+    - ".env.example":
+        reason: Example environment file with placeholder values clearly marked as examples
+        expires: 2026-12-31T23:59:59.999Z
+        created: 2025-08-03T00:00:00.000Z
+
+  # SSL/TLS verification warnings for test/development configurations
+  "SNYK-PY-HTTPX-*":
+    - "app/providers/**":
+        reason: HTTP clients use secure SSL configuration via SecurityConfig
+        expires: 2026-12-31T23:59:59.999Z
+        created: 2025-08-03T00:00:00.000Z
+
+  # Redis SSL false positives in example configurations
+  "SNYK-ENV-*":
+    - ".env.example":
+        reason: Example configuration file with placeholder values for development
+        expires: 2026-12-31T23:59:59.999Z
+        created: 2025-08-03T00:00:00.000Z
+
+    - "docs/**":
+        reason: Documentation files with example configurations
+        expires: 2026-12-31T23:59:59.999Z
+        created: 2025-08-03T00:00:00.000Z
