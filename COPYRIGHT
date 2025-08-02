@@ -1,0 +1,19 @@
+ModelMuxer
+Copyright (c) 2025 Ajay Rajput
+
+All rights reserved. This software and associated documentation files (the "Software")
+are proprietary to Ajay Rajput. The proprietary routing algorithms, cascade optimization
+logic, and intelligent model selection techniques contained herein are trade secrets
+and confidential information.
+
+The following components contain proprietary technology:
+
+- Intelligent routing algorithms and decision trees
+- Cost optimization and cascade logic
+- Quality scoring and confidence evaluation systems
+- Budget management and enforcement mechanisms
+- Multi-provider abstraction and failover systems
+
+For commercial licensing inquiries, contact: [licensing@modelmuxer.com]
+
+This copyright notice must be included in all copies or substantial portions of the Software.

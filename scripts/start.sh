@@ -40,19 +40,18 @@ if [ ! -f ".env" ]; then
     fi
 fi
 
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    echo "📦 Creating virtual environment..."
-    python3 -m venv venv
+# Check if Poetry is installed
+if ! command -v poetry &> /dev/null; then
+    echo "📦 Installing Poetry..."
+    curl -sSL https://install.python-poetry.org | python3 -
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 
-# Activate virtual environment
-echo "🔧 Activating virtual environment..."
-source venv/bin/activate
+echo "✅ Poetry detected"
 
 # Install dependencies
-echo "📥 Installing dependencies..."
-pip install -r requirements.txt
+echo "📥 Installing dependencies with Poetry..."
+poetry install
 
 # Check if at least one API key is configured
 echo "🔑 Checking API key configuration..."
@@ -90,4 +89,4 @@ echo "Press Ctrl+C to stop the server"
 echo ""
 
 # Run the server
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+poetry run uvicorn app.main_enhanced:app --host 0.0.0.0 --port 8000 --reload

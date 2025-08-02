@@ -1,0 +1,281 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "modelmuxer-cost",
+    "title": "ModelMuxer - Cost Analytics",
+    "tags": ["modelmuxer", "cost", "analytics"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "1m",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Cost (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(modelmuxer_provider_cost_total[24h]))",
+            "legendFormat": "Total Cost"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 4,
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 500}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Average Cost per Request",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(modelmuxer_provider_cost_total[1h])) / sum(increase(modelmuxer_requests_total[1h]))",
+            "legendFormat": "Avg Cost/Request"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 6,
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Cost by Provider",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (provider) (increase(modelmuxer_provider_cost_total[24h]))",
+            "legendFormat": "{{provider}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Cost by Model",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (model) (increase(modelmuxer_provider_cost_total[24h]))",
+            "legendFormat": "{{model}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Cost Trend Over Time",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(modelmuxer_provider_cost_total[5m])) * 3600",
+            "legendFormat": "Cost per Hour"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "lineWidth": 2,
+              "fillOpacity": 20,
+              "gradientMode": "opacity",
+              "spanNulls": false,
+              "insertNulls": false,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              }
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Budget Utilization by User",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "modelmuxer_budget_utilization_ratio",
+            "legendFormat": "{{user_id}} - {{budget_type}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 50},
+                {"color": "orange", "value": 80},
+                {"color": "red", "value": 95}
+              ]
+            },
+            "custom": {
+              "orientation": "horizontal",
+              "displayMode": "gradient"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "Cascade vs Single Request Costs",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(modelmuxer_cost_per_request_bucket{routing_strategy=\"cascade\"}[5m]))",
+            "legendFormat": "Cascade - Median"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(modelmuxer_cost_per_request_bucket{routing_strategy=\"single\"}[5m]))",
+            "legendFormat": "Single - Median"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(modelmuxer_cost_per_request_bucket{routing_strategy=\"cascade\"}[5m]))",
+            "legendFormat": "Cascade - 95th"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(modelmuxer_cost_per_request_bucket{routing_strategy=\"single\"}[5m]))",
+            "legendFormat": "Single - 95th"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Token Usage by Provider",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum by (provider) (rate(modelmuxer_provider_tokens_total[5m]))",
+            "legendFormat": "{{provider}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "stacking": {
+                "mode": "normal",
+                "group": "A"
+              }
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 9,
+        "title": "Cost Efficiency (Cost per 1K Tokens)",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "sum by (provider, model) (increase(modelmuxer_provider_cost_total[1h])) / (sum by (provider, model) (increase(modelmuxer_provider_tokens_total[1h])) / 1000)",
+            "legendFormat": "{{provider}}/{{model}}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 6,
+            "custom": {
+              "displayMode": "color-background",
+              "inspect": false
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Cost per 1K Tokens"
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "user_id",
+          "type": "query",
+          "query": "label_values(modelmuxer_budget_utilization_ratio, user_id)",
+          "refresh": 1,
+          "includeAll": true,
+          "allValue": ".*"
+        },
+        {
+          "name": "provider",
+          "type": "query",
+          "query": "label_values(modelmuxer_provider_cost_total, provider)",
+          "refresh": 1,
+          "includeAll": true,
+          "allValue": ".*"
+        }
+      ]
+    }
+  }
+}

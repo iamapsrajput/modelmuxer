@@ -1,0 +1,101 @@
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: modelmuxer-pdb
+  namespace: modelmuxer
+  labels:
+    app.kubernetes.io/name: modelmuxer
+    app.kubernetes.io/component: pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: modelmuxer
+      app.kubernetes.io/component: api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgresql-primary-pdb
+  namespace: modelmuxer
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: primary-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: primary
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgresql-read-pdb
+  namespace: modelmuxer
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: read-replica-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: read-replica
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-cluster-pdb
+  namespace: modelmuxer
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: cluster-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: cluster
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-maintenance-config
+  namespace: modelmuxer
+  labels:
+    app.kubernetes.io/name: modelmuxer
+    app.kubernetes.io/component: maintenance-config
+data:
+  maintenance-window.yaml: |
+    # Maintenance window configuration
+    maintenance_windows:
+      - name: "weekly-maintenance"
+        schedule: "0 2 * * SUN"  # Every Sunday at 2 AM UTC
+        duration: "2h"
+        allowed_disruptions:
+          modelmuxer: 1
+          postgresql-read: 1
+          redis-cluster: 1
+        notifications:
+          - type: "slack"
+            webhook: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+          - type: "email"
+            recipients: ["ops@modelmuxer.com"]
+      
+      - name: "emergency-maintenance"
+        schedule: "manual"
+        duration: "30m"
+        allowed_disruptions:
+          modelmuxer: 2
+          postgresql-read: 2
+          redis-cluster: 2
+    
+    # Rollback configuration
+    rollback_policy:
+      automatic: true
+      health_check_timeout: "5m"
+      rollback_timeout: "10m"
+      success_threshold: 80  # Percentage of healthy pods required

@@ -1,0 +1,45 @@
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: modelmuxer
+  labels:
+    name: modelmuxer
+    app.kubernetes.io/name: modelmuxer
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/part-of: modelmuxer-platform
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: modelmuxer-quota
+  namespace: modelmuxer
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "10"
+    services: "10"
+    secrets: "20"
+    configmaps: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: modelmuxer-limits
+  namespace: modelmuxer
+spec:
+  limits:
+  - default:
+      cpu: "1"
+      memory: "2Gi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "256Mi"
+    type: Container
+  - default:
+      storage: "10Gi"
+    type: PersistentVolumeClaim

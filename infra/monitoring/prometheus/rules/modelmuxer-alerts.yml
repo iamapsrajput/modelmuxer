@@ -1,0 +1,208 @@
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
+groups:
+  - name: modelmuxer.rules
+    rules:
+      # High-level service alerts
+      - alert: ModelMuxerDown
+        expr: up{job="modelmuxer"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: modelmuxer
+        annotations:
+          summary: "ModelMuxer service is down"
+          description: "ModelMuxer service has been down for more than 1 minute."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/service-down"
+
+      - alert: ModelMuxerHighErrorRate
+        expr: rate(modelmuxer_errors_total[5m]) / rate(modelmuxer_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          service: modelmuxer
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/high-error-rate"
+
+      - alert: ModelMuxerHighLatency
+        expr: histogram_quantile(0.95, rate(modelmuxer_request_duration_seconds_bucket[5m])) > 5
+        for: 3m
+        labels:
+          severity: warning
+          service: modelmuxer
+        annotations:
+          summary: "High response latency detected"
+          description: "95th percentile latency is {{ $value }}s for the last 5 minutes."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/high-latency"
+
+      # Provider-specific alerts
+      - alert: ProviderDown
+        expr: modelmuxer_provider_available == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: modelmuxer
+          component: provider
+        annotations:
+          summary: "Provider {{ $labels.provider }} is unavailable"
+          description: "Provider {{ $labels.provider }} has been unavailable for more than 2 minutes."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/provider-down"
+
+      - alert: ProviderHighErrorRate
+        expr: rate(modelmuxer_provider_errors_total[5m]) / rate(modelmuxer_provider_requests_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: modelmuxer
+          component: provider
+        annotations:
+          summary: "High error rate for provider {{ $labels.provider }}"
+          description: "Provider {{ $labels.provider }} error rate is {{ $value | humanizePercentage }}."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/provider-errors"
+
+      # Cost and budget alerts
+      - alert: BudgetExceeded
+        expr: modelmuxer_budget_utilization_ratio > 100
+        for: 0m
+        labels:
+          severity: critical
+          service: modelmuxer
+          component: budget
+        annotations:
+          summary: "Budget exceeded for user {{ $labels.user_id }}"
+          description: "User {{ $labels.user_id }} has exceeded their {{ $labels.budget_type }} budget by {{ $value }}%."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/budget-exceeded"
+
+      - alert: BudgetWarning
+        expr: modelmuxer_budget_utilization_ratio > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: modelmuxer
+          component: budget
+        annotations:
+          summary: "Budget warning for user {{ $labels.user_id }}"
+          description: "User {{ $labels.user_id }} has used {{ $value }}% of their {{ $labels.budget_type }} budget."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/budget-warning"
+
+      - alert: HighCostPerRequest
+        expr: histogram_quantile(0.95, rate(modelmuxer_cost_per_request_bucket[10m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: modelmuxer
+          component: cost
+        annotations:
+          summary: "High cost per request detected"
+          description: "95th percentile cost per request is ${{ $value }} for the last 10 minutes."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/high-cost"
+
+      # Performance alerts
+      - alert: LowCacheHitRatio
+        expr: modelmuxer_cache_hit_ratio < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          service: modelmuxer
+          component: cache
+        annotations:
+          summary: "Low cache hit ratio"
+          description: "Cache hit ratio for {{ $labels.cache_type }} is {{ $value | humanizePercentage }}."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/low-cache-hit"
+
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes{pod=~"modelmuxer-.*"} / container_spec_memory_limit_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: modelmuxer
+          component: resources
+        annotations:
+          summary: "High memory usage in pod {{ $labels.pod }}"
+          description: "Memory usage is {{ $value | humanizePercentage }} in pod {{ $labels.pod }}."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/high-memory"
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{pod=~"modelmuxer-.*"}[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: modelmuxer
+          component: resources
+        annotations:
+          summary: "High CPU usage in pod {{ $labels.pod }}"
+          description: "CPU usage is {{ $value | humanizePercentage }} in pod {{ $labels.pod }}."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/high-cpu"
+
+      # Security alerts
+      - alert: HighAuthFailureRate
+        expr: rate(modelmuxer_auth_attempts_total{result="failure"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: modelmuxer
+          component: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Authentication failure rate is {{ $value }} failures/second."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/auth-failures"
+
+      - alert: PIIDetected
+        expr: increase(modelmuxer_pii_detections_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: info
+          service: modelmuxer
+          component: security
+        annotations:
+          summary: "PII detected in requests"
+          description: "{{ $value }} PII detection events of type {{ $labels.pii_type }}."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/pii-detected"
+
+      # Database alerts
+      - alert: PostgreSQLDown
+        expr: up{job="postgresql"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database has been down for more than 1 minute."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/postgresql-down"
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL high connection usage"
+          description: "PostgreSQL is using {{ $value | humanizePercentage }} of max connections."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/postgresql-connections"
+
+      # Redis alerts
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache has been down for more than 1 minute."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/redis-down"
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis is using {{ $value | humanizePercentage }} of max memory."
+          runbook_url: "https://docs.modelmuxer.com/runbooks/redis-memory"

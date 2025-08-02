@@ -1,0 +1,678 @@
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
+openapi: 3.0.3
+info:
+  title: ModelMuxer API
+  description: |
+    ModelMuxer is an intelligent LLM routing engine that provides cost-optimized, 
+    high-quality AI model access through advanced routing strategies including 
+    cascade routing, semantic routing, and heuristic routing.
+    
+    ## Features
+    - **Multi-Provider Support**: OpenAI, Anthropic, Google, Mistral, Groq, and more
+    - **Intelligent Routing**: Cascade, semantic, heuristic, and hybrid routing
+    - **Cost Optimization**: Budget management and cost-aware routing
+    - **Enterprise Features**: Multi-tenancy, RBAC, audit logging
+    - **Production Ready**: Monitoring, security, and compliance features
+    
+    ## Authentication
+    ModelMuxer supports multiple authentication methods:
+    - **Bearer Token**: JWT tokens for user authentication
+    - **API Key**: Organization-scoped API keys for programmatic access
+    
+    ## Rate Limiting
+    API endpoints are rate-limited based on your subscription plan:
+    - **Free**: 1,000 requests/month
+    - **Starter**: 10,000 requests/month  
+    - **Professional**: 100,000 requests/month
+    - **Enterprise**: Custom limits
+    
+    ## Error Handling
+    The API uses standard HTTP status codes and returns detailed error information
+    in JSON format with error codes, messages, and additional context.
+  version: 1.0.0
+  contact:
+    name: ModelMuxer Support
+    url: https://docs.modelmuxer.com
+    email: support@modelmuxer.com
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/your-org/modelmuxer/blob/main/LICENSE
+
+servers:
+  - url: https://api.modelmuxer.com
+    description: Production server
+  - url: https://staging-api.modelmuxer.com
+    description: Staging server
+  - url: http://localhost:8000
+    description: Local development server
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Check the health status of the ModelMuxer service
+      tags: [System]
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  uptime:
+                    type: number
+                    description: Uptime in seconds
+
+  /v1/chat/completions:
+    post:
+      summary: Create Chat Completion
+      description: |
+        Create a chat completion using ModelMuxer's intelligent routing.
+        The system will automatically select the best model based on your
+        routing strategy and requirements.
+      tags: [Chat]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+            examples:
+              simple_request:
+                summary: Simple chat completion
+                value:
+                  messages:
+                    - role: user
+                      content: "What is the capital of France?"
+                  temperature: 0.7
+                  max_tokens: 100
+              cascade_request:
+                summary: Cascade routing request
+                value:
+                  messages:
+                    - role: user
+                      content: "Explain quantum computing in simple terms"
+                  routing_strategy: "cascade"
+                  cascade_config:
+                    cascade_type: "quality_focused"
+                    max_budget: 0.05
+                    quality_threshold: 0.8
+      responses:
+        '200':
+          description: Successful completion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/chat/completions/enhanced:
+    post:
+      summary: Enhanced Chat Completion with Advanced Features
+      description: |
+        Enhanced chat completion endpoint with full cascade routing,
+        budget enforcement, and analytics tracking.
+      tags: [Chat]
+      parameters:
+        - name: X-Routing-Strategy
+          in: header
+          schema:
+            type: string
+            enum: [cost, quality, balanced, speed]
+          description: Preferred routing strategy
+        - name: X-Max-Budget
+          in: header
+          schema:
+            type: number
+            minimum: 0.001
+            maximum: 10.0
+          description: Maximum budget for this request in USD
+        - name: X-Enable-Cascade
+          in: header
+          schema:
+            type: boolean
+            default: true
+          description: Enable cascade routing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnhancedChatCompletionRequest'
+      responses:
+        '200':
+          description: Successful completion with routing metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnhancedChatCompletionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          description: Budget exceeded or rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Daily budget exceeded. Please increase your budget or try again tomorrow."
+                code: "BUDGET_EXCEEDED"
+                timestamp: "2025-01-15T10:30:00Z"
+
+  /v1/analytics/costs:
+    get:
+      summary: Get Cost Analytics
+      description: Retrieve detailed cost analytics and usage statistics
+      tags: [Analytics]
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date for analytics period
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date for analytics period
+        - name: group_by
+          in: query
+          schema:
+            type: string
+            enum: [hour, day, provider, model]
+            default: day
+          description: How to group the analytics data
+      responses:
+        '200':
+          description: Cost analytics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostAnalytics'
+
+  /v1/analytics/budgets:
+    get:
+      summary: Get Budget Status
+      description: Get current budget status and alerts for the user
+      tags: [Analytics]
+      responses:
+        '200':
+          description: Budget status information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetStatus'
+    post:
+      summary: Set Budget
+      description: Set or update user budget configuration
+      tags: [Analytics]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetRequest'
+      responses:
+        '200':
+          description: Budget updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Budget updated successfully"
+
+  /v1/providers:
+    get:
+      summary: List Available Providers
+      description: Get list of available AI providers and their models
+      tags: [Providers]
+      responses:
+        '200':
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Provider'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from authentication endpoint
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Organization API key for programmatic access
+
+  schemas:
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+          description: The role of the message author
+        content:
+          type: string
+          description: The content of the message
+        name:
+          type: string
+          description: Optional name of the message author
+
+    ChatCompletionRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          description: List of messages in the conversation
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 2
+          default: 1
+          description: Sampling temperature for randomness
+        max_tokens:
+          type: integer
+          minimum: 1
+          maximum: 4096
+          description: Maximum number of tokens to generate
+        top_p:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 1
+          description: Nucleus sampling parameter
+        frequency_penalty:
+          type: number
+          minimum: -2
+          maximum: 2
+          default: 0
+          description: Frequency penalty for repetition
+        presence_penalty:
+          type: number
+          minimum: -2
+          maximum: 2
+          default: 0
+          description: Presence penalty for new topics
+        stop:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+          description: Stop sequences for generation
+        stream:
+          type: boolean
+          default: false
+          description: Enable streaming responses
+
+    EnhancedChatCompletionRequest:
+      allOf:
+        - $ref: '#/components/schemas/ChatCompletionRequest'
+        - type: object
+          properties:
+            session_id:
+              type: string
+              description: Optional session ID for tracking
+            cascade_config:
+              $ref: '#/components/schemas/CascadeConfig'
+            enable_analytics:
+              type: boolean
+              default: true
+              description: Enable analytics tracking
+            routing_preference:
+              type: string
+              enum: [cost, quality, balanced, speed]
+              description: Preferred routing strategy
+
+    CascadeConfig:
+      type: object
+      properties:
+        cascade_type:
+          type: string
+          enum: [cost_optimized, quality_focused, balanced]
+          default: balanced
+          description: Type of cascade routing to use
+        max_budget:
+          type: number
+          minimum: 0.001
+          maximum: 10.0
+          default: 0.1
+          description: Maximum budget for cascade routing
+        quality_threshold:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          default: 0.7
+          description: Minimum quality threshold
+        confidence_threshold:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          default: 0.7
+          description: Minimum confidence threshold
+
+    ChatCompletionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the completion
+        object:
+          type: string
+          example: "chat.completion"
+        created:
+          type: integer
+          description: Unix timestamp of creation
+        model:
+          type: string
+          description: Model used for the completion
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              message:
+                $ref: '#/components/schemas/ChatMessage'
+              finish_reason:
+                type: string
+                enum: [stop, length, content_filter, null]
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+            completion_tokens:
+              type: integer
+            total_tokens:
+              type: integer
+
+    EnhancedChatCompletionResponse:
+      allOf:
+        - $ref: '#/components/schemas/ChatCompletionResponse'
+        - type: object
+          properties:
+            routing_metadata:
+              $ref: '#/components/schemas/RoutingMetadata'
+
+    RoutingMetadata:
+      type: object
+      properties:
+        strategy_used:
+          type: string
+          description: Routing strategy that was used
+        total_cost:
+          type: number
+          description: Total cost of the request in USD
+        cascade_steps:
+          type: integer
+          description: Number of cascade steps taken
+        quality_score:
+          type: number
+          description: Quality score of the response
+        confidence_score:
+          type: number
+          description: Confidence score of the response
+        provider_chain:
+          type: array
+          items:
+            type: string
+          description: Chain of providers used
+        escalation_reasons:
+          type: array
+          items:
+            type: string
+          description: Reasons for escalation in cascade
+        response_time_ms:
+          type: number
+          description: Response time in milliseconds
+
+    BudgetRequest:
+      type: object
+      required: [budget_type, budget_limit]
+      properties:
+        budget_type:
+          type: string
+          enum: [daily, weekly, monthly, yearly]
+          description: Type of budget period
+        budget_limit:
+          type: number
+          minimum: 0.01
+          description: Budget limit in USD
+        provider:
+          type: string
+          description: Optional provider-specific budget
+        model:
+          type: string
+          description: Optional model-specific budget
+        alert_thresholds:
+          type: array
+          items:
+            type: number
+            minimum: 0
+            maximum: 100
+          default: [50.0, 80.0, 95.0]
+          description: Alert thresholds as percentages
+
+    BudgetStatus:
+      type: object
+      properties:
+        budgets:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              limit:
+                type: number
+              current_usage:
+                type: number
+              utilization_percent:
+                type: number
+              provider:
+                type: string
+              model:
+                type: string
+              alert_thresholds:
+                type: array
+                items:
+                  type: number
+              status:
+                type: string
+                enum: [normal, warning, exceeded]
+        recent_alerts:
+          type: array
+          items:
+            type: object
+        total_budgets:
+          type: integer
+        exceeded_budgets:
+          type: integer
+        warning_budgets:
+          type: integer
+
+    CostAnalytics:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            start_date:
+              type: string
+              format: date
+            end_date:
+              type: string
+              format: date
+            days:
+              type: integer
+        summary:
+          type: object
+          properties:
+            total_cost:
+              type: number
+            total_requests:
+              type: integer
+            avg_cost_per_request:
+              type: number
+        grouped_data:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              cost:
+                type: number
+              requests:
+                type: integer
+        routing_comparison:
+          type: object
+          properties:
+            cascade:
+              type: object
+            single:
+              type: object
+        generated_at:
+          type: string
+          format: date-time
+
+    Provider:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Provider name
+        models:
+          type: array
+          items:
+            type: string
+          description: Available models
+        status:
+          type: string
+          enum: [available, unavailable, degraded]
+        response_time:
+          type: number
+          description: Average response time in ms
+        cost_per_1k_tokens:
+          type: number
+          description: Cost per 1000 tokens in USD
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: object
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Invalid request parameters"
+            code: "INVALID_REQUEST"
+            timestamp: "2025-01-15T10:30:00Z"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Invalid or missing authentication token"
+            code: "UNAUTHORIZED"
+            timestamp: "2025-01-15T10:30:00Z"
+
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Rate limit exceeded: 100/60 requests per minute"
+            code: "RATE_LIMIT_EXCEEDED"
+            timestamp: "2025-01-15T10:30:00Z"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Internal server error"
+            code: "INTERNAL_ERROR"
+            timestamp: "2025-01-15T10:30:00Z"
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Chat
+    description: Chat completion endpoints with intelligent routing
+  - name: Analytics
+    description: Cost analytics and budget management
+  - name: Providers
+    description: AI provider information and status

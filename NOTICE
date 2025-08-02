@@ -1,0 +1,21 @@
+ModelMuxer - Intelligent LLM Routing Engine
+Copyright (c) 2025 Ajay Rajput
+
+This product includes proprietary routing architecture and optimization algorithms
+developed by Ajay Rajput. The core routing intelligence, cascade decision logic,
+and cost optimization techniques are proprietary and protected under trade secret law.
+
+PROPRIETARY COMPONENTS:
+
+- Semantic routing and classification algorithms
+- Dynamic cascade optimization engine
+- Real-time cost tracking and budget enforcement
+- Multi-provider failover and load balancing
+- Quality assessment and confidence scoring
+
+Commercial use of this software requires a separate commercial license.
+For licensing inquiries, please contact: [info@modelmuxer.com]
+
+Third-party components and their licenses are listed in THIRD_PARTY_LICENSES.md
+
+This notice must be included in all distributions of the software.
