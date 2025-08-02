@@ -171,6 +171,8 @@ config/production.yaml
 api_keys.json
 credentials.json
 secrets/
+.github/secrets.yml
+.github/secrets.yaml
 
 # Temporary files
 tmp/
