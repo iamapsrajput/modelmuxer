@@ -55,6 +55,9 @@ class CascadeRouter(BaseRouter):
 
         # Initialize cascade chains
         self.cascade_chains = self._initialize_cascade_chains()
+        
+        # Initialize cascade levels (legacy compatibility)
+        self.cascade_levels = self._initialize_cascade_levels()
 
     def _initialize_cascade_chains(self) -> dict[str, list[CascadeStep]]:
         """Define cascade chains for different use cases"""
@@ -76,6 +79,27 @@ class CascadeRouter(BaseRouter):
                 CascadeStep("anthropic", "claude-3-5-sonnet", 0.08, 0.95, 0.9),
             ],
         }
+
+    def _initialize_cascade_levels(self) -> list[dict[str, Any]]:
+        """Initialize legacy cascade levels structure."""
+        return [
+            {
+                "level": 1,
+                "models": [("groq", "llama-3.1-8b", 0.001, 0.6)]
+            },
+            {
+                "level": 2,
+                "models": [("mistral", "mistral-small", 0.005, 0.7)]
+            },
+            {
+                "level": 3,
+                "models": [("openai", "gpt-3.5-turbo", 0.02, 0.8)]
+            },
+            {
+                "level": 4,
+                "models": [("openai", "gpt-4o", 0.1, 0.9)]
+            }
+        ]
 
     async def route_with_cascade(
         self,

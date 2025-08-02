@@ -1,3 +1,6 @@
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
+
 name: Build & Push Docker Images
 
 on:
@@ -82,7 +85,7 @@ jobs:
         output: 'trivy-image-results.sarif'
 
     - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: 'trivy-image-results.sarif'
@@ -115,7 +118,7 @@ jobs:
         args: --severity-threshold=high --file=Dockerfile.production
 
     - name: Upload Snyk results to GitHub Code Scanning
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: snyk.sarif

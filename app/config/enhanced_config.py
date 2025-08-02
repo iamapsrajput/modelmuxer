@@ -45,7 +45,7 @@ class ProviderConfig(BaseSettings):
     litellm_base_url: str | None = Field(default=None, env="LITELLM_BASE_URL")
     litellm_api_key: str | None = Field(default=None, env="LITELLM_API_KEY")
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
     def validate_at_least_one_provider(self) -> bool:
         """Validate that at least one provider API key is configured."""
@@ -128,7 +128,7 @@ class RoutingConfig(BaseSettings):
             raise ValueError(f"Invalid routing strategy. Must be one of: {valid_strategies}")
         return v
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
 
 class CacheConfig(BaseSettings):
@@ -155,7 +155,7 @@ class CacheConfig(BaseSettings):
             raise ValueError(f"Invalid cache backend. Must be one of: {valid_backends}")
         return v
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
 
 class AuthConfig(BaseSettings):
@@ -224,7 +224,7 @@ class AuthConfig(BaseSettings):
         """Parse allowed origins string into list."""
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
 
 class RateLimitConfig(BaseSettings):
@@ -255,7 +255,7 @@ class RateLimitConfig(BaseSettings):
             raise ValueError(f"Invalid rate limit algorithm. Must be one of: {valid_algorithms}")
         return v
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
 
 class MonitoringConfig(BaseSettings):
@@ -274,7 +274,7 @@ class MonitoringConfig(BaseSettings):
     track_performance: bool = Field(default=True, env="TRACK_PERFORMANCE")
     slow_request_threshold: float = Field(default=5.0, env="SLOW_REQUEST_THRESHOLD")
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
 
 class LoggingConfig(BaseSettings):
@@ -303,7 +303,7 @@ class LoggingConfig(BaseSettings):
             raise ValueError(f"Invalid log level. Must be one of: {valid_levels}")
         return v.upper()
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
 
 class ClassificationConfig(BaseSettings):
@@ -320,7 +320,7 @@ class ClassificationConfig(BaseSettings):
     confidence_threshold: float = Field(default=0.6, env="CLASSIFICATION_CONFIDENCE_THRESHOLD")
     max_history_size: int = Field(default=1000, env="CLASSIFICATION_HISTORY_SIZE")
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
 
 class ModelMuxerConfig:
