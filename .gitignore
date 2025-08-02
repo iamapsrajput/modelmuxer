@@ -176,11 +176,15 @@ tmp/
 temp/
 *.tmp
 debug_*.py
+.claude*
+temp_*
+*.temp
 # Note: test_*.py files should be committed, not ignored
 
 # Model files and embeddings
 models/
 embeddings/
+cache/embeddings/
 *.pkl
 *.joblib
 *.model
@@ -314,5 +318,3 @@ sbom.*.json
 compliance_reports/
 audit_reports/
 security_scans/
-
-.claude

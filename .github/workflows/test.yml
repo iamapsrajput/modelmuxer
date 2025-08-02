@@ -52,7 +52,7 @@ jobs:
           poetry run bandit -r app/
 
       - name: Upload bandit report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bandit-report
@@ -133,7 +133,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-${{ matrix.python-version }}
@@ -212,7 +212,7 @@ jobs:
           pip-audit
 
       - name: Upload security reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: security-reports
@@ -248,7 +248,7 @@ jobs:
           pytest tests/performance/ -v --benchmark-json=benchmark.json
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: benchmark.json
