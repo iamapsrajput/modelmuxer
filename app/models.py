@@ -61,6 +61,17 @@ class RouterMetadata(BaseModel):
     response_time_ms: float = Field(..., description="Response time in milliseconds")
 
 
+class ChatResponse(BaseModel):
+    """Basic chat response model for caching."""
+    
+    id: str = Field(..., description="Unique identifier for the completion")
+    object: str = Field("chat.completion", description="Object type")
+    created: int = Field(..., description="Unix timestamp of creation")
+    model: str = Field(..., description="Model used for the completion")
+    choices: List[Dict[str, Any]] = Field(..., description="List of completion choices")
+    usage: Dict[str, int] = Field(..., description="Token usage information")
+
+
 class ChatCompletionResponse(BaseModel):
     """Response schema for chat completions endpoint."""
 

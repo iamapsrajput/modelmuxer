@@ -9,8 +9,8 @@ ModelMuxer features including routing, caching, authentication, and monitoring.
 
 import os
 from typing import Dict, Any, Optional, List, Union
-from pydantic import Field, validator
-from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -45,9 +45,7 @@ class ProviderConfig(BaseSettings):
     litellm_base_url: Optional[str] = Field(default=None, env="LITELLM_BASE_URL")
     litellm_api_key: Optional[str] = Field(default=None, env="LITELLM_API_KEY")
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 
 class RoutingConfig(BaseSettings):
@@ -74,7 +72,7 @@ class RoutingConfig(BaseSettings):
     )
     hybrid_consensus_threshold: float = Field(default=0.6, env="HYBRID_CONSENSUS_THRESHOLD")
 
-    @validator("hybrid_strategy_weights", pre=True)
+    @field_validator("hybrid_strategy_weights", mode="before")
     def parse_strategy_weights(cls, v):
         if isinstance(v, dict):
             # Convert dict back to string format for storage
@@ -92,16 +90,14 @@ class RoutingConfig(BaseSettings):
                 weights[strategy.strip()] = float(weight.strip())
         return weights
 
-    @validator("default_strategy")
+    @field_validator("default_strategy", mode="before")
     def validate_strategy(cls, v):
         valid_strategies = ["heuristic", "semantic", "cascade", "hybrid"]
         if v not in valid_strategies:
             raise ValueError(f"Invalid routing strategy. Must be one of: {valid_strategies}")
         return v
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 
 class CacheConfig(BaseSettings):
@@ -121,16 +117,14 @@ class CacheConfig(BaseSettings):
     redis_key_prefix: str = Field(default="modelmuxer:", env="REDIS_KEY_PREFIX")
     redis_compression: bool = Field(default=True, env="REDIS_COMPRESSION")
 
-    @validator("backend")
+    @field_validator("backend", mode="before")
     def validate_backend(cls, v):
         valid_backends = ["memory", "redis"]
         if v not in valid_backends:
             raise ValueError(f"Invalid cache backend. Must be one of: {valid_backends}")
         return v
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 
 class AuthConfig(BaseSettings):
@@ -151,19 +145,19 @@ class AuthConfig(BaseSettings):
     require_https: bool = Field(default=False, env="REQUIRE_HTTPS")
     allowed_origins: str = Field(default="*", env="ALLOWED_ORIGINS")
 
-    @validator("api_keys", pre=True)
+    @field_validator("api_keys", mode="before")
     def parse_api_keys(cls, v):
         if isinstance(v, list):
             return ",".join(v)
         return v if isinstance(v, str) else ""
 
-    @validator("methods", pre=True)
+    @field_validator("methods", mode="before")
     def parse_auth_methods(cls, v):
         if isinstance(v, list):
             return ",".join(v)
         return v if isinstance(v, str) else "api_key"
 
-    @validator("allowed_origins", pre=True)
+    @field_validator("allowed_origins", mode="before")
     def parse_allowed_origins(cls, v):
         if isinstance(v, list):
             return ",".join(v)
@@ -181,9 +175,7 @@ class AuthConfig(BaseSettings):
         """Parse allowed origins string into list."""
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 
 class RateLimitConfig(BaseSettings):
@@ -207,16 +199,14 @@ class RateLimitConfig(BaseSettings):
     adaptive_enabled: bool = Field(default=False, env="ADAPTIVE_THROTTLING_ENABLED")
     system_load_threshold: float = Field(default=0.8, env="SYSTEM_LOAD_THRESHOLD")
 
-    @validator("algorithm")
+    @field_validator("algorithm", mode="before")
     def validate_algorithm(cls, v):
         valid_algorithms = ["token_bucket", "sliding_window", "fixed_window"]
         if v not in valid_algorithms:
             raise ValueError(f"Invalid rate limit algorithm. Must be one of: {valid_algorithms}")
         return v
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 
 class MonitoringConfig(BaseSettings):
@@ -235,9 +225,7 @@ class MonitoringConfig(BaseSettings):
     track_performance: bool = Field(default=True, env="TRACK_PERFORMANCE")
     slow_request_threshold: float = Field(default=5.0, env="SLOW_REQUEST_THRESHOLD")
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 
 class LoggingConfig(BaseSettings):
@@ -259,16 +247,14 @@ class LoggingConfig(BaseSettings):
     # Audit logging
     audit_enabled: bool = Field(default=True, env="AUDIT_LOGGING_ENABLED")
 
-    @validator("level")
+    @field_validator("level", mode="before")
     def validate_log_level(cls, v):
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if v.upper() not in valid_levels:
             raise ValueError(f"Invalid log level. Must be one of: {valid_levels}")
         return v.upper()
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 
 class ClassificationConfig(BaseSettings):
@@ -285,9 +271,7 @@ class ClassificationConfig(BaseSettings):
     confidence_threshold: float = Field(default=0.6, env="CLASSIFICATION_CONFIDENCE_THRESHOLD")
     max_history_size: int = Field(default=1000, env="CLASSIFICATION_HISTORY_SIZE")
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 
 class ModelMuxerConfig:
@@ -315,6 +299,10 @@ class ModelMuxerConfig:
         self.simple_query_threshold = float(os.getenv("SIMPLE_QUERY_THRESHOLD", "0.3"))
         self.simple_query_max_length = int(os.getenv("SIMPLE_QUERY_MAX_LENGTH", "100"))
         self.max_tokens_default = int(os.getenv("MAX_TOKENS_DEFAULT", "1000"))
+
+    def get_allowed_api_keys(self) -> List[str]:
+        """Get list of allowed API keys from auth configuration."""
+        return self.auth.get_api_keys_list()
 
     def get_provider_pricing(self) -> Dict[str, Dict[str, float]]:
         """Get provider pricing information for cost calculation."""
