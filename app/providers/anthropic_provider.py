@@ -6,11 +6,12 @@ Anthropic provider implementation.
 
 import json
 import time
-from typing import List, Optional, Dict, Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Dict, List, Optional
+
 import httpx
 
+from ..models import ChatCompletionResponse, ChatMessage
 from .base import LLMProvider, ProviderError
-from ..models import ChatMessage, ChatCompletionResponse
 
 
 class AnthropicProvider(LLMProvider):
@@ -20,7 +21,9 @@ class AnthropicProvider(LLMProvider):
         if not api_key:
             raise ValueError("Anthropic API key is required")
 
-        super().__init__(api_key=api_key, base_url="https://api.anthropic.com/v1", provider_name="anthropic")
+        super().__init__(
+            api_key=api_key, base_url="https://api.anthropic.com/v1", provider_name="anthropic"
+        )
 
         # Pricing per million tokens (updated as of 2024)
         self.pricing = {
@@ -108,7 +111,9 @@ class AnthropicProvider(LLMProvider):
                 payload[key] = value
 
         try:
-            response = await self.client.post(f"{self.base_url}/messages", headers=self._create_headers(), json=payload)
+            response = await self.client.post(
+                f"{self.base_url}/messages", headers=self._create_headers(), json=payload
+            )
 
             self._handle_http_error(response)
             response_data = response.json()
@@ -129,7 +134,9 @@ class AnthropicProvider(LLMProvider):
             # Extract content
             content_blocks = response_data.get("content", [])
             if not content_blocks:
-                raise ProviderError("No content returned from Anthropic", provider=self.provider_name)
+                raise ProviderError(
+                    "No content returned from Anthropic", provider=self.provider_name
+                )
 
             # Combine all text content blocks
             content = ""
@@ -163,7 +170,9 @@ class AnthropicProvider(LLMProvider):
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Anthropic unexpected error: {str(e)}", provider=self.provider_name)
+            raise ProviderError(
+                f"Anthropic unexpected error: {str(e)}", provider=self.provider_name
+            )
 
     async def stream_chat_completion(
         self,
@@ -243,8 +252,12 @@ class AnthropicProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(f"Anthropic streaming request failed: {str(e)}", provider=self.provider_name)
+            raise ProviderError(
+                f"Anthropic streaming request failed: {str(e)}", provider=self.provider_name
+            )
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Anthropic streaming unexpected error: {str(e)}", provider=self.provider_name)
+            raise ProviderError(
+                f"Anthropic streaming unexpected error: {str(e)}", provider=self.provider_name
+            )

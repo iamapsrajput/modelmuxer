@@ -86,7 +86,7 @@ ipython_config.py
 Pipfile.lock
 
 # poetry
-poetry.lock
+# poetry.lock should be committed for reproducible builds
 
 # pdm
 .pdm.toml
@@ -176,7 +176,7 @@ tmp/
 temp/
 *.tmp
 debug_*.py
-test_*.py
+# Note: test_*.py files should be committed, not ignored
 
 # Model files and embeddings
 models/
@@ -314,3 +314,5 @@ sbom.*.json
 compliance_reports/
 audit_reports/
 security_scans/
+
+.claude

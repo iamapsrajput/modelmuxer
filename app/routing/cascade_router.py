@@ -8,18 +8,19 @@ are first tried with cheaper models and escalated to more expensive ones based
 on quality thresholds and confidence scores.
 """
 
-from typing import Dict, Any, List, Optional, Tuple
-from dataclasses import dataclass
-import structlog
 import asyncio
-import numpy as np
+import json
 import re
 import time
-import json
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
-from .base_router import BaseRouter
+import numpy as np
+import structlog
+
 from ..core.exceptions import RoutingError
 from ..models import ChatMessage
+from .base_router import BaseRouter
 
 logger = structlog.get_logger(__name__)
 
@@ -124,13 +125,18 @@ class CascadeRouter(BaseRouter):
                 routing_metadata["total_cost"] += step_cost
 
                 # Evaluate response quality and confidence
-                quality_score, confidence_score = await self._evaluate_response(response, messages, step)
+                quality_score, confidence_score = await self._evaluate_response(
+                    response, messages, step
+                )
 
                 routing_metadata["quality_score"] = quality_score
                 routing_metadata["confidence_score"] = confidence_score
 
                 # Check if response meets thresholds
-                if confidence_score >= step.confidence_threshold and quality_score >= step.quality_threshold:
+                if (
+                    confidence_score >= step.confidence_threshold
+                    and quality_score >= step.quality_threshold
+                ):
                     routing_metadata["final_model"] = f"{step.provider}/{step.model}"
                     routing_metadata["escalation_reasons"].append("Quality threshold met")
                     routing_metadata["response_time"] = time.time() - routing_metadata["start_time"]
@@ -156,7 +162,9 @@ class CascadeRouter(BaseRouter):
 
         # If we reach here, all steps failed or didn't meet quality thresholds
         routing_metadata["response_time"] = time.time() - routing_metadata["start_time"]
-        raise Exception("Cascade routing failed: no suitable response found within budget/quality constraints")
+        raise Exception(
+            "Cascade routing failed: no suitable response found within budget/quality constraints"
+        )
 
     async def analyze_prompt(self, messages: List[ChatMessage]) -> Dict[str, Any]:
         """Analyze prompt to determine initial cascade level."""
@@ -312,7 +320,9 @@ class CascadeRouter(BaseRouter):
         # Placeholder - would check actual provider status
         return True
 
-    def _calculate_confidence(self, analysis: Dict[str, Any], level: int, model_quality: float) -> float:
+    def _calculate_confidence(
+        self, analysis: Dict[str, Any], level: int, model_quality: float
+    ) -> float:
         """Calculate confidence score for the routing decision."""
         complexity = analysis["complexity_score"]
 
@@ -332,7 +342,9 @@ class CascadeRouter(BaseRouter):
 
         return min(1.0, max(0.0, confidence))
 
-    def _generate_reasoning(self, analysis: Dict[str, Any], provider: str, model: str, level: int, cost: float) -> str:
+    def _generate_reasoning(
+        self, analysis: Dict[str, Any], provider: str, model: str, level: int, cost: float
+    ) -> str:
         """Generate reasoning for the cascade routing decision."""
         level_names = {1: "budget", 2: "balanced", 3: "premium"}
         level_name = level_names.get(level, "unknown")
@@ -349,7 +361,9 @@ class CascadeRouter(BaseRouter):
 
         return ". ".join(reasoning_parts)
 
-    async def should_escalate(self, response: str, original_analysis: Dict[str, Any], current_level: int) -> bool:
+    async def should_escalate(
+        self, response: str, original_analysis: Dict[str, Any], current_level: int
+    ) -> bool:
         """
         Determine if the response should be escalated to a higher level.
 
@@ -385,7 +399,9 @@ class CascadeRouter(BaseRouter):
 
         # Calculate actual cost
         usage = response.get("usage", {})
-        cost = provider.calculate_cost(usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), step.model)
+        cost = provider.calculate_cost(
+            usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), step.model
+        )
 
         return response, cost
 
@@ -437,7 +453,9 @@ class CascadeRouter(BaseRouter):
             score += 0.1
 
         # Relevance to prompt (simple keyword matching)
-        last_user_message = next((msg["content"] for msg in reversed(messages) if msg["role"] == "user"), "")
+        last_user_message = next(
+            (msg["content"] for msg in reversed(messages) if msg["role"] == "user"), ""
+        )
         if self._calculate_relevance_score(content, last_user_message) > 0.3:
             score += 0.2
 

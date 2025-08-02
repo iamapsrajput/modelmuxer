@@ -10,76 +10,76 @@ multiple providers, ML-based classification, comprehensive monitoring, and more.
 import asyncio
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, date, timedelta
-from typing import Dict, Any, Optional, List
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, Request, HTTPException, Depends, Header, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse, Response
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 import structlog
-
-# Core imports
-from .models import (
-    ChatMessage,
-    ChatCompletionRequest,
-    ChatCompletionResponse,
-    BudgetRequest,
-    CascadeConfig,
-    EnhancedChatCompletionRequest,
-    RoutingMetadata,
-    EnhancedChatCompletionResponse,
-    BudgetPeriodEnum,
-)
-from .config.enhanced_config import enhanced_config
-
-# Provider imports
-from .providers import (
-    OpenAIProvider,
-    AnthropicProvider,
-    MistralProvider,
-    GoogleProvider,
-    CohereProvider,
-    GroqProvider,
-    TogetherProvider,
-    LiteLLMProvider,
-)
-
-# Routing imports
-from .routing.heuristic_router import HeuristicRouter
-from .routing.semantic_router import SemanticRouter
-from .routing.cascade_router import CascadeRouter
-from .routing.hybrid_router import HybridRouter
-
-# Enhanced cost tracking
-from .cost_tracker_enhanced import AdvancedCostTracker, BudgetPeriod
-
-# Classification imports
-from .classification.embeddings import EmbeddingManager
-from .classification.prompt_classifier import PromptClassifier
-
-# Middleware imports
-from .middleware.auth_middleware import AuthMiddleware
-from .middleware.rate_limit_middleware import RateLimitMiddleware
-from .middleware.logging_middleware import LoggingMiddleware
-
-# Monitoring imports
-from .monitoring.metrics import MetricsCollector, HealthChecker
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response, StreamingResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 # Cache imports
 from .cache.memory_cache import MemoryCache
 from .cache.redis_cache import RedisCache
 
+# Classification imports
+from .classification.embeddings import EmbeddingManager
+from .classification.prompt_classifier import PromptClassifier
+from .config.enhanced_config import enhanced_config
+
 # Core exceptions
 from .core.exceptions import (
-    ModelMuxerError,
-    ProviderError,
-    RoutingError,
     AuthenticationError,
-    RateLimitError,
     CacheError,
     ClassificationError,
+    ModelMuxerError,
+    ProviderError,
+    RateLimitError,
+    RoutingError,
 )
+
+# Enhanced cost tracking
+from .cost_tracker_enhanced import AdvancedCostTracker, BudgetPeriod
+
+# Middleware imports
+from .middleware.auth_middleware import AuthMiddleware
+from .middleware.logging_middleware import LoggingMiddleware
+from .middleware.rate_limit_middleware import RateLimitMiddleware
+
+# Core imports
+from .models import (
+    BudgetPeriodEnum,
+    BudgetRequest,
+    CascadeConfig,
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatMessage,
+    EnhancedChatCompletionRequest,
+    EnhancedChatCompletionResponse,
+    RoutingMetadata,
+)
+
+# Monitoring imports
+from .monitoring.metrics import HealthChecker, MetricsCollector
+
+# Provider imports
+from .providers import (
+    AnthropicProvider,
+    CohereProvider,
+    GoogleProvider,
+    GroqProvider,
+    LiteLLMProvider,
+    MistralProvider,
+    OpenAIProvider,
+    TogetherProvider,
+)
+from .routing.cascade_router import CascadeRouter
+
+# Routing imports
+from .routing.heuristic_router import HeuristicRouter
+from .routing.hybrid_router import HybridRouter
+from .routing.semantic_router import SemanticRouter
 
 logger = structlog.get_logger(__name__)
 
@@ -155,7 +155,9 @@ class EnhancedModelMuxer:
 
         # Anthropic
         if provider_config.anthropic_api_key:
-            self.providers["anthropic"] = AnthropicProvider(api_key=provider_config.anthropic_api_key)
+            self.providers["anthropic"] = AnthropicProvider(
+                api_key=provider_config.anthropic_api_key
+            )
             logger.info("anthropic_provider_initialized")
 
         # Mistral
@@ -191,7 +193,10 @@ class EnhancedModelMuxer:
             logger.info("litellm_provider_initialized")
 
         if not self.providers:
-            logger.warning("no_providers_configured", message="No API keys provided. ModelMuxer will run in test mode.")
+            logger.warning(
+                "no_providers_configured",
+                message="No API keys provided. ModelMuxer will run in test mode.",
+            )
         else:
             logger.info("providers_initialized", count=len(self.providers))
 
@@ -437,7 +442,10 @@ class EnhancedModelMuxer:
         # Record routing decision
         if self.metrics_collector:
             self.metrics_collector.record_routing_decision(
-                strategy=router.name, selected_provider=provider_name, selected_model=model, confidence=confidence
+                strategy=router.name,
+                selected_provider=provider_name,
+                selected_model=model,
+                confidence=confidence,
             )
 
         return provider_name, model, reasoning, confidence
@@ -581,7 +589,9 @@ app.add_middleware(
 
 
 # Dependency for authentication
-async def get_current_user(request: Request, authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
+async def get_current_user(
+    request: Request, authorization: Optional[str] = Header(None)
+) -> Dict[str, Any]:
     """Get current authenticated user."""
     if not model_muxer.auth_middleware:
         # Authentication disabled
@@ -623,7 +633,11 @@ async def logging_middleware(request: Request, call_next):
         response = JSONResponse(
             status_code=500,
             content={
-                "error": {"message": "Internal server error", "type": "internal_error", "code": "internal_server_error"}
+                "error": {
+                    "message": "Internal server error",
+                    "type": "internal_error",
+                    "code": "internal_server_error",
+                }
             },
         )
 
@@ -637,7 +651,9 @@ async def logging_middleware(request: Request, call_next):
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest, user_info: Dict[str, Any] = Depends(get_current_user)):
+async def chat_completions(
+    request: ChatCompletionRequest, user_info: Dict[str, Any] = Depends(get_current_user)
+):
     """Enhanced chat completions endpoint with advanced routing."""
     try:
         # Check rate limits
@@ -755,7 +771,13 @@ async def list_providers(user_info: Dict[str, Any] = Depends(get_current_user)):
             )
         except Exception as e:
             providers.append(
-                {"name": provider_name, "status": "error", "error": str(e), "models": [], "model_count": 0}
+                {
+                    "name": provider_name,
+                    "status": "error",
+                    "error": str(e),
+                    "models": [],
+                    "model_count": 0,
+                }
             )
 
     return {"providers": providers}
@@ -789,7 +811,9 @@ async def get_budget_status(user_info: Dict[str, Any] = Depends(get_current_user
 
 
 @app.post("/v1/analytics/budgets")
-async def set_budget(budget_request: BudgetRequest, user_info: Dict[str, Any] = Depends(get_current_user)):
+async def set_budget(
+    budget_request: BudgetRequest, user_info: Dict[str, Any] = Depends(get_current_user)
+):
     """Set or update user budget"""
     user_id = user_info.get("user_id", "anonymous")
 
@@ -823,7 +847,8 @@ async def enhanced_chat_completions(
         daily_budgets = [b for b in current_budget_status["budgets"] if b["type"] == "daily"]
         if any(b["utilization_percent"] >= 100 for b in daily_budgets):
             raise HTTPException(
-                status_code=429, detail="Daily budget exceeded. Please increase your budget or try again tomorrow."
+                status_code=429,
+                detail="Daily budget exceeded. Please increase your budget or try again tomorrow.",
             )
 
         session_id = request.session_id or f"session_{int(datetime.now().timestamp())}"
@@ -842,7 +867,10 @@ async def enhanced_chat_completions(
 
             # Log cascade request
             await model_muxer.cost_tracker.log_request_with_cascade(
-                user_id=user_id, session_id=session_id, cascade_metadata=routing_metadata, success=True
+                user_id=user_id,
+                session_id=session_id,
+                cascade_metadata=routing_metadata,
+                success=True,
             )
 
             # Add routing metadata to response

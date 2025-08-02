@@ -37,12 +37,12 @@ jobs:
     - name: Verify image signature
       run: |
         IMAGE_TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
-        
+
         # Install Cosign
         curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
         sudo mv cosign-linux-amd64 /usr/local/bin/cosign
         sudo chmod +x /usr/local/bin/cosign
-        
+
         # Verify image signature
         cosign verify ghcr.io/${{ github.repository }}:${IMAGE_TAG} \
           --certificate-identity-regexp="https://github.com/${{ github.repository }}" \
@@ -100,7 +100,7 @@ jobs:
     - name: Deploy with Blue-Green strategy
       run: |
         IMAGE_TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
-        
+
         # Deploy new version with blue-green strategy
         helm upgrade ${{ env.HELM_RELEASE }} ./helm/modelmuxer \
           --namespace ${{ env.KUBE_NAMESPACE }} \
@@ -141,29 +141,29 @@ jobs:
         kubectl create job migration-prod-$(date +%s) \
           --namespace=${{ env.KUBE_NAMESPACE }} \
           --from=cronjob/backup-database || true
-        
+
         kubectl run migration-job-$(date +%s) \
           --namespace=${{ env.KUBE_NAMESPACE }} \
           --image=ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
           --restart=Never \
           --env="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
           --command -- python -m alembic upgrade head
-        
+
         kubectl wait --for=condition=complete --timeout=600s job/migration-job-* -n ${{ env.KUBE_NAMESPACE }}
 
     - name: Health check and validation
       run: |
         # Wait for deployment to be ready
         kubectl rollout status deployment/${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }} --timeout=600s
-        
+
         # Comprehensive health checks
         for i in {1..10}; do
           echo "Health check attempt $i/10"
-          
+
           # Check all pods are ready
           READY_PODS=$(kubectl get pods -n ${{ env.KUBE_NAMESPACE }} -l app.kubernetes.io/name=modelmuxer --field-selector=status.phase=Running | grep -c "1/1" || echo "0")
           TOTAL_PODS=$(kubectl get pods -n ${{ env.KUBE_NAMESPACE }} -l app.kubernetes.io/name=modelmuxer --no-headers | wc -l)
-          
+
           if [[ "$READY_PODS" -eq "$TOTAL_PODS" ]] && [[ "$TOTAL_PODS" -ge 5 ]]; then
             echo "✅ All pods are ready ($READY_PODS/$TOTAL_PODS)"
             break
@@ -171,7 +171,7 @@ jobs:
             echo "⏳ Waiting for pods to be ready ($READY_PODS/$TOTAL_PODS)"
             sleep 30
           fi
-          
+
           if [[ $i -eq 10 ]]; then
             echo "❌ Health check failed after 10 attempts"
             kubectl get pods -n ${{ env.KUBE_NAMESPACE }} -l app.kubernetes.io/name=modelmuxer
@@ -190,7 +190,7 @@ jobs:
           --env="ENVIRONMENT=production" \
           --env="SMOKE_TEST_API_KEY=${{ secrets.SMOKE_TEST_API_KEY }}" \
           --command -- python -m pytest tests/smoke/ tests/production/ -v --tb=short
-        
+
         # Wait for tests to complete
         kubectl wait --for=condition=complete --timeout=300s job/prod-smoke-test-* -n ${{ env.KUBE_NAMESPACE }}
 
@@ -238,10 +238,10 @@ jobs:
       run: |
         echo "🔄 Rolling back production deployment..."
         helm rollback ${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }}
-        
+
         # Wait for rollback to complete
         kubectl rollout status deployment/${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }} --timeout=300s
-        
+
         echo "✅ Rollback completed successfully"
 
   notify:
@@ -257,12 +257,12 @@ jobs:
         status: success
         text: |
           🎉 **PRODUCTION DEPLOYMENT SUCCESSFUL** 🎉
-          
+
           Environment: Production
           Image: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
           URL: https://api.modelmuxer.com
           Deployed by: ${{ github.actor }}
-          
+
           All health checks passed ✅
           Performance validation passed ✅
           Smoke tests passed ✅
@@ -276,14 +276,14 @@ jobs:
         status: failure
         text: |
           🚨 **PRODUCTION DEPLOYMENT FAILED** 🚨
-          
+
           Environment: Production
           Image: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
           Workflow: ${{ github.workflow }}
           Actor: ${{ github.actor }}
-          
+
           ${{ needs.rollback.result == 'success' && '✅ Automatic rollback completed' || '❌ Rollback may be required' }}
-          
+
           Please investigate immediately!
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -296,26 +296,26 @@ jobs:
           const title = `🚨 Production Deployment Failed - ${{ github.event.inputs.image_tag || github.event.release.tag_name }}`;
           const body = `
           ## Production Deployment Failure
-          
+
           **Image**: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
           **Deployed by**: ${{ github.actor }}
           **Workflow**: ${{ github.workflow }}
           **Run ID**: ${{ github.run_id }}
-          
+
           **Rollback Status**: ${{ needs.rollback.result == 'success' && '✅ Completed' || '❌ Failed or not attempted' }}
-          
+
           ### Immediate Actions Required:
           1. Investigate deployment failure logs
           2. Verify system health and user impact
           3. Determine if manual rollback is needed
           4. Update stakeholders on status
-          
+
           ### Links:
           - [Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           - [Production Monitoring](https://grafana.modelmuxer.com)
           - [Production Logs](https://logs.modelmuxer.com)
           `;
-          
+
           await github.rest.issues.create({
             owner: context.repo.owner,
             repo: context.repo.repo,

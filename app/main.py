@@ -4,34 +4,33 @@
 Main FastAPI application for the LLM Router.
 """
 
-import time
-import json
 import asyncio
-from datetime import datetime
-from typing import Optional, Dict, Any
+import json
+import time
 from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Header, Request, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
 
+from .auth import SecurityHeaders, auth, sanitize_user_input, validate_request_size
+from .config import settings
+from .cost_tracker import cost_tracker
+from .database import db
 from .models import (
     ChatCompletionRequest,
     ChatCompletionResponse,
+    ErrorResponse,
     HealthResponse,
     MetricsResponse,
-    ErrorResponse,
     UserStats,
 )
-from .auth import auth, SecurityHeaders, validate_request_size, sanitize_user_input
+from .providers import AnthropicProvider, MistralProvider, OpenAIProvider
+from .providers.base import AuthenticationError, ProviderError, RateLimitError
 from .router import router
-from .database import db
-from .cost_tracker import cost_tracker
-from .providers import OpenAIProvider, AnthropicProvider, MistralProvider
-from .providers.base import ProviderError, RateLimitError, AuthenticationError
-from .config import settings
-
 
 # Provider instances
 providers = {}
@@ -106,7 +105,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(
         status_code=400,
         content=ErrorResponse.create(
-            message=f"Invalid request: {str(exc)}", error_type="invalid_request_error", code="validation_error"
+            message=f"Invalid request: {str(exc)}",
+            error_type="invalid_request_error",
+            code="validation_error",
         ).dict(),
     )
 
@@ -148,13 +149,17 @@ async def validate_request_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-async def get_authenticated_user(request: Request, authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
+async def get_authenticated_user(
+    request: Request, authorization: Optional[str] = Header(None)
+) -> Dict[str, Any]:
     """Dependency to authenticate requests."""
     return await auth.authenticate_request(request, authorization)
 
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
-async def chat_completions(request: ChatCompletionRequest, user_info: Dict[str, Any] = Depends(get_authenticated_user)):
+async def chat_completions(
+    request: ChatCompletionRequest, user_info: Dict[str, Any] = Depends(get_authenticated_user)
+):
     """
     Create a chat completion using the optimal LLM provider.
 
@@ -169,7 +174,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: Dict[str, 
             message.content = sanitize_user_input(message.content)
 
         # Route the request to the best provider/model
-        provider_name, model_name, routing_reason = router.select_model(messages=request.messages, user_id=user_id)
+        provider_name, model_name, routing_reason = router.select_model(
+            messages=request.messages, user_id=user_id
+        )
 
         # Check if provider is available
         if provider_name not in providers:
@@ -186,7 +193,10 @@ async def chat_completions(request: ChatCompletionRequest, user_info: Dict[str, 
 
         # Estimate cost and check budget
         cost_estimate = cost_tracker.estimate_request_cost(
-            messages=request.messages, provider=provider_name, model=model_name, max_tokens=request.max_tokens
+            messages=request.messages,
+            provider=provider_name,
+            model=model_name,
+            max_tokens=request.max_tokens,
         )
 
         budget_check = await db.check_budget(user_id, cost_estimate["estimated_cost"])
@@ -203,7 +213,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: Dict[str, 
         # Handle streaming vs non-streaming
         if request.stream:
             return StreamingResponse(
-                stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time),
+                stream_chat_completion(
+                    provider, request, model_name, routing_reason, user_id, start_time
+                ),
                 media_type="text/plain",
             )
         else:
@@ -216,7 +228,8 @@ async def chat_completions(request: ChatCompletionRequest, user_info: Dict[str, 
                 **{
                     k: v
                     for k, v in request.dict().items()
-                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
+                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
+                    and v is not None
                 },
             )
 
@@ -291,12 +304,16 @@ async def chat_completions(request: ChatCompletionRequest, user_info: Dict[str, 
         raise HTTPException(
             status_code=500,
             detail=ErrorResponse.create(
-                message="Internal server error", error_type="internal_error", code="internal_server_error"
+                message="Internal server error",
+                error_type="internal_error",
+                code="internal_server_error",
             ).dict(),
         )
 
 
-async def stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time):
+async def stream_chat_completion(
+    provider, request, model_name, routing_reason, user_id, start_time
+):
     """Handle streaming chat completion."""
     try:
         async for chunk in provider.stream_chat_completion(
@@ -307,7 +324,8 @@ async def stream_chat_completion(provider, request, model_name, routing_reason, 
             **{
                 k: v
                 for k, v in request.dict().items()
-                if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
+                if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
+                and v is not None
             },
         ):
             yield f"data: {json.dumps(chunk)}\n\n"
@@ -316,8 +334,12 @@ async def stream_chat_completion(provider, request, model_name, routing_reason, 
 
         # Log streaming request (with estimated tokens)
         response_time_ms = (time.time() - start_time) * 1000
-        estimated_tokens = cost_tracker.count_tokens(request.messages, provider.provider_name, model_name)
-        estimated_cost = cost_tracker.calculate_cost(provider.provider_name, model_name, estimated_tokens, 100)
+        estimated_tokens = cost_tracker.count_tokens(
+            request.messages, provider.provider_name, model_name
+        )
+        estimated_cost = cost_tracker.calculate_cost(
+            provider.provider_name, model_name, estimated_tokens, 100
+        )
 
         await db.log_request(
             user_id=user_id,
@@ -373,7 +395,11 @@ async def get_providers(user_info: Dict[str, Any] = Depends(get_authenticated_us
     provider_info = {}
 
     for name, provider in providers.items():
-        provider_info[name] = {"name": name, "models": provider.get_supported_models(), "status": "available"}
+        provider_info[name] = {
+            "name": name,
+            "models": provider.get_supported_models(),
+            "status": "available",
+        }
 
     return {"providers": provider_info}
 

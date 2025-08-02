@@ -6,6 +6,7 @@ Configuration management using Pydantic Settings.
 
 import os
 from typing import List
+
 from pydantic import Field, validator
 from pydantic_settings import BaseSettings
 
@@ -28,7 +29,7 @@ class Settings(BaseSettings):
 
     # Security
     api_key_header: str = Field("Authorization", description="API key header name")
-    allowed_api_keys: str = Field("sk-test-key-1,sk-test-key-2", description="Comma-separated allowed API keys")
+    allowed_api_keys: str = Field(default="", description="Comma-separated allowed API keys (set via API_KEYS env var)")
 
     # Server Configuration
     host: str = Field("0.0.0.0", description="Server host")
@@ -79,8 +80,14 @@ class Settings(BaseSettings):
         """Get pricing information for all providers."""
         return {
             "openai": {
-                "gpt-4o": {"input": self.openai_gpt4o_input_price, "output": self.openai_gpt4o_output_price},
-                "gpt-3.5-turbo": {"input": self.openai_gpt35_input_price, "output": self.openai_gpt35_output_price},
+                "gpt-4o": {
+                    "input": self.openai_gpt4o_input_price,
+                    "output": self.openai_gpt4o_output_price,
+                },
+                "gpt-3.5-turbo": {
+                    "input": self.openai_gpt35_input_price,
+                    "output": self.openai_gpt35_output_price,
+                },
             },
             "anthropic": {
                 "claude-3-sonnet-20240229": {

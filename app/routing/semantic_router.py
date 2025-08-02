@@ -7,16 +7,17 @@ This module provides ML-based routing using semantic similarity to classify
 prompts and route them to the most appropriate provider and model.
 """
 
-import numpy as np
-from typing import Dict, Any, List, Optional, Tuple
-import structlog
-from sentence_transformers import SentenceTransformer
 import json
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from .base_router import BaseRouter
-from ..core.exceptions import RoutingError, ConfigurationError
+import numpy as np
+import structlog
+from sentence_transformers import SentenceTransformer
+
+from ..core.exceptions import ConfigurationError, RoutingError
 from ..models import ChatMessage
+from .base_router import BaseRouter
 
 logger = structlog.get_logger(__name__)
 
@@ -227,7 +228,9 @@ class SemanticRouter(BaseRouter):
                 "similarity_score": similarity_score,
                 "all_similarities": similarities,
                 "confidence_score": similarity_score,
-                "task_type": route_name if similarity_score > self.similarity_threshold else "general",
+                "task_type": route_name
+                if similarity_score > self.similarity_threshold
+                else "general",
             }
 
             logger.debug(
@@ -350,7 +353,9 @@ class SemanticRouter(BaseRouter):
         }
         return cost_estimates.get((provider, model), 0.005)
 
-    def _generate_reasoning(self, analysis: Dict[str, Any], provider: str, model: str, task_type: str) -> str:
+    def _generate_reasoning(
+        self, analysis: Dict[str, Any], provider: str, model: str, task_type: str
+    ) -> str:
         """Generate reasoning for the routing decision."""
         similarity = analysis.get("similarity_score", 0.0)
         semantic_route = analysis.get("semantic_route", "unknown")
@@ -362,7 +367,9 @@ class SemanticRouter(BaseRouter):
         ]
 
         if similarity < self.similarity_threshold:
-            reasoning_parts.append(f"Low confidence (< {self.similarity_threshold}), using general routing")
+            reasoning_parts.append(
+                f"Low confidence (< {self.similarity_threshold}), using general routing"
+            )
 
         return ". ".join(reasoning_parts)
 
@@ -382,7 +389,12 @@ class SemanticRouter(BaseRouter):
             mean_embedding = np.mean(embeddings, axis=0)
             self.route_embeddings[route] = mean_embedding
 
-            logger.info("training_example_added", route=route, text_length=len(text), total_examples=len(examples))
+            logger.info(
+                "training_example_added",
+                route=route,
+                text_length=len(text),
+                total_examples=len(examples),
+            )
 
             return True
 

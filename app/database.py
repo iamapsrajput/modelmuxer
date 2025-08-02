@@ -4,11 +4,13 @@
 Database operations for request logging and cost tracking.
 """
 
-import aiosqlite
 import hashlib
 import json
-from datetime import datetime, date, timedelta
-from typing import Optional, Dict, List, Any
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, List, Optional
+
+import aiosqlite
+
 from .config import settings
 
 
@@ -22,7 +24,8 @@ class Database:
         """Initialize database tables."""
         async with aiosqlite.connect(self.db_path) as db:
             # Requests table for logging all API calls
-            await db.execute("""
+            await db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS requests (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
@@ -39,10 +42,12 @@ class Database:
                     success BOOLEAN DEFAULT TRUE,
                     error_message TEXT
                 )
-            """)
+            """
+            )
 
             # Users table for budget tracking
-            await db.execute("""
+            await db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS users (
                     user_id TEXT PRIMARY KEY,
                     daily_budget REAL NOT NULL DEFAULT 10.0,
@@ -50,10 +55,12 @@ class Database:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
+            """
+            )
 
             # Daily usage tracking
-            await db.execute("""
+            await db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS daily_usage (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
@@ -63,10 +70,12 @@ class Database:
                     UNIQUE(user_id, date),
                     FOREIGN KEY (user_id) REFERENCES users (user_id)
                 )
-            """)
+            """
+            )
 
             # Monthly usage tracking
-            await db.execute("""
+            await db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS monthly_usage (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
@@ -77,12 +86,17 @@ class Database:
                     UNIQUE(user_id, year, month),
                     FOREIGN KEY (user_id) REFERENCES users (user_id)
                 )
-            """)
+            """
+            )
 
             # Create indexes for better performance
             await db.execute("CREATE INDEX IF NOT EXISTS idx_requests_user_id ON requests(user_id)")
-            await db.execute("CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at)")
-            await db.execute("CREATE INDEX IF NOT EXISTS idx_daily_usage_user_date ON daily_usage(user_id, date)")
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at)"
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_daily_usage_user_date ON daily_usage(user_id, date)"
+            )
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_monthly_usage_user_month ON monthly_usage(user_id, year, month)"
             )
@@ -328,31 +342,39 @@ class Database:
         """Get system-wide metrics."""
         async with aiosqlite.connect(self.db_path) as db:
             # Total requests and cost
-            cursor = await db.execute("""
+            cursor = await db.execute(
+                """
                 SELECT COUNT(*), COALESCE(SUM(cost), 0), COALESCE(AVG(response_time_ms), 0)
                 FROM requests WHERE success = TRUE
-            """)
+            """
+            )
             total_requests, total_cost, avg_response_time = await cursor.fetchone()
 
             # Active users (users with requests in last 30 days)
-            cursor = await db.execute("""
+            cursor = await db.execute(
+                """
                 SELECT COUNT(DISTINCT user_id) FROM requests
                 WHERE created_at >= datetime('now', '-30 days')
-            """)
+            """
+            )
             active_users = (await cursor.fetchone())[0]
 
             # Provider usage
-            cursor = await db.execute("""
+            cursor = await db.execute(
+                """
                 SELECT provider, COUNT(*) FROM requests
                 WHERE success = TRUE GROUP BY provider
-            """)
+            """
+            )
             provider_usage = dict(await cursor.fetchall())
 
             # Model usage
-            cursor = await db.execute("""
+            cursor = await db.execute(
+                """
                 SELECT model, COUNT(*) FROM requests
                 WHERE success = TRUE GROUP BY model
-            """)
+            """
+            )
             model_usage = dict(await cursor.fetchall())
 
             return {

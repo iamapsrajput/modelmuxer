@@ -8,11 +8,14 @@ system performance, usage patterns, and health indicators.
 """
 
 import time
-from typing import Dict, Any, Optional, List
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
 import structlog
-from prometheus_client import Counter as PrometheusCounter, Histogram, Gauge, Info, CollectorRegistry, Enum
+from prometheus_client import CollectorRegistry
+from prometheus_client import Counter as PrometheusCounter
+from prometheus_client import Enum, Gauge, Histogram, Info
 
 logger = structlog.get_logger(__name__)
 
@@ -68,7 +71,10 @@ class MetricsCollector:
         )
 
         self.provider_cost = PrometheusCounter(
-            "modelmuxer_provider_cost_total", "Total cost by provider", ["provider", "model"], registry=self.registry
+            "modelmuxer_provider_cost_total",
+            "Total cost by provider",
+            ["provider", "model"],
+            registry=self.registry,
         )
 
         # Routing metrics
@@ -148,7 +154,9 @@ class MetricsCollector:
         )
 
         # System info
-        self.system_info = Info("modelmuxer_system_info", "System information", registry=self.registry)
+        self.system_info = Info(
+            "modelmuxer_system_info", "System information", registry=self.registry
+        )
 
         # Enhanced Production Metrics (Part 3)
         # =====================================
@@ -248,7 +256,12 @@ class MetricsCollector:
         logger.info("metrics_collector_initialized")
 
     def record_request(
-        self, method: str, endpoint: str, status_code: int, duration: float, user_id: Optional[str] = None
+        self,
+        method: str,
+        endpoint: str,
+        status_code: int,
+        duration: float,
+        user_id: Optional[str] = None,
     ) -> None:
         """Record request metrics."""
         labels = {
@@ -280,10 +293,14 @@ class MetricsCollector:
         self.provider_duration.labels(provider=provider, model=model).observe(duration)
 
         if input_tokens > 0:
-            self.provider_tokens.labels(provider=provider, model=model, type="input").inc(input_tokens)
+            self.provider_tokens.labels(provider=provider, model=model, type="input").inc(
+                input_tokens
+            )
 
         if output_tokens > 0:
-            self.provider_tokens.labels(provider=provider, model=model, type="output").inc(output_tokens)
+            self.provider_tokens.labels(provider=provider, model=model, type="output").inc(
+                output_tokens
+            )
 
         if cost > 0:
             self.provider_cost.labels(provider=provider, model=model).inc(cost)
@@ -314,7 +331,9 @@ class MetricsCollector:
 
     def record_error(self, error_type: str, endpoint: str, provider: Optional[str] = None) -> None:
         """Record error metrics."""
-        self.errors_total.labels(error_type=error_type, endpoint=endpoint, provider=provider or "unknown").inc()
+        self.errors_total.labels(
+            error_type=error_type, endpoint=endpoint, provider=provider or "unknown"
+        ).inc()
 
         # Update internal tracking
         self.error_counts[error_type] += 1
@@ -352,33 +371,39 @@ class MetricsCollector:
         routing_strategy: str = "cascade",
     ) -> None:
         """Record cascade routing metrics."""
-        self.cascade_steps_total.labels(cascade_type=cascade_type, final_provider=final_provider).observe(steps_count)
+        self.cascade_steps_total.labels(
+            cascade_type=cascade_type, final_provider=final_provider
+        ).observe(steps_count)
 
         self.cost_per_request.labels(
             provider=final_provider, model="cascade", routing_strategy=routing_strategy
         ).observe(total_cost)
 
         if quality_score is not None:
-            self.quality_score_distribution.labels(provider=final_provider, model="cascade").observe(quality_score)
+            self.quality_score_distribution.labels(
+                provider=final_provider, model="cascade"
+            ).observe(quality_score)
 
         if confidence_score is not None:
-            self.confidence_score_distribution.labels(provider=final_provider, model="cascade").observe(
-                confidence_score
-            )
+            self.confidence_score_distribution.labels(
+                provider=final_provider, model="cascade"
+            ).observe(confidence_score)
 
     def record_single_request_cost(
         self, provider: str, model: str, cost: float, routing_strategy: str = "single"
     ) -> None:
         """Record cost for single model requests."""
-        self.cost_per_request.labels(provider=provider, model=model, routing_strategy=routing_strategy).observe(cost)
+        self.cost_per_request.labels(
+            provider=provider, model=model, routing_strategy=routing_strategy
+        ).observe(cost)
 
     def update_budget_utilization(
         self, user_id: str, budget_type: str, provider: str, utilization_percent: float
     ) -> None:
         """Update budget utilization metrics."""
-        self.budget_utilization_ratio.labels(user_id=user_id, budget_type=budget_type, provider=provider).set(
-            utilization_percent
-        )
+        self.budget_utilization_ratio.labels(
+            user_id=user_id, budget_type=budget_type, provider=provider
+        ).set(utilization_percent)
 
     def record_user_activity(self, user_id: str) -> None:
         """Record user activity for active users tracking."""
@@ -389,7 +414,9 @@ class MetricsCollector:
         if current_time - self.last_active_users_update > 300:
             cutoff_time = current_time - 86400  # 24 hours ago
             self.active_users_set = {
-                (uid, timestamp) for uid, timestamp in self.active_users_set if timestamp > cutoff_time
+                (uid, timestamp)
+                for uid, timestamp in self.active_users_set
+                if timestamp > cutoff_time
             }
 
             # Update active users count
@@ -427,7 +454,8 @@ class MetricsCollector:
             "total_errors": sum(self.error_counts.values()),
             "requests_per_endpoint": dict(self.request_counts),
             "errors_by_type": dict(self.error_counts),
-            "error_rate": sum(self.error_counts.values()) / max(sum(self.request_counts.values()), 1),
+            "error_rate": sum(self.error_counts.values())
+            / max(sum(self.request_counts.values()), 1),
         }
 
     def reset_counters(self) -> None:
@@ -504,7 +532,11 @@ class HealthChecker:
             return is_healthy
 
         except Exception as e:
-            self.health_checks["cache"] = {"status": "unhealthy", "last_check": time.time(), "error": str(e)}
+            self.health_checks["cache"] = {
+                "status": "unhealthy",
+                "last_check": time.time(),
+                "error": str(e),
+            }
 
             logger.error("cache_health_check_failed", error=str(e))
             return False
@@ -550,7 +582,8 @@ class HealthChecker:
             # Update metrics if available
             if self.metrics_collector:
                 self.metrics_collector.update_memory_usage(
-                    memory.rss if hasattr(memory, "rss") else 0, memory.vms if hasattr(memory, "vms") else 0
+                    memory.rss if hasattr(memory, "rss") else 0,
+                    memory.vms if hasattr(memory, "vms") else 0,
                 )
 
             return resource_status

@@ -8,10 +8,11 @@ ModelMuxer features including routing, caching, authentication, and monitoring.
 """
 
 import os
-from typing import Dict, Any, Optional, List, Union
+from typing import Any, Dict, List, Optional, Union
+
+import structlog
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -46,6 +47,35 @@ class ProviderConfig(BaseSettings):
     litellm_api_key: Optional[str] = Field(default=None, env="LITELLM_API_KEY")
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+
+    def validate_at_least_one_provider(self) -> bool:
+        """Validate that at least one provider API key is configured."""
+        import os
+
+        # Skip validation in test environments
+        if os.getenv("TESTING") == "true" or "pytest" in os.getenv("_", ""):
+            return True
+
+        providers = [
+            self.openai_api_key,
+            self.anthropic_api_key,
+            self.mistral_api_key,
+            self.google_api_key,
+            self.cohere_api_key,
+            self.groq_api_key,
+            self.together_api_key,
+        ]
+
+        configured_providers = [p for p in providers if p and not p.startswith("your-") and not p.endswith("-here")]
+
+        if not configured_providers:
+            raise ValueError(
+                "At least one LLM provider API key must be configured. "
+                "Set one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, MISTRAL_API_KEY, "
+                "GOOGLE_API_KEY, COHERE_API_KEY, GROQ_API_KEY, TOGETHER_API_KEY"
+            )
+
+        return True
 
 
 class RoutingConfig(BaseSettings):
@@ -137,7 +167,7 @@ class AuthConfig(BaseSettings):
     api_keys: str = Field(default="", env="API_KEYS")
 
     # JWT authentication
-    jwt_secret: str = Field(default="change-in-production", env="JWT_SECRET")
+    jwt_secret: str = Field(default="", env="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", env="JWT_ALGORITHM")
     jwt_expiry: int = Field(default=3600, env="JWT_EXPIRY")
 
@@ -162,6 +192,24 @@ class AuthConfig(BaseSettings):
         if isinstance(v, list):
             return ",".join(v)
         return v if isinstance(v, str) else "*"
+
+    @field_validator("jwt_secret")
+    def validate_jwt_secret(cls, v):
+        """Validate JWT secret is set and secure."""
+        import os
+
+        # Allow empty JWT secret in test environments
+        if os.getenv("TESTING") == "true" or "pytest" in os.getenv("_", ""):
+            return v or "test-jwt-secret-for-testing-only"
+
+        if not v:
+            raise ValueError(
+                "JWT_SECRET_KEY environment variable is required. "
+                "Generate one with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+        if len(v) < 32:
+            raise ValueError("JWT_SECRET_KEY must be at least 32 characters long for security")
+        return v
 
     def get_api_keys_list(self) -> List[str]:
         """Parse API keys string into list."""

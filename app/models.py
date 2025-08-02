@@ -4,16 +4,19 @@
 Pydantic models for request/response schemas and data validation.
 """
 
-from typing import List, Dict, Any, Optional, Union, Literal
-from pydantic import BaseModel, Field, validator
-from datetime import datetime, date
+from datetime import date, datetime
 from enum import Enum
+from typing import Any, Dict, List, Literal, Optional, Union
+
+from pydantic import BaseModel, Field, validator
 
 
 class ChatMessage(BaseModel):
     """Individual chat message in a conversation."""
 
-    role: Literal["system", "user", "assistant"] = Field(..., description="The role of the message author")
+    role: Literal["system", "user", "assistant"] = Field(
+        ..., description="The role of the message author"
+    )
     content: str = Field(..., description="The content of the message")
     name: Optional[str] = Field(None, description="Optional name of the message author")
 
@@ -63,7 +66,7 @@ class RouterMetadata(BaseModel):
 
 class ChatResponse(BaseModel):
     """Basic chat response model for caching."""
-    
+
     id: str = Field(..., description="Unique identifier for the completion")
     object: str = Field("chat.completion", description="Object type")
     created: int = Field(..., description="Unix timestamp of creation")
@@ -122,7 +125,9 @@ class ErrorResponse(BaseModel):
     error: Dict[str, Any] = Field(..., description="Error details")
 
     @classmethod
-    def create(cls, message: str, error_type: str = "invalid_request_error", code: Optional[str] = None):
+    def create(
+        cls, message: str, error_type: str = "invalid_request_error", code: Optional[str] = None
+    ):
         """Create a standardized error response."""
         error_data = {"message": message, "type": error_type}
         if code:
@@ -145,7 +150,9 @@ class BudgetRequest(BaseModel):
     budget_limit: float = Field(..., gt=0, description="Budget limit in USD")
     provider: Optional[str] = Field(None, description="Specific provider (optional)")
     model: Optional[str] = Field(None, description="Specific model (optional)")
-    alert_thresholds: Optional[List[float]] = Field([50.0, 80.0, 95.0], description="Alert thresholds as percentages")
+    alert_thresholds: Optional[List[float]] = Field(
+        [50.0, 80.0, 95.0], description="Alert thresholds as percentages"
+    )
 
     @validator("alert_thresholds")
     def validate_thresholds(cls, v):

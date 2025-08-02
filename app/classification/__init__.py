@@ -7,10 +7,7 @@ This module contains machine learning models and utilities for classifying
 prompts and determining optimal routing strategies.
 """
 
-from .prompt_classifier import PromptClassifier
 from .embeddings import EmbeddingManager
+from .prompt_classifier import PromptClassifier
 
-__all__ = [
-    "PromptClassifier",
-    "EmbeddingManager"
-]
+__all__ = ["PromptClassifier", "EmbeddingManager"]

@@ -3,43 +3,21 @@
 **The Enterprise-Grade Intelligent LLM Routing Engine**
 
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1-blue.svg)](LICENSE)
-[![Future: Apache 2.0](https://img.shields.io/badge/Future%20License-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Commercial: Available](https://img.shields.io/badge/Commercial%20License-Available-orange.svg)](mailto:licensing@modelmuxer.com)
-[![Production Ready](https://img.shields.io/badge/Production-Ready-green.svg)](docs/deployment/production-guide.md)
-[![Kubernetes Native](https://img.shields.io/badge/Kubernetes-Native-blue.svg)](k8s/)
-[![Security Compliant](https://img.shields.io/badge/Security-Compliant-green.svg)](docs/security/)
+[![Tests](https://img.shields.io/badge/Tests-96%20Passing-green.svg)](tests/)
+[![Coverage](https://img.shields.io/badge/Coverage-35%25-yellow.svg)](htmlcov/)
+[![Production Ready](https://img.shields.io/badge/Production-Ready-green.svg)](docs/deployment.md)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 
-ModelMuxer is a production-ready, enterprise-grade LLM routing platform that provides cost-optimized, high-quality AI model access through advanced routing strategies including FrugalGPT-inspired cascade routing. Built for scale, security, and performance.
+ModelMuxer is a production-ready, enterprise-grade LLM routing platform that intelligently routes requests to the optimal AI model based on cost, quality, and performance requirements. Built for scale, security, and efficiency.
 
-## 🚀 Key Features
+## ✨ Key Features
 
-### **Intelligent Routing Strategies**
-
-- **🔄 Cascade Routing**: FrugalGPT-inspired cost-aware cascading with quality thresholds
-- **🧠 Semantic Routing**: Content-aware model selection using embeddings
-- **📊 Heuristic Routing**: Rule-based routing with customizable criteria
-- **🔀 Hybrid Routing**: Combined strategies for optimal performance
-
-### **Enterprise Features**
-
-- **🏢 Multi-Tenancy**: Organization-based isolation with RBAC
-- **🔐 Advanced Security**: JWT authentication, PII protection, audit logging
-- **💰 Cost Management**: Real-time budget enforcement and analytics
-- **☸️ Production Infrastructure**: Kubernetes-native with high availability
-
-### **Provider Ecosystem**
-
-- **🌐 Multi-Provider Support**: OpenAI, Anthropic, Google, Mistral, Groq, Together AI
-- **🎯 Custom Models**: Support for custom and fine-tuned models
-- **🔄 Fallback Chains**: Automatic failover between providers
-- **⚡ Rate Limiting**: Per-provider and per-model rate limiting
-
-### **Observability & Monitoring**
-
-- **📈 Comprehensive Metrics**: Prometheus metrics with Grafana dashboards
-- **🔍 Distributed Tracing**: Request tracing across the entire stack
-- **📝 Structured Logging**: JSON logging with correlation IDs
-- **🏥 Health Monitoring**: Multi-level health checks and alerting
+- **🧠 Intelligent Routing**: Cascade, semantic, heuristic, and hybrid routing strategies
+- **💰 Cost Optimization**: Real-time budget management and cost-aware model selection
+- **🌐 Multi-Provider**: OpenAI, Anthropic, Google, Mistral, Groq, and more
+- **🔐 Enterprise Security**: JWT authentication, RBAC, and audit logging
+- **📊 Observability**: Comprehensive metrics, tracing, and monitoring
+- **☸️ Production Ready**: Kubernetes-native with high availability
 
 ## 🏗️ Architecture
 
@@ -61,40 +39,20 @@ ModelMuxer is built with a microservices architecture designed for enterprise sc
 
 ## 🚀 Quick Start
 
-### Development Setup
-
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/modelmuxer.git
-cd modelmuxer
+# Clone and install
+git clone https://github.com/iamapsrajput/ModelMuxer.git
+cd ModelMuxer
+poetry install && poetry shell
 
-# Set up virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies with Poetry
-pip install poetry
-poetry install
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your API keys
-
-# Run the development server
-poetry run uvicorn app.main_enhanced:app --reload --host 0.0.0.0 --port 8000
+# Configure and run
+cp .env.example .env  # Add your API keys
+poetry run uvicorn app.main:app --reload
 ```
 
-### Docker Setup
+Visit `http://localhost:8000/docs` for interactive API documentation.
 
-```bash
-# Build and run with Docker
-docker build -f Dockerfile.production -t modelmuxer:latest .
-docker run -p 8000:8000 --env-file .env modelmuxer:latest
-```
-
-### Production Deployment
-
-For production deployment, see our comprehensive [Production Deployment Guide](docs/deployment/production-guide.md).
+📖 **[Complete Installation Guide](docs/installation.md)** | 🚀 **[Deployment Guide](docs/deployment.md)**
 
 ## 📚 API Documentation
 

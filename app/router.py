@@ -5,9 +5,10 @@ Heuristic routing logic for selecting the best LLM provider and model.
 """
 
 import re
-from typing import List, Dict, Tuple, Optional
-from .models import ChatMessage
+from typing import Dict, List, Optional, Tuple
+
 from .config import settings
+from .models import ChatMessage
 
 
 class HeuristicRouter:
@@ -152,7 +153,11 @@ class HeuristicRouter:
 
         # Model preferences by task type
         self.model_preferences = {
-            "code": [("openai", "gpt-4o"), ("anthropic", "claude-3-5-sonnet-20241022"), ("openai", "gpt-3.5-turbo")],
+            "code": [
+                ("openai", "gpt-4o"),
+                ("anthropic", "claude-3-5-sonnet-20241022"),
+                ("openai", "gpt-3.5-turbo"),
+            ],
             "complex": [
                 ("openai", "gpt-4o"),
                 ("anthropic", "claude-3-5-sonnet-20241022"),
@@ -214,7 +219,9 @@ class HeuristicRouter:
 
         # Calculate complexity confidence
         analysis["complexity_confidence"] = min(1.0, complexity_matches * 0.1)
-        analysis["has_complexity"] = analysis["complexity_confidence"] >= settings.complexity_threshold
+        analysis["has_complexity"] = (
+            analysis["complexity_confidence"] >= settings.complexity_threshold
+        )
 
         # Simple query detection
         simple_matches = 0
@@ -243,7 +250,10 @@ class HeuristicRouter:
         return analysis
 
     def select_model(
-        self, messages: List[ChatMessage], user_id: Optional[str] = None, budget_constraint: Optional[float] = None
+        self,
+        messages: List[ChatMessage],
+        user_id: Optional[str] = None,
+        budget_constraint: Optional[float] = None,
     ) -> Tuple[str, str, str]:
         """
         Select the best provider and model for the given messages.
@@ -298,7 +308,9 @@ class HeuristicRouter:
             reasons.append(f"Code detected (confidence: {analysis['code_confidence']:.2f})")
 
         if analysis["has_complexity"]:
-            reasons.append(f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})")
+            reasons.append(
+                f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})"
+            )
 
         if analysis["is_simple"]:
             reasons.append(f"Simple query detected (length: {analysis['total_length']} chars)")
@@ -313,7 +325,9 @@ class HeuristicRouter:
         if reasons:
             task_reason += f" ({', '.join(reasons)})"
 
-        model_reason = f"Selected {provider}/{model} for optimal {analysis['task_type']} performance"
+        model_reason = (
+            f"Selected {provider}/{model} for optimal {analysis['task_type']} performance"
+        )
 
         return f"{task_reason}. {model_reason}"
 

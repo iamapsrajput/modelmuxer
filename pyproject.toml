@@ -33,18 +33,18 @@ packages = [{ include = "app" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-fastapi = "^0.104.1"
-uvicorn = { extras = ["standard"], version = "^0.24.0" }
-httpx = "^0.25.2"
+fastapi = "^0.116.1"
+uvicorn = { extras = ["standard"], version = "^0.35.0" }
+httpx = "^0.28.1"
 pydantic = "^2.5.0"
 pydantic-settings = "^2.1.0"
-python-jose = { extras = ["cryptography"], version = "^3.3.0" }
-python-multipart = "^0.0.6"
+# Replaced python-jose with pyjwt for better security
+python-multipart = "^0.0.18"
 redis = "^5.0.0"
 sqlalchemy = "^2.0.0"
 alembic = "^1.12.0"
-aiosqlite = "^0.19.0"
-sentence-transformers = "^2.2.0"
+aiosqlite = "^0.21.0"
+sentence-transformers = "^3.1.0"
 numpy = "^1.24.0"
 scikit-learn = "^1.3.0"
 prometheus-client = "^0.19.0"
@@ -53,10 +53,10 @@ tiktoken = "^0.5.2"
 tenacity = "^8.2.0"
 cachetools = "^5.3.0"
 psutil = "^5.9.0"
-pyjwt = "^2.10.1"
+pyjwt = { extras = ["cryptography"], version = "^2.10.1" }
 # Enterprise features
-asyncpg = "^0.29.0"
-cryptography = "^41.0.0"
+asyncpg = "^0.30.0"
+cryptography = "^44.0.1"
 passlib = { extras = ["bcrypt"], version = "^1.7.4" }
 email-validator = "^2.1.0"
 
@@ -64,8 +64,9 @@ email-validator = "^2.1.0"
 pytest = "^7.4.0"
 pytest-asyncio = "^0.21.0"
 pytest-cov = "^4.1.0"
+pytest-env = "^1.1.3"
 pytest-benchmark = "^4.0.0"
-black = "^23.0.0"
+black = "^24.3.0"
 ruff = "^0.1.0"
 mypy = "^1.7.0"
 pre-commit = "^3.5.0"

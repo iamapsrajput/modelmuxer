@@ -7,6 +7,6 @@ This module contains metrics collection, health checks, and monitoring
 functionality for the LLM router system.
 """
 
-from .metrics import MetricsCollector, HealthChecker
+from .metrics import HealthChecker, MetricsCollector
 
 __all__ = ["MetricsCollector", "HealthChecker"]

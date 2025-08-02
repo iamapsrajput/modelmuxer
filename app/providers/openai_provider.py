@@ -6,11 +6,12 @@ OpenAI provider implementation.
 
 import json
 import time
-from typing import List, Optional, Dict, Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Dict, List, Optional
+
 import httpx
 
+from ..models import ChatCompletionResponse, ChatMessage
 from .base import LLMProvider, ProviderError
-from ..models import ChatMessage, ChatCompletionResponse
 
 
 class OpenAIProvider(LLMProvider):
@@ -20,7 +21,11 @@ class OpenAIProvider(LLMProvider):
         if not api_key:
             raise ValueError("OpenAI API key is required")
 
-        super().__init__(api_key=api_key, base_url=base_url or "https://api.openai.com/v1", provider_name="openai")
+        super().__init__(
+            api_key=api_key,
+            base_url=base_url or "https://api.openai.com/v1",
+            provider_name="openai",
+        )
 
         # Pricing per million tokens (updated as of 2024)
         self.pricing = {
@@ -56,7 +61,8 @@ class OpenAIProvider(LLMProvider):
     def _prepare_messages(self, messages: List[ChatMessage]) -> List[Dict[str, str]]:
         """Convert ChatMessage objects to OpenAI format."""
         return [
-            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})} for msg in messages
+            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})}
+            for msg in messages
         ]
 
     async def chat_completion(
@@ -152,7 +158,10 @@ class OpenAIProvider(LLMProvider):
 
         try:
             async with self.client.stream(
-                "POST", f"{self.base_url}/chat/completions", headers=self._create_headers(), json=payload
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers=self._create_headers(),
+                json=payload,
             ) as response:
                 self._handle_http_error(response)
 
@@ -170,8 +179,12 @@ class OpenAIProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(f"OpenAI streaming request failed: {str(e)}", provider=self.provider_name)
+            raise ProviderError(
+                f"OpenAI streaming request failed: {str(e)}", provider=self.provider_name
+            )
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"OpenAI streaming unexpected error: {str(e)}", provider=self.provider_name)
+            raise ProviderError(
+                f"OpenAI streaming unexpected error: {str(e)}", provider=self.provider_name
+            )
