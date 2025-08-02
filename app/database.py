@@ -5,9 +5,8 @@ Database operations for request logging and cost tracking.
 """
 
 import hashlib
-import json
-from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import date
+from typing import Any
 
 import aiosqlite
 
@@ -120,14 +119,14 @@ class Database:
         user_id: str,
         provider: str,
         model: str,
-        messages: List[Dict],
+        messages: list[dict],
         input_tokens: int,
         output_tokens: int,
         cost: float,
         response_time_ms: float,
         routing_reason: str,
         success: bool = True,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ) -> int:
         """Log a request to the database."""
         # Create hash of the prompt for analytics (privacy-preserving)
@@ -200,7 +199,7 @@ class Database:
 
         await db.commit()
 
-    async def check_budget(self, user_id: str, estimated_cost: float) -> Dict[str, Any]:
+    async def check_budget(self, user_id: str, estimated_cost: float) -> dict[str, Any]:
         """Check if user has budget remaining for the estimated cost."""
         await self.ensure_user_exists(user_id)
 
@@ -268,7 +267,7 @@ class Database:
                 "estimated_cost": estimated_cost,
             }
 
-    async def get_user_stats(self, user_id: str, days: int = 30) -> Dict[str, Any]:
+    async def get_user_stats(self, user_id: str, days: int = 30) -> dict[str, Any]:
         """Get user usage statistics."""
         await self.ensure_user_exists(user_id)
 
@@ -338,7 +337,7 @@ class Database:
                 "favorite_model": favorite_model,
             }
 
-    async def get_system_metrics(self) -> Dict[str, Any]:
+    async def get_system_metrics(self) -> dict[str, Any]:
         """Get system-wide metrics."""
         async with aiosqlite.connect(self.db_path) as db:
             # Total requests and cost

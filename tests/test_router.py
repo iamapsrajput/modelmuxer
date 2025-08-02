@@ -196,7 +196,7 @@ def run_unit_tests():
 
     # Print summary
     print(f"\n{'='*50}")
-    print(f"📊 UNIT TEST SUMMARY")
+    print("📊 UNIT TEST SUMMARY")
     print("=" * 50)
     print(f"Tests run: {result.testsRun}")
     print(f"Failures: {len(result.failures)}")

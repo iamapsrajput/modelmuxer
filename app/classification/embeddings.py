@@ -8,17 +8,15 @@ embeddings used in prompt classification and semantic routing.
 """
 
 import hashlib
-import json
 import pickle
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import structlog
 from sentence_transformers import SentenceTransformer
 
 from ..core.exceptions import ClassificationError
-from ..core.utils import hash_prompt
 
 logger = structlog.get_logger(__name__)
 
@@ -34,7 +32,7 @@ class EmbeddingManager:
     def __init__(
         self,
         model_name: str = "all-MiniLM-L6-v2",
-        cache_dir: Optional[str] = None,
+        cache_dir: str | None = None,
         enable_cache: bool = True,
     ):
         self.model_name = model_name
@@ -45,18 +43,16 @@ class EmbeddingManager:
         try:
             self.encoder = SentenceTransformer(model_name)
             self.embedding_dim = self.encoder.get_sentence_embedding_dimension()
-            logger.info(
-                "embedding_manager_initialized", model=model_name, dimension=self.embedding_dim
-            )
+            logger.info("embedding_manager_initialized", model=model_name, dimension=self.embedding_dim)
         except Exception as e:
-            raise ClassificationError(f"Failed to initialize sentence transformer: {e}")
+            raise ClassificationError(f"Failed to initialize sentence transformer: {e}") from e
 
         # Create cache directory
         if self.enable_cache:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # In-memory cache for frequently used embeddings
-        self.memory_cache: Dict[str, np.ndarray] = {}
+        self.memory_cache: dict[str, np.ndarray] = {}
         self.cache_stats = {"hits": 0, "misses": 0, "disk_loads": 0, "disk_saves": 0}
 
     def _get_cache_key(self, text: str) -> str:
@@ -126,9 +122,9 @@ class EmbeddingManager:
             return embedding
 
         except Exception as e:
-            raise ClassificationError(f"Failed to generate embedding: {e}")
+            raise ClassificationError(f"Failed to generate embedding: {e}") from e
 
-    async def get_embeddings_batch(self, texts: List[str]) -> List[np.ndarray]:
+    async def get_embeddings_batch(self, texts: list[str]) -> list[np.ndarray]:
         """
         Get embeddings for multiple texts efficiently.
 
@@ -184,7 +180,7 @@ class EmbeddingManager:
             try:
                 new_embeddings = self.encoder.encode(uncached_texts)
 
-                for idx, embedding in zip(uncached_indices, new_embeddings):
+                for idx, embedding in zip(uncached_indices, new_embeddings, strict=False):
                     cached_embeddings[idx] = embedding
 
                     # Cache the embedding
@@ -204,14 +200,12 @@ class EmbeddingManager:
                             logger.warning("failed_to_save_embedding_cache", error=str(e))
 
             except Exception as e:
-                raise ClassificationError(f"Failed to generate batch embeddings: {e}")
+                raise ClassificationError(f"Failed to generate batch embeddings: {e}") from e
 
         # Return embeddings in original order
         return [cached_embeddings[i] for i in range(len(texts))]
 
-    def calculate_similarity(
-        self, embedding1: np.ndarray, embedding2: np.ndarray, method: str = "cosine"
-    ) -> float:
+    def calculate_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray, method: str = "cosine") -> float:
         """
         Calculate similarity between two embeddings.
 
@@ -249,8 +243,8 @@ class EmbeddingManager:
         return 1.0 / (1.0 + distance)  # Convert distance to similarity
 
     async def find_most_similar(
-        self, query_text: str, candidate_texts: List[str], top_k: int = 5
-    ) -> List[Tuple[str, float]]:
+        self, query_text: str, candidate_texts: list[str], top_k: int = 5
+    ) -> list[tuple[str, float]]:
         """
         Find the most similar texts to a query.
 
@@ -271,7 +265,7 @@ class EmbeddingManager:
 
         # Calculate similarities
         similarities = []
-        for text, embedding in zip(candidate_texts, candidate_embeddings):
+        for text, embedding in zip(candidate_texts, candidate_embeddings, strict=False):
             similarity = self.calculate_similarity(query_embedding, embedding)
             similarities.append((text, similarity))
 
@@ -280,8 +274,8 @@ class EmbeddingManager:
         return similarities[:top_k]
 
     def cluster_embeddings(
-        self, embeddings: List[np.ndarray], n_clusters: int = 5, method: str = "kmeans"
-    ) -> List[int]:
+        self, embeddings: list[np.ndarray], n_clusters: int = 5, method: str = "kmeans"
+    ) -> list[int]:
         """
         Cluster embeddings into groups.
 
@@ -308,12 +302,12 @@ class EmbeddingManager:
             else:
                 raise ValueError(f"Unknown clustering method: {method}")
 
-        except ImportError:
-            raise ClassificationError("scikit-learn is required for clustering")
+        except ImportError as e:
+            raise ClassificationError("scikit-learn is required for clustering") from e
         except Exception as e:
-            raise ClassificationError(f"Clustering failed: {e}")
+            raise ClassificationError(f"Clustering failed: {e}") from e
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache performance statistics."""
         total_requests = self.cache_stats["hits"] + self.cache_stats["misses"]
         hit_rate = self.cache_stats["hits"] / max(total_requests, 1)
@@ -336,9 +330,7 @@ class EmbeddingManager:
                 try:
                     cache_file.unlink()
                 except Exception as e:
-                    logger.warning(
-                        "failed_to_delete_cache_file", file=str(cache_file), error=str(e)
-                    )
+                    logger.warning("failed_to_delete_cache_file", file=str(cache_file), error=str(e))
 
         # Reset stats
         self.cache_stats = {"hits": 0, "misses": 0, "disk_loads": 0, "disk_saves": 0}

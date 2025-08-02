@@ -9,15 +9,14 @@ LLM routing system.
 
 import json
 import time
-import uuid
-from datetime import datetime
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 import structlog
 
 from ..core.utils import estimate_tokens
-from ..models import ChatCompletionResponse, ChatMessage, Choice, RouterMetadata, Usage
+from ..models import ChatCompletionResponse, ChatMessage
 from .base import AuthenticationError, LLMProvider, ProviderError, RateLimitError
 
 logger = structlog.get_logger(__name__)
@@ -48,14 +47,14 @@ class GoogleProvider(LLMProvider):
         # Rate limits (requests per minute)
         self.rate_limits = {"gemini-1.5-pro": 60, "gemini-1.5-flash": 1000, "gemini-1.0-pro": 60}
 
-    def _create_headers(self) -> Dict[str, str]:
+    def _create_headers(self) -> dict[str, str]:
         """Create headers for Google API requests."""
         return {
             "Content-Type": "application/json",
-            "User-Agent": f"ModelMuxer/1.0.0 (Google Gemini)",
+            "User-Agent": "ModelMuxer/1.0.0 (Google Gemini)",
         }
 
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported Google models."""
         return self.supported_models
 
@@ -70,7 +69,7 @@ class GoogleProvider(LLMProvider):
 
         return input_cost + output_cost
 
-    def get_rate_limits(self) -> Dict[str, Any]:
+    def get_rate_limits(self) -> dict[str, Any]:
         """Get rate limit information."""
         return {
             "requests_per_minute": self.rate_limits,
@@ -81,7 +80,7 @@ class GoogleProvider(LLMProvider):
             },
         }
 
-    def _convert_messages_to_google_format(self, messages: List[ChatMessage]) -> Dict[str, Any]:
+    def _convert_messages_to_google_format(self, messages: list[ChatMessage]) -> dict[str, Any]:
         """Convert OpenAI format messages to Google Gemini format."""
         contents = []
         system_instruction = None
@@ -108,10 +107,10 @@ class GoogleProvider(LLMProvider):
 
     async def chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str = "gemini-1.5-flash",
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> ChatCompletionResponse:
@@ -204,32 +203,30 @@ class GoogleProvider(LLMProvider):
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                raise RateLimitError(f"Google API rate limit exceeded", provider=self.provider_name)
+                raise RateLimitError("Google API rate limit exceeded", provider=self.provider_name) from e
             elif e.response.status_code == 401:
-                raise AuthenticationError(
-                    f"Google API authentication failed", provider=self.provider_name
-                )
+                raise AuthenticationError("Google API authentication failed", provider=self.provider_name) from e
             else:
                 raise ProviderError(
                     f"Google API error: {e.response.status_code}",
                     provider=self.provider_name,
                     status_code=e.response.status_code,
-                )
+                ) from e
         except httpx.RequestError as e:
-            raise ProviderError(f"Google request failed: {str(e)}", provider=self.provider_name)
+            raise ProviderError(f"Google request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Google unexpected error: {str(e)}", provider=self.provider_name)
+            raise ProviderError(f"Google unexpected error: {str(e)}", provider=self.provider_name) from e
 
     async def stream_chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str = "gemini-1.5-flash",
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using Google Gemini API."""
         # Convert messages to Google format
         google_messages = self._convert_messages_to_google_format(messages)
@@ -297,9 +294,7 @@ class GoogleProvider(LLMProvider):
                                         "object": "chat.completion.chunk",
                                         "created": int(time.time()),
                                         "model": model,
-                                        "choices": [
-                                            {"index": 0, "delta": {}, "finish_reason": "stop"}
-                                        ],
+                                        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
                                     }
                                     yield final_chunk
                                     break
@@ -308,23 +303,17 @@ class GoogleProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(
-                f"Google streaming request failed: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"Google streaming request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(
-                f"Google streaming unexpected error: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"Google streaming unexpected error: {str(e)}", provider=self.provider_name) from e
 
     async def health_check(self) -> bool:
         """Check if Google Gemini API is accessible."""
         try:
             test_messages = [ChatMessage(role="user", content="Hi")]
-            await self.chat_completion(
-                messages=test_messages, model="gemini-1.5-flash", max_tokens=1
-            )
+            await self.chat_completion(messages=test_messages, model="gemini-1.5-flash", max_tokens=1)
             return True
         except Exception as e:
             logger.warning("google_health_check_failed", error=str(e))

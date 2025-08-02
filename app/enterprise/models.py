@@ -4,13 +4,21 @@
 # Database models for organization management and multi-tenancy
 
 import uuid
-from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
 
-from sqlalchemy import JSON, Boolean, Column, DateTime
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -344,7 +352,6 @@ class UsageMetrics(Base):
 
 
 # Indexes for performance
-from sqlalchemy import Index
 
 Index("idx_org_users_org_id", OrganizationUser.organization_id)
 Index("idx_org_users_user_id", OrganizationUser.user_id)

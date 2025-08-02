@@ -8,8 +8,8 @@ must inherit from, ensuring consistent interface and behavior.
 """
 
 import time
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from abc import abstractmethod
+from typing import Any
 
 import structlog
 
@@ -28,7 +28,7 @@ class BaseRouter(RouterInterface):
     that all routing implementations must follow.
     """
 
-    def __init__(self, name: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, name: str, config: dict[str, Any] | None = None):
         self.name = name
         self.config = config or {}
         self.metrics = {
@@ -45,10 +45,10 @@ class BaseRouter(RouterInterface):
 
     async def select_provider_and_model(
         self,
-        messages: List[ChatMessage],
-        user_id: Optional[str] = None,
-        constraints: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[str, str, str, float]:
+        messages: list[ChatMessage],
+        user_id: str | None = None,
+        constraints: dict[str, Any] | None = None,
+    ) -> tuple[str, str, str, float]:
         """
         Select the optimal provider and model for the given request.
 
@@ -71,9 +71,7 @@ class BaseRouter(RouterInterface):
                 analysis = self._apply_constraints(analysis, constraints)
 
             # Perform the actual routing
-            provider, model, reasoning, confidence = await self._route_request(
-                messages, analysis, user_id, constraints
-            )
+            provider, model, reasoning, confidence = await self._route_request(messages, analysis, user_id, constraints)
 
             # Update metrics
             response_time = time.time() - start_time
@@ -109,16 +107,16 @@ class BaseRouter(RouterInterface):
             if isinstance(e, RoutingError):
                 raise
             else:
-                raise RoutingError(f"Routing failed: {str(e)}", routing_strategy=self.name)
+                raise RoutingError(f"Routing failed: {str(e)}", routing_strategy=self.name) from e
 
     @abstractmethod
     async def _route_request(
         self,
-        messages: List[ChatMessage],
-        analysis: Dict[str, Any],
-        user_id: Optional[str],
-        constraints: Optional[Dict[str, Any]],
-    ) -> Tuple[str, str, str, float]:
+        messages: list[ChatMessage],
+        analysis: dict[str, Any],
+        user_id: str | None,
+        constraints: dict[str, Any] | None,
+    ) -> tuple[str, str, str, float]:
         """
         Perform the actual routing logic.
 
@@ -129,9 +127,7 @@ class BaseRouter(RouterInterface):
         """
         pass
 
-    def _apply_constraints(
-        self, analysis: Dict[str, Any], constraints: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _apply_constraints(self, analysis: dict[str, Any], constraints: dict[str, Any]) -> dict[str, Any]:
         """Apply routing constraints to the analysis."""
         # Budget constraints
         if "max_cost" in constraints:
@@ -159,21 +155,17 @@ class BaseRouter(RouterInterface):
         # Update average response time
         total_requests = self.metrics["total_requests"]
         current_avg = self.metrics["average_response_time"]
-        self.metrics["average_response_time"] = (
-            current_avg * (total_requests - 1) + response_time
-        ) / total_requests
+        self.metrics["average_response_time"] = (current_avg * (total_requests - 1) + response_time) / total_requests
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get router performance metrics."""
         return {
             "router_name": self.name,
             "metrics": self.metrics.copy(),
-            "success_rate": (
-                self.metrics["successful_routes"] / max(self.metrics["total_requests"], 1)
-            ),
+            "success_rate": (self.metrics["successful_routes"] / max(self.metrics["total_requests"], 1)),
         }
 
-    def get_supported_strategies(self) -> List[str]:
+    def get_supported_strategies(self) -> list[str]:
         """Get list of supported routing strategies."""
         return [self.name]
 

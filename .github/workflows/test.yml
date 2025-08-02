@@ -190,26 +190,26 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install uv
-        run: pip install uv==${{ env.UV_VERSION }}
+      - name: Install Poetry
+        run: pip install poetry==${{ env.POETRY_VERSION }}
+
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project true
 
       - name: Install dependencies
-        run: |
-          uv venv
-          source .venv/bin/activate
-          uv sync --dev
+        run: poetry install --with dev
 
       - name: Run safety check
         run: |
-          source .venv/bin/activate
-          safety check --json --output safety-report.json || true
-          safety check
+          poetry run safety check --json --output safety-report.json || true
+          poetry run safety check
 
       - name: Run pip-audit
         run: |
-          source .venv/bin/activate
-          pip-audit --format=json --output=pip-audit-report.json || true
-          pip-audit
+          poetry run pip-audit --format=json --output=pip-audit-report.json || true
+          poetry run pip-audit
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
@@ -233,19 +233,19 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install uv
-        run: pip install uv==${{ env.UV_VERSION }}
+      - name: Install Poetry
+        run: pip install poetry==${{ env.POETRY_VERSION }}
+
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project true
 
       - name: Install dependencies
-        run: |
-          uv venv
-          source .venv/bin/activate
-          uv sync --dev
+        run: poetry install --with dev
 
       - name: Run performance tests
-        run: |
-          source .venv/bin/activate
-          pytest tests/performance/ -v --benchmark-json=benchmark.json
+        run: poetry run pytest tests/performance/ -v --benchmark-json=benchmark.json
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4

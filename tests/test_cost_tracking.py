@@ -1,18 +1,14 @@
-# ModelMuxer Cost Tracking Tests
-# Copyright (c) 2025 Ajay Rajput
-# Licensed under Business Source License 1.1
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
 
 """
 Tests for the cost tracking and budget management system.
 """
 
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
 
 import pytest
 
 from app.cost_tracker import CostTracker
-from app.cost_tracker_enhanced import AdvancedCostTracker, Budget, BudgetPeriod
 from app.models import ChatMessage
 
 

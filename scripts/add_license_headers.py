@@ -5,10 +5,7 @@
 Script to add license headers to all source code files in the ModelMuxer project.
 """
 
-import os
-import re
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # License headers for different file types
 HEADERS = {
@@ -89,12 +86,12 @@ def should_skip(path: Path) -> bool:
     return False
 
 
-def get_header_type(file_path: Path) -> Optional[str]:
+def get_header_type(file_path: Path) -> str | None:
     """Get the appropriate header type for a file."""
     # Check special files first
     if file_path.name in SPECIAL_FILES:
         return SPECIAL_FILES[file_path.name]
-    
+
     # Check extension
     suffix = file_path.suffix.lower()
     return EXTENSION_MAP.get(suffix)
@@ -103,8 +100,8 @@ def get_header_type(file_path: Path) -> Optional[str]:
 def has_license_header(content: str, header_type: str) -> bool:
     """Check if the file already has a license header."""
     header_lines = HEADERS[header_type]
-    first_meaningful_line = header_lines[0].strip()
-    
+    header_lines[0].strip()
+
     # Look for copyright notice in first few lines
     lines = content.split('\n')[:10]
     for line in lines:
@@ -116,7 +113,7 @@ def has_license_header(content: str, header_type: str) -> bool:
 def add_header_to_file(file_path: Path, header_type: str) -> bool:
     """Add license header to a file. Returns True if file was modified."""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             content = f.read()
     except UnicodeDecodeError:
         print(f"Skipping binary file: {file_path}")
@@ -130,7 +127,7 @@ def add_header_to_file(file_path: Path, header_type: str) -> bool:
 
     header_lines = HEADERS[header_type]
     header_text = '\n'.join(header_lines)
-    
+
     # Handle special cases for different file types
     if header_type == "python":
         # Handle shebang lines
@@ -153,18 +150,18 @@ def add_header_to_file(file_path: Path, header_type: str) -> bool:
         return False
 
 
-def process_directory(directory: Path) -> Dict[str, List[str]]:
+def process_directory(directory: Path) -> dict[str, list[str]]:
     """Process all files in a directory recursively."""
     results = {
         "modified": [],
         "skipped": [],
         "errors": [],
     }
-    
+
     for file_path in directory.rglob("*"):
         if file_path.is_file() and not should_skip(file_path):
             header_type = get_header_type(file_path)
-            
+
             if header_type:
                 try:
                     if add_header_to_file(file_path, header_type):
@@ -175,31 +172,31 @@ def process_directory(directory: Path) -> Dict[str, List[str]]:
                 except Exception as e:
                     results["errors"].append(f"{file_path}: {e}")
                     print(f"Error processing {file_path}: {e}")
-    
+
     return results
 
 
 def main():
     """Main function to add license headers to all applicable files."""
     project_root = Path(__file__).parent.parent
-    
+
     print("Adding license headers to ModelMuxer source files...")
     print(f"Project root: {project_root}")
-    
+
     results = process_directory(project_root)
-    
-    print(f"\nSummary:")
+
+    print("\nSummary:")
     print(f"Files modified: {len(results['modified'])}")
     print(f"Files skipped (already have headers): {len(results['skipped'])}")
     print(f"Errors: {len(results['errors'])}")
-    
+
     if results["modified"]:
-        print(f"\nModified files:")
+        print("\nModified files:")
         for file_path in results["modified"]:
             print(f"  - {file_path}")
-    
+
     if results["errors"]:
-        print(f"\nErrors:")
+        print("\nErrors:")
         for error in results["errors"]:
             print(f"  - {error}")
 

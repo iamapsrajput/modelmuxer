@@ -6,11 +6,10 @@ Tests for the monitoring and metrics system.
 """
 
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 
-from app.models import ChatMessage
 from app.monitoring.metrics import HealthChecker, MetricsCollector
 
 
@@ -209,7 +208,7 @@ class TestHealthChecks:
         # Should have the mock components
         assert "cache" in components
         assert "database" in components
-        for component_name, component_status in components.items():
+        for component_status in components.values():
             assert "status" in component_status
             assert "last_check" in component_status
 

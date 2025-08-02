@@ -5,7 +5,6 @@ Heuristic routing logic for selecting the best LLM provider and model.
 """
 
 import re
-from typing import Dict, List, Optional, Tuple
 
 from .config import settings
 from .models import ChatMessage
@@ -176,7 +175,7 @@ class HeuristicRouter:
             ],
         }
 
-    def analyze_prompt(self, messages: List[ChatMessage]) -> Dict[str, any]:
+    def analyze_prompt(self, messages: list[ChatMessage]) -> dict[str, any]:
         """Analyze prompt characteristics to determine routing strategy."""
         # Combine all message content for analysis
         full_text = " ".join([msg.content for msg in messages if msg.content])
@@ -251,10 +250,10 @@ class HeuristicRouter:
 
     def select_model(
         self,
-        messages: List[ChatMessage],
-        user_id: Optional[str] = None,
-        budget_constraint: Optional[float] = None,
-    ) -> Tuple[str, str, str]:
+        messages: list[ChatMessage],
+        user_id: str | None = None,
+        budget_constraint: float | None = None,
+    ) -> tuple[str, str, str]:
         """
         Select the best provider and model for the given messages.
 
@@ -300,7 +299,7 @@ class HeuristicRouter:
         # Fallback
         return "openai", "gpt-3.5-turbo", "Fallback to default model"
 
-    def _generate_reasoning(self, analysis: Dict, provider: str, model: str) -> str:
+    def _generate_reasoning(self, analysis: dict, provider: str, model: str) -> str:
         """Generate human-readable reasoning for the routing decision."""
         reasons = []
 
@@ -331,7 +330,7 @@ class HeuristicRouter:
 
         return f"{task_reason}. {model_reason}"
 
-    def get_routing_stats(self) -> Dict[str, any]:
+    def get_routing_stats(self) -> dict[str, any]:
         """Get statistics about routing decisions (for monitoring)."""
         # In a real implementation, this would query the database
         # for routing statistics

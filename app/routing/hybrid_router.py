@@ -7,8 +7,7 @@ This module implements a hybrid router that combines heuristic, semantic,
 and cascade routing strategies to make optimal routing decisions.
 """
 
-import asyncio
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import structlog
 
@@ -30,7 +29,7 @@ class HybridRouter(BaseRouter):
     recommendations to make the optimal routing decision.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__("hybrid", config)
 
         # Configuration
@@ -78,7 +77,7 @@ class HybridRouter(BaseRouter):
 
         logger.info("hybrid_router_initialized", available_routers=available_routers)
 
-    async def analyze_prompt(self, messages: List[ChatMessage]) -> Dict[str, Any]:
+    async def analyze_prompt(self, messages: list[ChatMessage]) -> dict[str, Any]:
         """Analyze prompt using all available strategies."""
         analyses = {}
 
@@ -114,8 +113,8 @@ class HybridRouter(BaseRouter):
         return combined_analysis
 
     def _combine_analyses(
-        self, analyses: Dict[str, Dict[str, Any]], messages: List[ChatMessage]
-    ) -> Dict[str, Any]:
+        self, analyses: dict[str, dict[str, Any]], messages: list[ChatMessage]
+    ) -> dict[str, Any]:
         """Combine analyses from multiple strategies."""
         if not analyses:
             # Fallback analysis
@@ -195,11 +194,11 @@ class HybridRouter(BaseRouter):
 
     async def _route_request(
         self,
-        messages: List[ChatMessage],
-        analysis: Dict[str, Any],
-        user_id: Optional[str],
-        constraints: Optional[Dict[str, Any]],
-    ) -> Tuple[str, str, str, float]:
+        messages: list[ChatMessage],
+        analysis: dict[str, Any],
+        user_id: str | None,
+        constraints: dict[str, Any] | None,
+    ) -> tuple[str, str, str, float]:
         """Route request using hybrid strategy."""
         strategy_recommendations = []
 
@@ -257,10 +256,10 @@ class HybridRouter(BaseRouter):
 
     def _combine_recommendations(
         self,
-        recommendations: List[Tuple[str, Tuple[str, str, str, float]]],
-        analysis: Dict[str, Any],
-        constraints: Optional[Dict[str, Any]],
-    ) -> Tuple[str, str, str, float]:
+        recommendations: list[tuple[str, tuple[str, str, str, float]]],
+        analysis: dict[str, Any],
+        constraints: dict[str, Any] | None,
+    ) -> tuple[str, str, str, float]:
         """Combine recommendations from multiple strategies."""
         if len(recommendations) == 1:
             # Only one recommendation available

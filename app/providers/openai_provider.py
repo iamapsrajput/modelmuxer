@@ -6,7 +6,8 @@ OpenAI provider implementation.
 
 import json
 import time
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 
@@ -37,13 +38,13 @@ class OpenAIProvider(LLMProvider):
 
         self.supported_models = list(self.pricing.keys())
 
-    def _create_headers(self) -> Dict[str, str]:
+    def _create_headers(self) -> dict[str, str]:
         """Create headers for OpenAI API requests."""
         headers = super()._create_headers()
         headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported OpenAI models."""
         return self.supported_models
 
@@ -58,19 +59,18 @@ class OpenAIProvider(LLMProvider):
 
         return input_cost + output_cost
 
-    def _prepare_messages(self, messages: List[ChatMessage]) -> List[Dict[str, str]]:
+    def _prepare_messages(self, messages: list[ChatMessage]) -> list[dict[str, str]]:
         """Convert ChatMessage objects to OpenAI format."""
         return [
-            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})}
-            for msg in messages
+            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})} for msg in messages
         ]
 
     async def chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> ChatCompletionResponse:
@@ -127,20 +127,20 @@ class OpenAIProvider(LLMProvider):
             )
 
         except httpx.RequestError as e:
-            raise ProviderError(f"OpenAI request failed: {str(e)}", provider=self.provider_name)
+            raise ProviderError(f"OpenAI request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"OpenAI unexpected error: {str(e)}", provider=self.provider_name)
+            raise ProviderError(f"OpenAI unexpected error: {str(e)}", provider=self.provider_name) from e
 
     async def stream_chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using OpenAI API."""
         # Prepare request payload
         payload = {"model": model, "messages": self._prepare_messages(messages), "stream": True}
@@ -179,12 +179,8 @@ class OpenAIProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(
-                f"OpenAI streaming request failed: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"OpenAI streaming request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(
-                f"OpenAI streaming unexpected error: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"OpenAI streaming unexpected error: {str(e)}", provider=self.provider_name) from e

@@ -6,10 +6,9 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import structlog
-from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 from ..security.auth import SecurityManager
@@ -19,7 +18,6 @@ from .models import (
     Organization,
     OrganizationAPIKey,
     OrganizationBudget,
-    OrganizationProvider,
     OrganizationStatus,
     OrganizationUser,
     PlanType,
@@ -86,7 +84,7 @@ class OrganizationManager:
         owner_email: str,
         plan_type: PlanType = PlanType.FREE,
         trial_days: int = 14,
-    ) -> Tuple[Organization, User]:
+    ) -> tuple[Organization, User]:
         """Create a new organization with owner."""
         try:
             # Check if slug is available
@@ -184,7 +182,7 @@ class OrganizationManager:
         inviter_id: str,
         email: str,
         role: UserRole,
-        permissions: Optional[List[str]] = None,
+        permissions: list[str] | None = None,
     ) -> OrganizationUser:
         """Invite a user to an organization."""
         try:
@@ -197,7 +195,7 @@ class OrganizationManager:
                 self.db.query(OrganizationUser)
                 .filter(
                     OrganizationUser.organization_id == organization_id,
-                    OrganizationUser.is_active == True,
+                    OrganizationUser.is_active.is_(True),
                 )
                 .count()
             )
@@ -278,11 +276,11 @@ class OrganizationManager:
         organization_id: str,
         creator_id: str,
         name: str,
-        scopes: List[str],
-        description: Optional[str] = None,
-        expires_in_days: Optional[int] = None,
-        rate_limits: Optional[Dict[str, int]] = None,
-    ) -> Tuple[str, OrganizationAPIKey]:
+        scopes: list[str],
+        description: str | None = None,
+        expires_in_days: int | None = None,
+        rate_limits: dict[str, int] | None = None,
+    ) -> tuple[str, OrganizationAPIKey]:
         """Create an API key for an organization."""
         try:
             # Check organization limits
@@ -294,7 +292,7 @@ class OrganizationManager:
                 self.db.query(OrganizationAPIKey)
                 .filter(
                     OrganizationAPIKey.organization_id == organization_id,
-                    OrganizationAPIKey.is_active == True,
+                    OrganizationAPIKey.is_active.is_(True),
                 )
                 .count()
             )
@@ -357,7 +355,7 @@ class OrganizationManager:
 
     async def get_organization_usage(
         self, organization_id: str, period_start: datetime, period_end: datetime
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get comprehensive usage statistics for an organization."""
         try:
             # Get usage metrics
@@ -406,19 +404,23 @@ class OrganizationManager:
                     "total_requests": total_requests,
                     "total_cost": float(total_cost),
                     "total_tokens": total_tokens,
-                    "avg_cost_per_request": float(total_cost / total_requests)
-                    if total_requests > 0
-                    else 0,
+                    "avg_cost_per_request": (
+                        float(total_cost / total_requests) if total_requests > 0 else 0
+                    ),
                 },
                 "limits": {
                     "monthly_requests": org.monthly_request_limit,
                     "monthly_cost": float(org.monthly_cost_limit),
-                    "request_utilization": (total_requests / org.monthly_request_limit) * 100
-                    if org.monthly_request_limit > 0
-                    else 0,
-                    "cost_utilization": (float(total_cost) / float(org.monthly_cost_limit)) * 100
-                    if org.monthly_cost_limit > 0
-                    else 0,
+                    "request_utilization": (
+                        (total_requests / org.monthly_request_limit) * 100
+                        if org.monthly_request_limit > 0
+                        else 0
+                    ),
+                    "cost_utilization": (
+                        (float(total_cost) / float(org.monthly_cost_limit)) * 100
+                        if org.monthly_cost_limit > 0
+                        else 0
+                    ),
                 },
                 "breakdown": {"by_provider": provider_breakdown, "by_model": model_breakdown},
             }
@@ -430,14 +432,14 @@ class OrganizationManager:
     async def _log_audit_event(
         self,
         organization_id: str,
-        user_id: Optional[str],
+        user_id: str | None,
         action: AuditAction,
         resource_type: str,
         resource_id: str,
         description: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        metadata: dict[str, Any] | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> None:
         """Log an audit event."""
         try:
@@ -459,8 +461,8 @@ class OrganizationManager:
             logger.error("audit_logging_failed", error=str(e), org_id=organization_id)
 
     async def check_organization_limits(
-        self, organization_id: str, check_type: str, current_usage: Optional[int] = None
-    ) -> Dict[str, Any]:
+        self, organization_id: str, check_type: str, current_usage: int | None = None
+    ) -> dict[str, Any]:
         """Check if organization is within limits."""
         try:
             org = self.db.query(Organization).filter(Organization.id == organization_id).first()
@@ -474,7 +476,7 @@ class OrganizationManager:
                     self.db.query(OrganizationUser)
                     .filter(
                         OrganizationUser.organization_id == organization_id,
-                        OrganizationUser.is_active == True,
+                        OrganizationUser.is_active.is_(True),
                     )
                     .count()
                 )
@@ -494,7 +496,7 @@ class OrganizationManager:
                     self.db.query(OrganizationAPIKey)
                     .filter(
                         OrganizationAPIKey.organization_id == organization_id,
-                        OrganizationAPIKey.is_active == True,
+                        OrganizationAPIKey.is_active.is_(True),
                     )
                     .count()
                 )

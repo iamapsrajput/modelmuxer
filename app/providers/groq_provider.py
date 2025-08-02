@@ -9,15 +9,13 @@ LLM routing system. Groq provides fast inference for open-source models.
 
 import json
 import time
-import uuid
-from datetime import datetime
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 import structlog
 
-from ..core.utils import estimate_tokens
-from ..models import ChatCompletionResponse, ChatMessage, Choice, RouterMetadata, Usage
+from ..models import ChatCompletionResponse, ChatMessage
 from .base import AuthenticationError, LLMProvider, ProviderError, RateLimitError
 
 logger = structlog.get_logger(__name__)
@@ -30,9 +28,7 @@ class GroqProvider(LLMProvider):
         if not api_key:
             raise AuthenticationError("Groq API key is required")
 
-        super().__init__(
-            api_key=api_key, base_url="https://api.groq.com/openai/v1", provider_name="groq"
-        )
+        super().__init__(api_key=api_key, base_url="https://api.groq.com/openai/v1", provider_name="groq")
 
         # Pricing per million tokens (as of 2024) - Groq is very cost-effective
         self.pricing = {
@@ -54,15 +50,15 @@ class GroqProvider(LLMProvider):
             "gemma2-9b-it": 30,
         }
 
-    def _create_headers(self) -> Dict[str, str]:
+    def _create_headers(self) -> dict[str, str]:
         """Create headers for Groq API requests."""
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "User-Agent": f"ModelMuxer/1.0.0 (Groq)",
+            "User-Agent": "ModelMuxer/1.0.0 (Groq)",
         }
 
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported Groq models."""
         return self.supported_models
 
@@ -77,7 +73,7 @@ class GroqProvider(LLMProvider):
 
         return input_cost + output_cost
 
-    def get_rate_limits(self) -> Dict[str, Any]:
+    def get_rate_limits(self) -> dict[str, Any]:
         """Get rate limit information."""
         return {
             "requests_per_minute": self.rate_limits,
@@ -90,19 +86,18 @@ class GroqProvider(LLMProvider):
             },
         }
 
-    def _prepare_messages(self, messages: List[ChatMessage]) -> List[Dict[str, str]]:
+    def _prepare_messages(self, messages: list[ChatMessage]) -> list[dict[str, str]]:
         """Convert ChatMessage objects to Groq format (OpenAI-compatible)."""
         return [
-            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})}
-            for msg in messages
+            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})} for msg in messages
         ]
 
     async def chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str = "llama-3.1-8b-instant",
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> ChatCompletionResponse:
@@ -163,39 +158,37 @@ class GroqProvider(LLMProvider):
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                raise RateLimitError(f"Groq API rate limit exceeded", provider=self.provider_name)
+                raise RateLimitError("Groq API rate limit exceeded", provider=self.provider_name) from e
             elif e.response.status_code == 401:
-                raise AuthenticationError(
-                    f"Groq API authentication failed", provider=self.provider_name
-                )
+                raise AuthenticationError("Groq API authentication failed", provider=self.provider_name) from e
             else:
                 error_detail = ""
                 try:
                     error_data = e.response.json()
                     error_detail = error_data.get("error", {}).get("message", "")
-                except:
+                except (ValueError, KeyError, TypeError, AttributeError):
                     pass
 
                 raise ProviderError(
                     f"Groq API error: {e.response.status_code} {error_detail}",
                     provider=self.provider_name,
                     status_code=e.response.status_code,
-                )
+                ) from e
         except httpx.RequestError as e:
-            raise ProviderError(f"Groq request failed: {str(e)}", provider=self.provider_name)
+            raise ProviderError(f"Groq request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Groq unexpected error: {str(e)}", provider=self.provider_name)
+            raise ProviderError(f"Groq unexpected error: {str(e)}", provider=self.provider_name) from e
 
     async def stream_chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str = "llama-3.1-8b-instant",
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using Groq API."""
         # Prepare request payload
         payload = {"model": model, "messages": self._prepare_messages(messages), "stream": True}
@@ -235,29 +228,23 @@ class GroqProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(
-                f"Groq streaming request failed: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"Groq streaming request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(
-                f"Groq streaming unexpected error: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"Groq streaming unexpected error: {str(e)}", provider=self.provider_name) from e
 
     async def health_check(self) -> bool:
         """Check if Groq API is accessible."""
         try:
             test_messages = [ChatMessage(role="user", content="Hi")]
-            await self.chat_completion(
-                messages=test_messages, model="llama-3.1-8b-instant", max_tokens=1
-            )
+            await self.chat_completion(messages=test_messages, model="llama-3.1-8b-instant", max_tokens=1)
             return True
         except Exception as e:
             logger.warning("groq_health_check_failed", error=str(e))
             return False
 
-    def get_model_info(self, model: str) -> Dict[str, Any]:
+    def get_model_info(self, model: str) -> dict[str, Any]:
         """Get detailed information about a Groq model."""
         model_info = {
             "llama-3.1-70b-versatile": {

@@ -3,13 +3,11 @@
 # ModelMuxer Security Middleware
 # Comprehensive security middleware for API protection
 
-import hashlib
-import ipaddress
 import json
 import re
 import time
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set
+from datetime import datetime
+from typing import Any
 
 import redis
 import structlog
@@ -34,7 +32,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         redis_client: redis.Redis,
         security_manager: SecurityManager,
         pii_protector: PIIProtector,
-        config: Dict[str, Any],
+        config: dict[str, Any],
     ):
         super().__init__(app)
         self.redis_client = redis_client
@@ -50,7 +48,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         self.enable_pii_protection = config.get("enable_pii_protection", True)
         self.suspicious_patterns = self._compile_suspicious_patterns()
 
-    def _compile_suspicious_patterns(self) -> List[re.Pattern]:
+    def _compile_suspicious_patterns(self) -> list[re.Pattern]:
         """Compile patterns for detecting suspicious requests."""
         patterns = [
             re.compile(r"<script[^>]*>.*?</script>", re.IGNORECASE | re.DOTALL),  # XSS
@@ -163,7 +161,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         if hour_count > requests_per_hour:
             await self._handle_rate_limit_exceeded(client_ip, "hour", hour_count, requests_per_hour)
 
-    def _get_rate_limit_key(self, path: str, method: str) -> Optional[str]:
+    def _get_rate_limit_key(self, path: str, method: str) -> str | None:
         """Determine rate limit key based on path and method."""
         if path.startswith("/v1/chat/completions"):
             return "chat_completions"
@@ -308,7 +306,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 class PIIProtectionMiddleware(BaseHTTPMiddleware):
     """Middleware for PII protection in requests and responses."""
 
-    def __init__(self, app: ASGIApp, pii_protector: PIIProtector, enabled_paths: Set[str]):
+    def __init__(self, app: ASGIApp, pii_protector: PIIProtector, enabled_paths: set[str]):
         super().__init__(app)
         self.pii_protector = pii_protector
         self.enabled_paths = enabled_paths

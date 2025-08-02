@@ -8,7 +8,8 @@ to ensure consistency and interoperability across the system.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from ..models import ChatCompletionResponse, ChatMessage
 
@@ -19,10 +20,10 @@ class RouterInterface(ABC):
     @abstractmethod
     async def select_provider_and_model(
         self,
-        messages: List[ChatMessage],
-        user_id: Optional[str] = None,
-        constraints: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[str, str, str, float]:
+        messages: list[ChatMessage],
+        user_id: str | None = None,
+        constraints: dict[str, Any] | None = None,
+    ) -> tuple[str, str, str, float]:
         """
         Select the optimal provider and model for the given request.
 
@@ -37,7 +38,7 @@ class RouterInterface(ABC):
         pass
 
     @abstractmethod
-    async def analyze_prompt(self, messages: List[ChatMessage]) -> Dict[str, Any]:
+    async def analyze_prompt(self, messages: list[ChatMessage]) -> dict[str, Any]:
         """
         Analyze prompt characteristics for routing decisions.
 
@@ -50,7 +51,7 @@ class RouterInterface(ABC):
         pass
 
     @abstractmethod
-    def get_supported_strategies(self) -> List[str]:
+    def get_supported_strategies(self) -> list[str]:
         """Get list of supported routing strategies."""
         pass
 
@@ -60,15 +61,15 @@ class ProviderInterface(ABC):
 
     @abstractmethod
     async def chat_completion(
-        self, messages: List[ChatMessage], model: str, **kwargs
+        self, messages: list[ChatMessage], model: str, **kwargs
     ) -> ChatCompletionResponse:
         """Generate a chat completion."""
         pass
 
     @abstractmethod
     async def stream_chat_completion(
-        self, messages: List[ChatMessage], model: str, **kwargs
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, messages: list[ChatMessage], model: str, **kwargs
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion."""
         pass
 
@@ -78,7 +79,7 @@ class ProviderInterface(ABC):
         pass
 
     @abstractmethod
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported models."""
         pass
 
@@ -88,7 +89,7 @@ class ProviderInterface(ABC):
         pass
 
     @abstractmethod
-    def get_rate_limits(self) -> Dict[str, Any]:
+    def get_rate_limits(self) -> dict[str, Any]:
         """Get rate limit information."""
         pass
 
@@ -97,12 +98,12 @@ class CacheInterface(ABC):
     """Abstract interface for caching implementations."""
 
     @abstractmethod
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """Get a value from cache."""
         pass
 
     @abstractmethod
-    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         """Set a value in cache with optional TTL."""
         pass
 
@@ -122,7 +123,7 @@ class CacheInterface(ABC):
         pass
 
     @abstractmethod
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         pass
 
@@ -131,7 +132,7 @@ class ClassifierInterface(ABC):
     """Abstract interface for prompt classifiers."""
 
     @abstractmethod
-    async def classify(self, text: str) -> Dict[str, Any]:
+    async def classify(self, text: str) -> dict[str, Any]:
         """
         Classify a text prompt.
 
@@ -144,7 +145,7 @@ class ClassifierInterface(ABC):
         pass
 
     @abstractmethod
-    async def train(self, training_data: List[Dict[str, Any]]) -> bool:
+    async def train(self, training_data: list[dict[str, Any]]) -> bool:
         """
         Train the classifier with new data.
 
@@ -157,7 +158,7 @@ class ClassifierInterface(ABC):
         pass
 
     @abstractmethod
-    def get_categories(self) -> List[str]:
+    def get_categories(self) -> list[str]:
         """Get list of supported classification categories."""
         pass
 
@@ -166,23 +167,23 @@ class MetricsInterface(ABC):
     """Abstract interface for metrics collection."""
 
     @abstractmethod
-    def increment_counter(self, name: str, labels: Optional[Dict[str, str]] = None) -> None:
+    def increment_counter(self, name: str, labels: dict[str, str] | None = None) -> None:
         """Increment a counter metric."""
         pass
 
     @abstractmethod
-    def set_gauge(self, name: str, value: float, labels: Optional[Dict[str, str]] = None) -> None:
+    def set_gauge(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
         """Set a gauge metric value."""
         pass
 
     @abstractmethod
     def record_histogram(
-        self, name: str, value: float, labels: Optional[Dict[str, str]] = None
+        self, name: str, value: float, labels: dict[str, str] | None = None
     ) -> None:
         """Record a histogram metric value."""
         pass
 
     @abstractmethod
-    async def get_metrics(self) -> Dict[str, Any]:
+    async def get_metrics(self) -> dict[str, Any]:
         """Get all collected metrics."""
         pass

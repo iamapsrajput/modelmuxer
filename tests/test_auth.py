@@ -6,12 +6,18 @@ Tests for the authentication and authorization system.
 """
 
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException, Request
 
 from app.auth import APIKeyAuth
+from tests.test_constants import (
+    TEST_API_KEY_1,
+    TEST_API_KEY_INVALID,
+    TEST_API_KEY_SAMPLE,
+    get_test_api_keys,
+)
 
 
 class TestAPIKeyAuth:
@@ -20,22 +26,22 @@ class TestAPIKeyAuth:
     def setup_method(self):
         """Set up test fixtures."""
         with patch("app.auth.settings") as mock_settings:
-            mock_settings.get_allowed_api_keys.return_value = ["sk-test-key-1", "sk-test-key-2"]
+            mock_settings.get_allowed_api_keys.return_value = get_test_api_keys()
             self.auth = APIKeyAuth()
 
     def test_extract_api_key_bearer_format(self):
         """Test API key extraction from Bearer format."""
-        authorization = "Bearer sk-test-key-123"
+        authorization = f"Bearer {TEST_API_KEY_SAMPLE}"
         api_key = self.auth.extract_api_key(authorization)
 
-        assert api_key == "sk-test-key-123"
+        assert api_key == TEST_API_KEY_SAMPLE
 
     def test_extract_api_key_direct_format(self):
         """Test API key extraction from direct format."""
-        authorization = "sk-test-key-123"
+        authorization = TEST_API_KEY_SAMPLE
         api_key = self.auth.extract_api_key(authorization)
 
-        assert api_key == "sk-test-key-123"
+        assert api_key == TEST_API_KEY_SAMPLE
 
     def test_extract_api_key_invalid_format(self):
         """Test API key extraction with invalid format."""
@@ -52,21 +58,21 @@ class TestAPIKeyAuth:
 
     def test_validate_api_key_valid(self):
         """Test API key validation with valid key."""
-        valid_key = "sk-test-key-1"
+        valid_key = TEST_API_KEY_1
         result = self.auth.validate_api_key(valid_key)
 
         assert result is True
 
     def test_validate_api_key_invalid(self):
         """Test API key validation with invalid key."""
-        invalid_key = "sk-invalid-key"
+        invalid_key = TEST_API_KEY_INVALID
         result = self.auth.validate_api_key(invalid_key)
 
         assert result is False
 
     def test_get_user_id_from_key(self):
         """Test user ID generation from API key."""
-        api_key = "sk-test-key-123"
+        api_key = TEST_API_KEY_SAMPLE
         user_id = self.auth.get_user_id_from_key(api_key)
 
         assert isinstance(user_id, str)
@@ -104,14 +110,14 @@ class TestAPIKeyAuth:
     async def test_authenticate_request_success(self):
         """Test successful request authentication."""
         mock_request = Mock(spec=Request)
-        authorization = "Bearer sk-test-key-1"
+        authorization = f"Bearer {TEST_API_KEY_1}"
 
         result = await self.auth.authenticate_request(mock_request, authorization)
 
         assert "user_id" in result
         assert "api_key" in result
         assert "rate_limit" in result
-        assert result["api_key"] == "sk-test-key-1"
+        assert result["api_key"] == TEST_API_KEY_1
 
     @pytest.mark.asyncio
     async def test_authenticate_request_missing_key(self):
@@ -129,7 +135,7 @@ class TestAPIKeyAuth:
     async def test_authenticate_request_invalid_key(self):
         """Test authentication with invalid API key."""
         mock_request = Mock(spec=Request)
-        authorization = "Bearer sk-invalid-key"
+        authorization = f"Bearer {TEST_API_KEY_INVALID}"
 
         with pytest.raises(HTTPException) as exc_info:
             await self.auth.authenticate_request(mock_request, authorization)
@@ -144,7 +150,7 @@ class TestRateLimiting:
     def setup_method(self):
         """Set up test fixtures."""
         with patch("app.auth.settings") as mock_settings:
-            mock_settings.get_allowed_api_keys.return_value = ["sk-test-key"]
+            mock_settings.get_allowed_api_keys.return_value = [TEST_API_KEY_1]
             self.auth = APIKeyAuth()
 
     def test_rate_limit_cleanup(self):
@@ -162,7 +168,7 @@ class TestRateLimiting:
         }
 
         # Make a new request - should clean up old entries
-        result = self.auth.check_rate_limit(user_id)
+        self.auth.check_rate_limit(user_id)
 
         # Old entries should be removed
         assert old_minute not in self.auth.rate_limit_storage[user_id]["minute_requests"]
@@ -176,12 +182,13 @@ class TestAuthIntegration:
     def test_full_auth_flow(self):
         """Test complete authentication flow."""
         with patch("app.auth.settings") as mock_settings:
-            mock_settings.get_allowed_api_keys.return_value = ["sk-integration-test"]
+            test_integration_key = "test-integration-key-001"
+            mock_settings.get_allowed_api_keys.return_value = [test_integration_key]
             auth = APIKeyAuth()
 
             # Test API key extraction
-            api_key = auth.extract_api_key("Bearer sk-integration-test")
-            assert api_key == "sk-integration-test"
+            api_key = auth.extract_api_key(f"Bearer {test_integration_key}")
+            assert api_key == test_integration_key
 
             # Test API key validation
             assert auth.validate_api_key(api_key) is True

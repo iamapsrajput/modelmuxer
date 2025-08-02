@@ -4,12 +4,11 @@
 # GDPR-compliant PII handling with configurable redaction policies
 
 import hashlib
-import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 import structlog
 from cryptography.fernet import Fernet
@@ -64,7 +63,7 @@ class RedactionPolicy:
     pii_type: PIIType
     action: RedactionAction
     enabled: bool = True
-    custom_replacement: Optional[str] = None
+    custom_replacement: str | None = None
     preserve_format: bool = False
 
 
@@ -75,7 +74,7 @@ class PIIDetector:
         self.patterns = self._initialize_patterns()
         self.common_names = self._load_common_names()
 
-    def _initialize_patterns(self) -> Dict[PIIType, List[re.Pattern]]:
+    def _initialize_patterns(self) -> dict[PIIType, list[re.Pattern]]:
         """Initialize regex patterns for PII detection."""
         return {
             PIIType.EMAIL: [
@@ -126,7 +125,7 @@ class PIIDetector:
             ],
         }
 
-    def _load_common_names(self) -> Set[str]:
+    def _load_common_names(self) -> set[str]:
         """Load common first and last names for name detection."""
         # In production, this would load from a comprehensive names database
         return {
@@ -159,7 +158,7 @@ class PIIDetector:
             "gonzalez",
         }
 
-    def detect_pii(self, text: str) -> List[PIIDetection]:
+    def detect_pii(self, text: str) -> list[PIIDetection]:
         """Detect all PII instances in the given text."""
         detections = []
 
@@ -189,12 +188,12 @@ class PIIDetector:
 
         return detections
 
-    def _detect_names(self, text: str) -> List[PIIDetection]:
+    def _detect_names(self, text: str) -> list[PIIDetection]:
         """Detect potential names using common name patterns."""
         detections = []
         words = re.findall(r"\b[A-Z][a-z]+\b", text)
 
-        for i, word in enumerate(words):
+        for word in words:
             if word.lower() in self.common_names:
                 # Find the position in the original text
                 start_pos = text.find(word)
@@ -217,7 +216,7 @@ class PIIDetector:
         context_end = min(len(text), end + window)
         return text[context_start:context_end]
 
-    def _remove_overlaps(self, detections: List[PIIDetection]) -> List[PIIDetection]:
+    def _remove_overlaps(self, detections: list[PIIDetection]) -> list[PIIDetection]:
         """Remove overlapping detections, keeping the one with higher confidence."""
         if not detections:
             return detections
@@ -241,13 +240,13 @@ class PIIDetector:
 class PIIProtector:
     """PII protection system with configurable redaction policies."""
 
-    def __init__(self, encryption_key: Optional[bytes] = None):
+    def __init__(self, encryption_key: bytes | None = None):
         self.detector = PIIDetector()
         self.encryption_key = encryption_key or Fernet.generate_key()
         self.cipher = Fernet(self.encryption_key)
-        self.policies: Dict[PIIType, RedactionPolicy] = self._default_policies()
+        self.policies: dict[PIIType, RedactionPolicy] = self._default_policies()
 
-    def _default_policies(self) -> Dict[PIIType, RedactionPolicy]:
+    def _default_policies(self) -> dict[PIIType, RedactionPolicy]:
         """Default redaction policies for different PII types."""
         return {
             PIIType.EMAIL: RedactionPolicy(
@@ -273,8 +272,8 @@ class PIIProtector:
         logger.info("pii_policy_updated", pii_type=pii_type.value, action=policy.action.value)
 
     def protect_text(
-        self, text: str, user_id: Optional[str] = None
-    ) -> Tuple[str, List[PIIDetection]]:
+        self, text: str, user_id: str | None = None
+    ) -> tuple[str, list[PIIDetection]]:
         """Protect text by detecting and redacting PII according to policies."""
         detections = self.detector.detect_pii(text)
 
@@ -368,7 +367,7 @@ class PIIProtector:
 
         return original_value
 
-    def get_protection_summary(self, detections: List[PIIDetection]) -> Dict[str, Any]:
+    def get_protection_summary(self, detections: list[PIIDetection]) -> dict[str, Any]:
         """Get summary of PII protection actions taken."""
         summary = {
             "total_detections": len(detections),

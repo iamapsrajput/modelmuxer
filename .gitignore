@@ -87,6 +87,7 @@ Pipfile.lock
 
 # poetry
 # poetry.lock should be committed for reproducible builds
+requirements.txt  # Generated file, use pyproject.toml instead
 
 # pdm
 .pdm.toml

@@ -8,14 +8,12 @@ system performance, usage patterns, and health indicators.
 """
 
 import time
-from collections import Counter, defaultdict
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any
 
 import structlog
-from prometheus_client import CollectorRegistry
+from prometheus_client import CollectorRegistry, Gauge, Histogram, Info
 from prometheus_client import Counter as PrometheusCounter
-from prometheus_client import Enum, Gauge, Histogram, Info
 
 logger = structlog.get_logger(__name__)
 
@@ -28,7 +26,7 @@ class MetricsCollector:
     request metrics, provider performance, routing decisions, and system health.
     """
 
-    def __init__(self, registry: Optional[CollectorRegistry] = None):
+    def __init__(self, registry: CollectorRegistry | None = None):
         self.registry = registry or CollectorRegistry()
 
         # Request metrics
@@ -261,7 +259,7 @@ class MetricsCollector:
         endpoint: str,
         status_code: int,
         duration: float,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> None:
         """Record request metrics."""
         labels = {
@@ -329,7 +327,7 @@ class MetricsCollector:
         """Record cache operation metrics."""
         self.cache_operations.labels(operation=operation, result=result).inc()
 
-    def record_error(self, error_type: str, endpoint: str, provider: Optional[str] = None) -> None:
+    def record_error(self, error_type: str, endpoint: str, provider: str | None = None) -> None:
         """Record error metrics."""
         self.errors_total.labels(
             error_type=error_type, endpoint=endpoint, provider=provider or "unknown"
@@ -353,7 +351,7 @@ class MetricsCollector:
         if shared > 0:
             self.memory_usage.labels(type="shared").set(shared)
 
-    def set_system_info(self, info: Dict[str, str]) -> None:
+    def set_system_info(self, info: dict[str, str]) -> None:
         """Set system information."""
         self.system_info.info(info)
 
@@ -366,8 +364,8 @@ class MetricsCollector:
         final_provider: str,
         steps_count: int,
         total_cost: float,
-        quality_score: Optional[float] = None,
-        confidence_score: Optional[float] = None,
+        quality_score: float | None = None,
+        confidence_score: float | None = None,
         routing_strategy: str = "cascade",
     ) -> None:
         """Record cascade routing metrics."""
@@ -420,7 +418,7 @@ class MetricsCollector:
             }
 
             # Update active users count
-            unique_users = len(set(uid for uid, _ in self.active_users_set))
+            unique_users = len({uid for uid, _ in self.active_users_set})
             self.active_users.set(unique_users)
             self.last_active_users_update = current_time
 
@@ -443,7 +441,7 @@ class MetricsCollector:
         """Record PII detection events."""
         self.pii_detections.labels(pii_type=pii_type, action_taken=action_taken).inc()
 
-    def get_summary_stats(self) -> Dict[str, Any]:
+    def get_summary_stats(self) -> dict[str, Any]:
         """Get summary statistics."""
         current_time = time.time()
         uptime = current_time - self.start_time
@@ -473,9 +471,9 @@ class HealthChecker:
     critical system components.
     """
 
-    def __init__(self, metrics_collector: Optional[MetricsCollector] = None):
+    def __init__(self, metrics_collector: MetricsCollector | None = None):
         self.metrics_collector = metrics_collector
-        self.health_checks: Dict[str, Dict[str, Any]] = {}
+        self.health_checks: dict[str, dict[str, Any]] = {}
         self.last_check_time = 0
         self.check_interval = 30  # seconds
 
@@ -541,7 +539,7 @@ class HealthChecker:
             logger.error("cache_health_check_failed", error=str(e))
             return False
 
-    def check_system_resources(self) -> Dict[str, Any]:
+    def check_system_resources(self) -> dict[str, Any]:
         """Check system resource health."""
         try:
             import psutil
@@ -595,7 +593,7 @@ class HealthChecker:
             logger.error("system_health_check_failed", error=str(e))
             return {}
 
-    def get_overall_health(self) -> Dict[str, Any]:
+    def get_overall_health(self) -> dict[str, Any]:
         """Get overall system health status."""
         current_time = time.time()
 
@@ -604,7 +602,7 @@ class HealthChecker:
         unhealthy_count = 0
         total_count = len(self.health_checks)
 
-        for component, status in self.health_checks.items():
+        for status in self.health_checks.values():
             if status["status"] == "healthy":
                 healthy_count += 1
             else:

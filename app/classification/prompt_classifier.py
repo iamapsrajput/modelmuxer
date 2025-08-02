@@ -7,17 +7,13 @@ This module provides machine learning-based classification of prompts
 to improve routing decisions and understand user intent.
 """
 
-import json
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import structlog
 
-from ..core.exceptions import ClassificationError
 from ..core.interfaces import ClassifierInterface
-from ..models import ChatMessage
 from .embeddings import EmbeddingManager
 
 logger = structlog.get_logger(__name__)
@@ -33,8 +29,8 @@ class PromptClassifier(ClassifierInterface):
 
     def __init__(
         self,
-        embedding_manager: Optional[EmbeddingManager] = None,
-        config: Optional[Dict[str, Any]] = None,
+        embedding_manager: EmbeddingManager | None = None,
+        config: dict[str, Any] | None = None,
     ):
         self.config = config or {}
         self.embedding_manager = embedding_manager or EmbeddingManager()
@@ -155,11 +151,11 @@ class PromptClassifier(ClassifierInterface):
         }
 
         # Category embeddings (computed lazily)
-        self.category_embeddings: Dict[str, np.ndarray] = {}
+        self.category_embeddings: dict[str, np.ndarray] = {}
         self.is_initialized = False
 
         # Classification history for learning
-        self.classification_history: List[Dict[str, Any]] = []
+        self.classification_history: list[dict[str, Any]] = []
         self.max_history_size = self.config.get("max_history_size", 1000)
 
     async def _initialize_category_embeddings(self) -> None:
@@ -189,7 +185,7 @@ class PromptClassifier(ClassifierInterface):
         self.is_initialized = True
         logger.info("category_embeddings_initialized", categories=len(self.categories))
 
-    async def classify(self, text: str) -> Dict[str, Any]:
+    async def classify(self, text: str) -> dict[str, Any]:
         """
         Classify a text prompt.
 
@@ -262,7 +258,7 @@ class PromptClassifier(ClassifierInterface):
             # Fallback to keyword-based classification
             return self._keyword_based_classification(text)
 
-    def _keyword_based_classification(self, text: str) -> Dict[str, Any]:
+    def _keyword_based_classification(self, text: str) -> dict[str, Any]:
         """Fallback keyword-based classification."""
         text_lower = text.lower()
         category_scores = {}
@@ -299,7 +295,7 @@ class PromptClassifier(ClassifierInterface):
             "method": "keyword",
         }
 
-    def _log_classification(self, text: str, result: Dict[str, Any]) -> None:
+    def _log_classification(self, text: str, result: dict[str, Any]) -> None:
         """Log classification for learning and analysis."""
         log_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -316,7 +312,7 @@ class PromptClassifier(ClassifierInterface):
         if len(self.classification_history) > self.max_history_size:
             self.classification_history = self.classification_history[-self.max_history_size :]
 
-    async def train(self, training_data: List[Dict[str, Any]]) -> bool:
+    async def train(self, training_data: list[dict[str, Any]]) -> bool:
         """
         Train the classifier with new data.
 
@@ -373,11 +369,11 @@ class PromptClassifier(ClassifierInterface):
             logger.error("classifier_training_failed", error=str(e))
             return False
 
-    def get_categories(self) -> List[str]:
+    def get_categories(self) -> list[str]:
         """Get list of supported classification categories."""
         return list(self.categories.keys())
 
-    def get_category_info(self, category: str) -> Optional[Dict[str, Any]]:
+    def get_category_info(self, category: str) -> dict[str, Any] | None:
         """Get detailed information about a category."""
         if category not in self.categories:
             return None
@@ -387,7 +383,7 @@ class PromptClassifier(ClassifierInterface):
 
         return category_data
 
-    def get_classification_stats(self) -> Dict[str, Any]:
+    def get_classification_stats(self) -> dict[str, Any]:
         """Get classification statistics."""
         if not self.classification_history:
             return {"total_classifications": 0}

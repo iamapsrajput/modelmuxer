@@ -4,12 +4,11 @@
 Main FastAPI application for the LLM Router.
 """
 
-import asyncio
 import json
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -117,9 +116,11 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle HTTP exceptions."""
     return JSONResponse(
         status_code=exc.status_code,
-        content=exc.detail
-        if isinstance(exc.detail, dict)
-        else ErrorResponse.create(message=str(exc.detail), error_type="http_error").dict(),
+        content=(
+            exc.detail
+            if isinstance(exc.detail, dict)
+            else ErrorResponse.create(message=str(exc.detail), error_type="http_error").dict()
+        ),
         headers=getattr(exc, "headers", None),
     )
 
@@ -149,17 +150,13 @@ async def validate_request_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-async def get_authenticated_user(
-    request: Request, authorization: Optional[str] = Header(None)
-) -> Dict[str, Any]:
+async def get_authenticated_user(request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
     """Dependency to authenticate requests."""
     return await auth.authenticate_request(request, authorization)
 
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
-async def chat_completions(
-    request: ChatCompletionRequest, user_info: Dict[str, Any] = Depends(get_authenticated_user)
-):
+async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)):
     """
     Create a chat completion using the optimal LLM provider.
 
@@ -174,9 +171,7 @@ async def chat_completions(
             message.content = sanitize_user_input(message.content)
 
         # Route the request to the best provider/model
-        provider_name, model_name, routing_reason = router.select_model(
-            messages=request.messages, user_id=user_id
-        )
+        provider_name, model_name, routing_reason = router.select_model(messages=request.messages, user_id=user_id)
 
         # Check if provider is available
         if provider_name not in providers:
@@ -213,9 +208,7 @@ async def chat_completions(
         # Handle streaming vs non-streaming
         if request.stream:
             return StreamingResponse(
-                stream_chat_completion(
-                    provider, request, model_name, routing_reason, user_id, start_time
-                ),
+                stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time),
                 media_type="text/plain",
             )
         else:
@@ -228,8 +221,7 @@ async def chat_completions(
                 **{
                     k: v
                     for k, v in request.dict().items()
-                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
-                    and v is not None
+                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
                 },
             )
 
@@ -283,7 +275,7 @@ async def chat_completions(
             detail=ErrorResponse.create(
                 message=f"Provider error: {str(e)}", error_type=error_type, code="provider_error"
             ).dict(),
-        )
+        ) from e
 
     except Exception as e:
         # Log unexpected error
@@ -308,12 +300,10 @@ async def chat_completions(
                 error_type="internal_error",
                 code="internal_server_error",
             ).dict(),
-        )
+        ) from e
 
 
-async def stream_chat_completion(
-    provider, request, model_name, routing_reason, user_id, start_time
-):
+async def stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time):
     """Handle streaming chat completion."""
     try:
         async for chunk in provider.stream_chat_completion(
@@ -324,8 +314,7 @@ async def stream_chat_completion(
             **{
                 k: v
                 for k, v in request.dict().items()
-                if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
-                and v is not None
+                if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
             },
         ):
             yield f"data: {json.dumps(chunk)}\n\n"
@@ -334,12 +323,8 @@ async def stream_chat_completion(
 
         # Log streaming request (with estimated tokens)
         response_time_ms = (time.time() - start_time) * 1000
-        estimated_tokens = cost_tracker.count_tokens(
-            request.messages, provider.provider_name, model_name
-        )
-        estimated_cost = cost_tracker.calculate_cost(
-            provider.provider_name, model_name, estimated_tokens, 100
-        )
+        estimated_tokens = cost_tracker.count_tokens(request.messages, provider.provider_name, model_name)
+        estimated_cost = cost_tracker.calculate_cost(provider.provider_name, model_name, estimated_tokens, 100)
 
         await db.log_request(
             user_id=user_id,
@@ -366,7 +351,7 @@ async def health_check():
 
 
 @app.get("/metrics", response_model=MetricsResponse)
-async def get_metrics(user_info: Dict[str, Any] = Depends(get_authenticated_user)):
+async def get_metrics(user_info: dict[str, Any] = Depends(get_authenticated_user)):
     """Get system metrics and usage statistics."""
     metrics = await db.get_system_metrics()
 
@@ -381,7 +366,7 @@ async def get_metrics(user_info: Dict[str, Any] = Depends(get_authenticated_user
 
 
 @app.get("/user/stats", response_model=UserStats)
-async def get_user_stats(user_info: Dict[str, Any] = Depends(get_authenticated_user)):
+async def get_user_stats(user_info: dict[str, Any] = Depends(get_authenticated_user)):
     """Get user-specific usage statistics."""
     user_id = user_info["user_id"]
     stats = await db.get_user_stats(user_id)
@@ -390,7 +375,7 @@ async def get_user_stats(user_info: Dict[str, Any] = Depends(get_authenticated_u
 
 
 @app.get("/providers")
-async def get_providers(user_info: Dict[str, Any] = Depends(get_authenticated_user)):
+async def get_providers(user_info: dict[str, Any] = Depends(get_authenticated_user)):
     """Get available providers and their models."""
     provider_info = {}
 

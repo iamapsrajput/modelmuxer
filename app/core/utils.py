@@ -12,7 +12,6 @@ import re
 import time
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any, Dict, List, Optional
 
 import tiktoken
 
@@ -26,7 +25,7 @@ def generate_request_id() -> str:
     return f"req_{timestamp}_{random_part}"
 
 
-def hash_prompt(messages: List[ChatMessage], algorithm: str = "sha256") -> str:
+def hash_prompt(messages: list[ChatMessage], algorithm: str = "sha256") -> str:
     """
     Create a hash of the prompt for caching and analytics.
 
@@ -153,7 +152,7 @@ def calculate_similarity(text1: str, text2: str) -> float:
     return len(intersection) / len(union)
 
 
-def extract_code_blocks(text: str) -> List[Dict[str, str]]:
+def extract_code_blocks(text: str) -> list[dict[str, str]]:
     """
     Extract code blocks from text.
 
@@ -175,7 +174,7 @@ def extract_code_blocks(text: str) -> List[Dict[str, str]]:
     return code_blocks
 
 
-def detect_programming_language(text: str) -> Optional[str]:
+def detect_programming_language(text: str) -> str | None:
     """
     Detect programming language from text content.
 
@@ -217,8 +216,6 @@ def detect_programming_language(text: str) -> Optional[str]:
         ],
     }
 
-    text_lower = text.lower()
-
     for language, lang_patterns in patterns.items():
         matches = sum(1 for pattern in lang_patterns if re.search(pattern, text, re.IGNORECASE))
         if matches >= 2:  # Require at least 2 pattern matches
@@ -245,7 +242,7 @@ def truncate_text(text: str, max_length: int = 1000, suffix: str = "...") -> str
     return text[: max_length - len(suffix)] + suffix
 
 
-def parse_model_name(full_model_name: str) -> Dict[str, str]:
+def parse_model_name(full_model_name: str) -> dict[str, str]:
     """
     Parse a full model name into provider and model components.
 

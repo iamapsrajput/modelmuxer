@@ -3,7 +3,7 @@
 """
 ModelMuxer - LLM Router API
 
-An intelligent LLM routing service that optimizes cost and quality by routing 
+An intelligent LLM routing service that optimizes cost and quality by routing
 requests to the most appropriate language model provider based on prompt characteristics.
 """
 

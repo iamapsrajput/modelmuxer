@@ -7,7 +7,7 @@ This module defines all custom exceptions used throughout the application
 to provide clear error handling and debugging information.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class ModelMuxerError(Exception):
@@ -16,15 +16,15 @@ class ModelMuxerError(Exception):
     def __init__(
         self,
         message: str,
-        error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        error_code: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         self.message = message
         self.error_code = error_code
         self.details = details or {}
         super().__init__(message)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary format."""
         return {
             "error": {
@@ -42,8 +42,8 @@ class ProviderError(ModelMuxerError):
     def __init__(
         self,
         message: str,
-        provider: Optional[str] = None,
-        status_code: Optional[int] = None,
+        provider: str | None = None,
+        status_code: int | None = None,
         **kwargs,
     ):
         self.provider = provider
@@ -56,7 +56,7 @@ class ProviderError(ModelMuxerError):
 class RoutingError(ModelMuxerError):
     """Exception for routing-related errors."""
 
-    def __init__(self, message: str, routing_strategy: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, routing_strategy: str | None = None, **kwargs):
         self.routing_strategy = routing_strategy
         details = kwargs.get("details", {})
         details["routing_strategy"] = routing_strategy
@@ -74,7 +74,7 @@ class RateLimitError(ModelMuxerError):
     """Exception for rate limit exceeded."""
 
     def __init__(
-        self, message: str = "Rate limit exceeded", retry_after: Optional[int] = None, **kwargs
+        self, message: str = "Rate limit exceeded", retry_after: int | None = None, **kwargs
     ):
         self.retry_after = retry_after
         details = kwargs.get("details", {})
@@ -88,8 +88,8 @@ class BudgetExceededError(ModelMuxerError):
     def __init__(
         self,
         message: str = "Budget limit exceeded",
-        current_usage: Optional[float] = None,
-        budget_limit: Optional[float] = None,
+        current_usage: float | None = None,
+        budget_limit: float | None = None,
         **kwargs,
     ):
         self.current_usage = current_usage
@@ -102,7 +102,7 @@ class BudgetExceededError(ModelMuxerError):
 class ConfigurationError(ModelMuxerError):
     """Exception for configuration-related errors."""
 
-    def __init__(self, message: str, config_key: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, config_key: str | None = None, **kwargs):
         self.config_key = config_key
         details = kwargs.get("details", {})
         details["config_key"] = config_key
@@ -112,7 +112,7 @@ class ConfigurationError(ModelMuxerError):
 class CacheError(ModelMuxerError):
     """Exception for cache-related errors."""
 
-    def __init__(self, message: str, cache_type: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, cache_type: str | None = None, **kwargs):
         self.cache_type = cache_type
         details = kwargs.get("details", {})
         details["cache_type"] = cache_type
@@ -122,7 +122,7 @@ class CacheError(ModelMuxerError):
 class ClassificationError(ModelMuxerError):
     """Exception for classification-related errors."""
 
-    def __init__(self, message: str, classifier_type: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, classifier_type: str | None = None, **kwargs):
         self.classifier_type = classifier_type
         details = kwargs.get("details", {})
         details["classifier_type"] = classifier_type
@@ -132,7 +132,7 @@ class ClassificationError(ModelMuxerError):
 class ValidationError(ModelMuxerError):
     """Exception for input validation errors."""
 
-    def __init__(self, message: str, field: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, field: str | None = None, **kwargs):
         self.field = field
         details = kwargs.get("details", {})
         details["field"] = field
@@ -143,7 +143,7 @@ class TimeoutError(ModelMuxerError):
     """Exception for timeout errors."""
 
     def __init__(
-        self, message: str = "Request timeout", timeout_duration: Optional[float] = None, **kwargs
+        self, message: str = "Request timeout", timeout_duration: float | None = None, **kwargs
     ):
         self.timeout_duration = timeout_duration
         details = kwargs.get("details", {})
@@ -154,7 +154,7 @@ class TimeoutError(ModelMuxerError):
 class ModelNotFoundError(ProviderError):
     """Exception for model not found errors."""
 
-    def __init__(self, message: str, model: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, model: str | None = None, **kwargs):
         self.model = model
         details = kwargs.get("details", {})
         details["model"] = model

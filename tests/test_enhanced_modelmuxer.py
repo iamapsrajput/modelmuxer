@@ -12,7 +12,6 @@ import asyncio
 import os
 import sys
 import time
-from typing import Any, Dict, List
 
 # Add the app directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "app"))
@@ -20,7 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "app"))
 # Test imports
 try:
     from app.config.enhanced_config import enhanced_config
-    from app.core.exceptions import ModelMuxerError
+    from app.core.exceptions import ModelMuxerError  # noqa: F401 - Used for testing import
     from app.main_enhanced import model_muxer
     from app.models import ChatCompletionRequest, ChatMessage
 
@@ -318,7 +317,7 @@ class EnhancedModelMuxerTester:
         await self.test_integration()
 
         # Print summary
-        print(f"\n📊 Test Summary:")
+        print("\n📊 Test Summary:")
         print(f"Total tests: {len(self.test_results)}")
         print(f"Passed: {len(self.test_results) - len(self.failed_tests)}")
         print(f"Failed: {len(self.failed_tests)}")

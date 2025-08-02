@@ -1,7 +1,7 @@
 # ModelMuxer Production Dockerfile - Multi-stage build for optimized production deployment
 
 # Stage 1: Build dependencies and compile Python packages
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Set build arguments
 ARG BUILDPLATFORM
@@ -34,10 +34,10 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock* ./
 
 # Install dependencies
-RUN poetry install --only=main --no-root && rm -rf $POETRY_CACHE_DIR
+RUN poetry install --without dev,ml,monitoring --no-root && rm -rf $POETRY_CACHE_DIR
 
 # Stage 2: Runtime image
-FROM python:3.11-slim as runtime
+FROM python:3.11-slim AS runtime
 
 # Set build arguments for metadata
 ARG VERSION=latest

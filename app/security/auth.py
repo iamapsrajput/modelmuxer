@@ -6,15 +6,13 @@
 import secrets
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import bcrypt
 import jwt
 import redis
 import structlog
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
+from fastapi.security import HTTPBearer
 
 logger = structlog.get_logger(__name__)
 
@@ -65,7 +63,7 @@ class Permission(str, Enum):
 
 
 # Role-based permission mapping
-ROLE_PERMISSIONS: Dict[UserRole, Set[Permission]] = {
+ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
     UserRole.ADMIN: {
         Permission.FULL_ACCESS,
         Permission.SYSTEM_CONFIG,
@@ -139,7 +137,7 @@ class SecurityManager:
         """Verify password against hash."""
         return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))
 
-    def generate_api_key(self, user_id: str, scopes: List[str]) -> str:
+    def generate_api_key(self, user_id: str, scopes: list[str]) -> str:
         """Generate API key with scopes."""
         api_key = f"mm_{secrets.token_urlsafe(32)}"
 
@@ -158,7 +156,7 @@ class SecurityManager:
         logger.info("api_key_generated", user_id=user_id, scopes=scopes)
         return api_key
 
-    def validate_api_key(self, api_key: str) -> Dict[str, Any]:
+    def validate_api_key(self, api_key: str) -> dict[str, Any]:
         """Validate API key and return user info."""
         key_data = self.redis_client.hgetall(f"api_key:{api_key}")
 
@@ -175,7 +173,7 @@ class SecurityManager:
             "auth_method": "api_key",
         }
 
-    def create_access_token(self, user_data: Dict[str, Any]) -> str:
+    def create_access_token(self, user_data: dict[str, Any]) -> str:
         """Create JWT access token."""
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
@@ -184,9 +182,7 @@ class SecurityManager:
             "email": user_data.get("email"),
             "role": user_data.get("role", UserRole.VIEWER),
             "org_id": user_data.get("org_id"),
-            "permissions": list(
-                ROLE_PERMISSIONS.get(UserRole(user_data.get("role", UserRole.VIEWER)), set())
-            ),
+            "permissions": list(ROLE_PERMISSIONS.get(UserRole(user_data.get("role", UserRole.VIEWER)), set())),
             "exp": expire,
             "iat": datetime.utcnow(),
             "type": "access",
@@ -226,7 +222,7 @@ class SecurityManager:
 
         return token
 
-    def verify_token(self, token: str) -> Dict[str, Any]:
+    def verify_token(self, token: str) -> dict[str, Any]:
         """Verify and decode JWT token."""
         try:
             payload = jwt.decode(token, self.public_key, algorithms=[JWT_ALGORITHM])
@@ -240,9 +236,9 @@ class SecurityManager:
             return payload
 
         except jwt.ExpiredSignatureError:
-            raise AuthenticationError("Token has expired")
+            raise AuthenticationError("Token has expired") from None
         except jwt.InvalidTokenError as e:
-            raise AuthenticationError(f"Invalid token: {str(e)}")
+            raise AuthenticationError(f"Invalid token: {str(e)}") from None
 
     def revoke_token(self, token: str) -> None:
         """Revoke a specific token."""
@@ -300,16 +296,10 @@ class SecurityManager:
 
             if attempts >= MAX_LOGIN_ATTEMPTS:
                 # Lock account
-                self.redis_client.setex(
-                    f"account_locked:{user_id}", LOCKOUT_DURATION_MINUTES * 60, "locked"
-                )
-                logger.warning(
-                    "account_locked", user_id=user_id, attempts=attempts, ip_address=ip_address
-                )
+                self.redis_client.setex(f"account_locked:{user_id}", LOCKOUT_DURATION_MINUTES * 60, "locked")
+                logger.warning("account_locked", user_id=user_id, attempts=attempts, ip_address=ip_address)
             else:
-                logger.warning(
-                    "login_failed", user_id=user_id, attempts=attempts, ip_address=ip_address
-                )
+                logger.warning("login_failed", user_id=user_id, attempts=attempts, ip_address=ip_address)
 
     def is_account_locked(self, user_id: str) -> bool:
         """Check if account is locked due to failed login attempts."""

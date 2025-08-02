@@ -7,15 +7,12 @@ This module provides sophisticated rate limiting with multiple algorithms,
 distributed support, and intelligent throttling.
 """
 
-import asyncio
 import time
-from collections import defaultdict, deque
-from typing import Any, Dict, List, Optional, Tuple
+from collections import deque
+from typing import Any
 
 import structlog
 from fastapi import HTTPException, Request
-
-from ..core.exceptions import RateLimitError
 
 logger = structlog.get_logger(__name__)
 
@@ -28,7 +25,7 @@ class RateLimitMiddleware:
     with per-user, per-endpoint, and global rate limiting.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
 
         # Rate limiting algorithms
@@ -47,9 +44,9 @@ class RateLimitMiddleware:
         }
 
         # Storage for different algorithms
-        self.token_buckets: Dict[str, Dict[str, Any]] = {}
-        self.sliding_windows: Dict[str, deque] = {}
-        self.fixed_windows: Dict[str, Dict[str, Any]] = {}
+        self.token_buckets: dict[str, dict[str, Any]] = {}
+        self.sliding_windows: dict[str, deque] = {}
+        self.fixed_windows: dict[str, dict[str, Any]] = {}
 
         # Global rate limiting
         self.global_limits = self.config.get(
@@ -78,8 +75,8 @@ class RateLimitMiddleware:
         )
 
     async def check_rate_limit(
-        self, request: Request, user_id: str, user_limits: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, request: Request, user_id: str, user_limits: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Check rate limits for a request.
 
@@ -225,8 +222,8 @@ class RateLimitMiddleware:
         window.append(current_time)
 
     async def _check_token_bucket(
-        self, key: str, limits: Dict[str, Any], current_time: float
-    ) -> Dict[str, Any]:
+        self, key: str, limits: dict[str, Any], current_time: float
+    ) -> dict[str, Any]:
         """Check rate limit using token bucket algorithm."""
         if key not in self.token_buckets:
             self.token_buckets[key] = {
@@ -265,8 +262,8 @@ class RateLimitMiddleware:
             }
 
     async def _check_sliding_window(
-        self, key: str, limits: Dict[str, Any], current_time: float
-    ) -> Dict[str, Any]:
+        self, key: str, limits: dict[str, Any], current_time: float
+    ) -> dict[str, Any]:
         """Check rate limit using sliding window algorithm."""
         if key not in self.sliding_windows:
             self.sliding_windows[key] = deque()
@@ -302,8 +299,8 @@ class RateLimitMiddleware:
             }
 
     async def _check_fixed_window(
-        self, key: str, limits: Dict[str, Any], current_time: float
-    ) -> Dict[str, Any]:
+        self, key: str, limits: dict[str, Any], current_time: float
+    ) -> dict[str, Any]:
         """Check rate limit using fixed window algorithm."""
         window_size = 60  # 1 minute window
         current_window = int(current_time // window_size)
@@ -341,8 +338,8 @@ class RateLimitMiddleware:
             }
 
     async def _apply_adaptive_throttling(
-        self, result: Dict[str, Any], current_time: float
-    ) -> Dict[str, Any]:
+        self, result: dict[str, Any], current_time: float
+    ) -> dict[str, Any]:
         """Apply adaptive throttling based on system load."""
         try:
             import psutil
@@ -386,7 +383,7 @@ class RateLimitMiddleware:
 
         return result
 
-    def get_rate_limit_stats(self) -> Dict[str, Any]:
+    def get_rate_limit_stats(self) -> dict[str, Any]:
         """Get rate limiting statistics."""
         return {
             "algorithm": self.algorithm,

@@ -10,13 +10,12 @@ This module provides advanced cost tracking capabilities including:
 - Comprehensive analytics and reporting
 """
 
-import asyncio
 import json
 import sqlite3
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import redis
 import structlog
@@ -57,9 +56,9 @@ class Budget:
     user_id: str
     budget_type: BudgetPeriod
     budget_limit: float
-    provider: Optional[str] = None
-    model: Optional[str] = None
-    alert_thresholds: List[float] = None
+    provider: str | None = None
+    model: str | None = None
+    alert_thresholds: list[float] = None
     created_at: datetime = None
 
     def __post_init__(self):
@@ -77,13 +76,13 @@ class CascadeRequestLog:
     cascade_type: str
     total_cost: float
     cascade_steps: int
-    quality_score: Optional[float]
-    confidence_score: Optional[float]
+    quality_score: float | None
+    confidence_score: float | None
     response_time: float
     success: bool
-    final_model: Optional[str] = None
-    escalation_reasons: List[str] = None
-    error_message: Optional[str] = None
+    final_model: str | None = None
+    escalation_reasons: list[str] = None
+    error_message: str | None = None
 
 
 class AdvancedCostTracker:
@@ -184,9 +183,9 @@ class AdvancedCostTracker:
         user_id: str,
         budget_type: BudgetPeriod,
         budget_limit: float,
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
-        alert_thresholds: List[float] = None,
+        provider: str | None = None,
+        model: str | None = None,
+        alert_thresholds: list[float] = None,
     ):
         """Set or update user budget."""
         if alert_thresholds is None:
@@ -246,9 +245,9 @@ class AdvancedCostTracker:
         self,
         user_id: str,
         session_id: str,
-        cascade_metadata: Dict[str, Any],
+        cascade_metadata: dict[str, Any],
         success: bool,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ):
         """Log a cascade request with detailed metadata."""
         conn = sqlite3.connect(self.db_path)
@@ -263,7 +262,6 @@ class AdvancedCostTracker:
             confidence_score = cascade_metadata.get("confidence_score")
             response_time = cascade_metadata.get("response_time", 0.0)
             escalation_reasons = cascade_metadata.get("escalation_reasons", [])
-            final_model = cascade_metadata.get("final_model", "unknown")
 
             # Get the final successful step for provider/model info
             successful_steps = [
@@ -341,7 +339,7 @@ class AdvancedCostTracker:
         success: bool,
         prompt_tokens: int = 0,
         completion_tokens: int = 0,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ):
         """Log a simple (non-cascade) request."""
         conn = sqlite3.connect(self.db_path)
@@ -493,8 +491,8 @@ class AdvancedCostTracker:
         self,
         user_id: str,
         budget_type: BudgetPeriod,
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
+        provider: str | None = None,
+        model: str | None = None,
     ) -> float:
         """Get current usage for a specific budget period."""
         now = datetime.now()
@@ -540,7 +538,7 @@ class AdvancedCostTracker:
         finally:
             conn.close()
 
-    async def get_budget_status(self, user_id: str) -> Dict[str, Any]:
+    async def get_budget_status(self, user_id: str) -> dict[str, Any]:
         """Get current budget status and alerts for a user."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -577,11 +575,11 @@ class AdvancedCostTracker:
                         "provider": provider,
                         "model": model,
                         "alert_thresholds": json.loads(alert_thresholds_json),
-                        "status": "exceeded"
-                        if utilization_percent >= 100
-                        else "warning"
-                        if utilization_percent >= 80
-                        else "normal",
+                        "status": (
+                            "exceeded"
+                            if utilization_percent >= 100
+                            else "warning" if utilization_percent >= 80 else "normal"
+                        ),
                     }
                 )
 
@@ -624,10 +622,10 @@ class AdvancedCostTracker:
     async def get_cost_analytics(
         self,
         user_id: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         group_by: str = "day",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get detailed cost analytics."""
         if not start_date:
             start_date = datetime.now().date() - timedelta(days=30)
@@ -653,7 +651,7 @@ class AdvancedCostTracker:
             # Convert to list of dicts
             request_data = []
             for row in requests:
-                request_data.append(dict(zip(columns, row)))
+                request_data.append(dict(zip(columns, row, strict=False)))
 
             # Calculate analytics
             total_cost = sum(r["total_cost"] for r in request_data)
@@ -694,25 +692,31 @@ class AdvancedCostTracker:
             cascade_stats = {
                 "total_requests": len(cascade_requests),
                 "total_cost": sum(r["total_cost"] for r in cascade_requests),
-                "avg_cost": sum(r["total_cost"] for r in cascade_requests) / len(cascade_requests)
-                if cascade_requests
-                else 0,
-                "avg_steps": sum(r["cascade_steps"] or 0 for r in cascade_requests)
-                / len(cascade_requests)
-                if cascade_requests
-                else 0,
-                "avg_quality": sum(r["quality_score"] or 0 for r in cascade_requests)
-                / len(cascade_requests)
-                if cascade_requests
-                else 0,
+                "avg_cost": (
+                    sum(r["total_cost"] for r in cascade_requests) / len(cascade_requests)
+                    if cascade_requests
+                    else 0
+                ),
+                "avg_steps": (
+                    sum(r["cascade_steps"] or 0 for r in cascade_requests) / len(cascade_requests)
+                    if cascade_requests
+                    else 0
+                ),
+                "avg_quality": (
+                    sum(r["quality_score"] or 0 for r in cascade_requests) / len(cascade_requests)
+                    if cascade_requests
+                    else 0
+                ),
             }
 
             single_stats = {
                 "total_requests": len(single_requests),
                 "total_cost": sum(r["total_cost"] for r in single_requests),
-                "avg_cost": sum(r["total_cost"] for r in single_requests) / len(single_requests)
-                if single_requests
-                else 0,
+                "avg_cost": (
+                    sum(r["total_cost"] for r in single_requests) / len(single_requests)
+                    if single_requests
+                    else 0
+                ),
             }
 
             return {
@@ -724,9 +728,9 @@ class AdvancedCostTracker:
                 "summary": {
                     "total_cost": round(total_cost, 4),
                     "total_requests": total_requests,
-                    "avg_cost_per_request": round(total_cost / total_requests, 4)
-                    if total_requests > 0
-                    else 0,
+                    "avg_cost_per_request": (
+                        round(total_cost / total_requests, 4) if total_requests > 0 else 0
+                    ),
                 },
                 "grouped_data": {
                     k: {"cost": round(v["cost"], 4), "requests": v["requests"]}

@@ -4,9 +4,9 @@
 Pydantic models for request/response schemas and data validation.
 """
 
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, validator
 
@@ -18,24 +18,24 @@ class ChatMessage(BaseModel):
         ..., description="The role of the message author"
     )
     content: str = Field(..., description="The content of the message")
-    name: Optional[str] = Field(None, description="Optional name of the message author")
+    name: str | None = Field(None, description="Optional name of the message author")
 
 
 class ChatCompletionRequest(BaseModel):
     """Request schema for chat completions endpoint."""
 
-    messages: List[ChatMessage] = Field(..., description="List of messages in the conversation")
-    model: Optional[str] = Field(None, description="Model to use (will be overridden by router)")
-    max_tokens: Optional[int] = Field(None, description="Maximum tokens to generate")
-    temperature: Optional[float] = Field(None, description="Sampling temperature")
-    top_p: Optional[float] = Field(None, description="Nucleus sampling parameter")
-    n: Optional[int] = Field(1, description="Number of completions to generate")
-    stream: Optional[bool] = Field(False, description="Whether to stream the response")
-    stop: Optional[Union[str, List[str]]] = Field(None, description="Stop sequences")
-    presence_penalty: Optional[float] = Field(None, description="Presence penalty")
-    frequency_penalty: Optional[float] = Field(None, description="Frequency penalty")
-    logit_bias: Optional[Dict[str, float]] = Field(None, description="Logit bias")
-    user: Optional[str] = Field(None, description="User identifier")
+    messages: list[ChatMessage] = Field(..., description="List of messages in the conversation")
+    model: str | None = Field(None, description="Model to use (will be overridden by router)")
+    max_tokens: int | None = Field(None, description="Maximum tokens to generate")
+    temperature: float | None = Field(None, description="Sampling temperature")
+    top_p: float | None = Field(None, description="Nucleus sampling parameter")
+    n: int | None = Field(1, description="Number of completions to generate")
+    stream: bool | None = Field(False, description="Whether to stream the response")
+    stop: str | list[str] | None = Field(None, description="Stop sequences")
+    presence_penalty: float | None = Field(None, description="Presence penalty")
+    frequency_penalty: float | None = Field(None, description="Frequency penalty")
+    logit_bias: dict[str, float] | None = Field(None, description="Logit bias")
+    user: str | None = Field(None, description="User identifier")
 
 
 class Usage(BaseModel):
@@ -51,7 +51,7 @@ class Choice(BaseModel):
 
     index: int = Field(..., description="Index of the choice")
     message: ChatMessage = Field(..., description="The generated message")
-    finish_reason: Optional[str] = Field(None, description="Reason the generation finished")
+    finish_reason: str | None = Field(None, description="Reason the generation finished")
 
 
 class RouterMetadata(BaseModel):
@@ -71,8 +71,8 @@ class ChatResponse(BaseModel):
     object: str = Field("chat.completion", description="Object type")
     created: int = Field(..., description="Unix timestamp of creation")
     model: str = Field(..., description="Model used for the completion")
-    choices: List[Dict[str, Any]] = Field(..., description="List of completion choices")
-    usage: Dict[str, int] = Field(..., description="Token usage information")
+    choices: list[dict[str, Any]] = Field(..., description="List of completion choices")
+    usage: dict[str, int] = Field(..., description="Token usage information")
 
 
 class ChatCompletionResponse(BaseModel):
@@ -82,7 +82,7 @@ class ChatCompletionResponse(BaseModel):
     object: str = Field("chat.completion", description="Object type")
     created: int = Field(..., description="Unix timestamp of creation")
     model: str = Field(..., description="Model used for the completion")
-    choices: List[Choice] = Field(..., description="List of completion choices")
+    choices: list[Choice] = Field(..., description="List of completion choices")
     usage: Usage = Field(..., description="Token usage information")
     router_metadata: RouterMetadata = Field(..., description="Router-specific metadata")
 
@@ -105,7 +105,7 @@ class UserStats(BaseModel):
     monthly_cost: float = Field(..., description="Cost for this month in USD")
     daily_budget: float = Field(..., description="Daily budget limit in USD")
     monthly_budget: float = Field(..., description="Monthly budget limit in USD")
-    favorite_model: Optional[str] = Field(None, description="Most used model")
+    favorite_model: str | None = Field(None, description="Most used model")
 
 
 class MetricsResponse(BaseModel):
@@ -114,19 +114,19 @@ class MetricsResponse(BaseModel):
     total_requests: int = Field(..., description="Total requests processed")
     total_cost: float = Field(..., description="Total cost across all users")
     active_users: int = Field(..., description="Number of active users")
-    provider_usage: Dict[str, int] = Field(..., description="Usage count by provider")
-    model_usage: Dict[str, int] = Field(..., description="Usage count by model")
+    provider_usage: dict[str, int] = Field(..., description="Usage count by provider")
+    model_usage: dict[str, int] = Field(..., description="Usage count by model")
     average_response_time: float = Field(..., description="Average response time in ms")
 
 
 class ErrorResponse(BaseModel):
     """Error response schema."""
 
-    error: Dict[str, Any] = Field(..., description="Error details")
+    error: dict[str, Any] = Field(..., description="Error details")
 
     @classmethod
     def create(
-        cls, message: str, error_type: str = "invalid_request_error", code: Optional[str] = None
+        cls, message: str, error_type: str = "invalid_request_error", code: str | None = None
     ):
         """Create a standardized error response."""
         error_data = {"message": message, "type": error_type}
@@ -148,9 +148,9 @@ class BudgetPeriodEnum(str, Enum):
 class BudgetRequest(BaseModel):
     budget_type: BudgetPeriodEnum
     budget_limit: float = Field(..., gt=0, description="Budget limit in USD")
-    provider: Optional[str] = Field(None, description="Specific provider (optional)")
-    model: Optional[str] = Field(None, description="Specific model (optional)")
-    alert_thresholds: Optional[List[float]] = Field(
+    provider: str | None = Field(None, description="Specific provider (optional)")
+    model: str | None = Field(None, description="Specific model (optional)")
+    alert_thresholds: list[float] | None = Field(
         [50.0, 80.0, 95.0], description="Alert thresholds as percentages"
     )
 
@@ -171,20 +171,20 @@ class CascadeConfig(BaseModel):
 
 
 class EnhancedChatCompletionRequest(ChatCompletionRequest):
-    session_id: Optional[str] = None
-    cascade_config: Optional[CascadeConfig] = None
+    session_id: str | None = None
+    cascade_config: CascadeConfig | None = None
     enable_analytics: bool = True
-    routing_preference: Optional[str] = Field(None, pattern="^(cost|quality|balanced|speed)$")
+    routing_preference: str | None = Field(None, pattern="^(cost|quality|balanced|speed)$")
 
 
 class RoutingMetadata(BaseModel):
     strategy_used: str
     total_cost: float
-    cascade_steps: Optional[int] = None
-    quality_score: Optional[float] = None
-    confidence_score: Optional[float] = None
-    provider_chain: List[str] = []
-    escalation_reasons: List[str] = []
+    cascade_steps: int | None = None
+    quality_score: float | None = None
+    confidence_score: float | None = None
+    provider_chain: list[str] = []
+    escalation_reasons: list[str] = []
     response_time_ms: float
 
 
@@ -193,6 +193,6 @@ class EnhancedChatCompletionResponse(BaseModel):
     object: str = "chat.completion"
     created: int
     model: str
-    choices: List[Dict[str, Any]]
-    usage: Dict[str, int]
-    routing_metadata: Optional[RoutingMetadata] = None
+    choices: list[dict[str, Any]]
+    usage: dict[str, int]
+    routing_metadata: RoutingMetadata | None = None

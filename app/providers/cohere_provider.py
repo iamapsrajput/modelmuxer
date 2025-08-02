@@ -9,15 +9,14 @@ LLM routing system.
 
 import json
 import time
-import uuid
-from datetime import datetime
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 import structlog
 
 from ..core.utils import estimate_tokens
-from ..models import ChatCompletionResponse, ChatMessage, Choice, RouterMetadata, Usage
+from ..models import ChatCompletionResponse, ChatMessage
 from .base import AuthenticationError, LLMProvider, ProviderError, RateLimitError
 
 logger = structlog.get_logger(__name__)
@@ -30,9 +29,7 @@ class CohereProvider(LLMProvider):
         if not api_key:
             raise AuthenticationError("Cohere API key is required")
 
-        super().__init__(
-            api_key=api_key, base_url="https://api.cohere.ai/v1", provider_name="cohere"
-        )
+        super().__init__(api_key=api_key, base_url="https://api.cohere.ai/v1", provider_name="cohere")
 
         # Pricing per million tokens (as of 2024)
         self.pricing = {
@@ -52,15 +49,15 @@ class CohereProvider(LLMProvider):
             "command-light": 1000,
         }
 
-    def _create_headers(self) -> Dict[str, str]:
+    def _create_headers(self) -> dict[str, str]:
         """Create headers for Cohere API requests."""
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "User-Agent": f"ModelMuxer/1.0.0 (Cohere)",
+            "User-Agent": "ModelMuxer/1.0.0 (Cohere)",
         }
 
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported Cohere models."""
         return self.supported_models
 
@@ -75,7 +72,7 @@ class CohereProvider(LLMProvider):
 
         return input_cost + output_cost
 
-    def get_rate_limits(self) -> Dict[str, Any]:
+    def get_rate_limits(self) -> dict[str, Any]:
         """Get rate limit information."""
         return {
             "requests_per_minute": self.rate_limits,
@@ -87,7 +84,7 @@ class CohereProvider(LLMProvider):
             },
         }
 
-    def _convert_messages_to_cohere_format(self, messages: List[ChatMessage]) -> Dict[str, Any]:
+    def _convert_messages_to_cohere_format(self, messages: list[ChatMessage]) -> dict[str, Any]:
         """Convert OpenAI format messages to Cohere format."""
         # Cohere uses a different format - it expects a message and chat_history
         if not messages:
@@ -98,7 +95,7 @@ class CohereProvider(LLMProvider):
 
         # Previous messages become chat history
         chat_history = []
-        for i, msg in enumerate(messages[:-1]):
+        for msg in messages[:-1]:
             if msg.role == "user":
                 chat_history.append({"role": "USER", "message": msg.content})
             elif msg.role == "assistant":
@@ -109,10 +106,10 @@ class CohereProvider(LLMProvider):
 
     async def chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str = "command-r",
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> ChatCompletionResponse:
@@ -195,39 +192,37 @@ class CohereProvider(LLMProvider):
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                raise RateLimitError(f"Cohere API rate limit exceeded", provider=self.provider_name)
+                raise RateLimitError("Cohere API rate limit exceeded", provider=self.provider_name) from e
             elif e.response.status_code == 401:
-                raise AuthenticationError(
-                    f"Cohere API authentication failed", provider=self.provider_name
-                )
+                raise AuthenticationError("Cohere API authentication failed", provider=self.provider_name) from e
             else:
                 error_detail = ""
                 try:
                     error_data = e.response.json()
                     error_detail = error_data.get("message", "")
-                except:
+                except (ValueError, KeyError, TypeError, AttributeError):
                     pass
 
                 raise ProviderError(
                     f"Cohere API error: {e.response.status_code} {error_detail}",
                     provider=self.provider_name,
                     status_code=e.response.status_code,
-                )
+                ) from e
         except httpx.RequestError as e:
-            raise ProviderError(f"Cohere request failed: {str(e)}", provider=self.provider_name)
+            raise ProviderError(f"Cohere request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Cohere unexpected error: {str(e)}", provider=self.provider_name)
+            raise ProviderError(f"Cohere unexpected error: {str(e)}", provider=self.provider_name) from e
 
     async def stream_chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str = "command-r",
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using Cohere API."""
         # Convert messages to Cohere format
         cohere_messages = self._convert_messages_to_cohere_format(messages)
@@ -302,15 +297,11 @@ class CohereProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(
-                f"Cohere streaming request failed: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"Cohere streaming request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(
-                f"Cohere streaming unexpected error: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"Cohere streaming unexpected error: {str(e)}", provider=self.provider_name) from e
 
     async def health_check(self) -> bool:
         """Check if Cohere API is accessible."""

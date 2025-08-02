@@ -8,17 +8,12 @@ are first tried with cheaper models and escalated to more expensive ones based
 on quality thresholds and confidence scores.
 """
 
-import asyncio
-import json
-import re
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-import numpy as np
 import structlog
 
-from ..core.exceptions import RoutingError
 from ..models import ChatMessage
 from .base_router import BaseRouter
 
@@ -47,7 +42,7 @@ class CascadeRouter(BaseRouter):
     quality thresholds.
     """
 
-    def __init__(self, cost_tracker=None, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, cost_tracker=None, config: dict[str, Any] | None = None):
         super().__init__("cascade", config)
 
         self.cost_tracker = cost_tracker
@@ -61,7 +56,7 @@ class CascadeRouter(BaseRouter):
         # Initialize cascade chains
         self.cascade_chains = self._initialize_cascade_chains()
 
-    def _initialize_cascade_chains(self) -> Dict[str, List[CascadeStep]]:
+    def _initialize_cascade_chains(self) -> dict[str, list[CascadeStep]]:
         """Define cascade chains for different use cases"""
         return {
             "cost_optimized": [
@@ -84,12 +79,12 @@ class CascadeRouter(BaseRouter):
 
     async def route_with_cascade(
         self,
-        messages: List[Dict],
+        messages: list[dict],
         cascade_type: str = "balanced",
         max_budget: float = 0.1,
         user_id: str = None,
         **kwargs,
-    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """
         Execute cascade routing with cost and quality thresholds
         Returns: (response, routing_metadata)
@@ -166,7 +161,7 @@ class CascadeRouter(BaseRouter):
             "Cascade routing failed: no suitable response found within budget/quality constraints"
         )
 
-    async def analyze_prompt(self, messages: List[ChatMessage]) -> Dict[str, Any]:
+    async def analyze_prompt(self, messages: list[ChatMessage]) -> dict[str, Any]:
         """Analyze prompt to determine initial cascade level."""
         # Combine all message content
         full_text = " ".join([msg.content for msg in messages if msg.content])
@@ -233,11 +228,11 @@ class CascadeRouter(BaseRouter):
 
     async def _route_request(
         self,
-        messages: List[ChatMessage],
-        analysis: Dict[str, Any],
-        user_id: Optional[str],
-        constraints: Optional[Dict[str, Any]],
-    ) -> Tuple[str, str, str, float]:
+        messages: list[ChatMessage],
+        analysis: dict[str, Any],
+        user_id: str | None,
+        constraints: dict[str, Any] | None,
+    ) -> tuple[str, str, str, float]:
         """Route request using cascade strategy."""
         initial_level = analysis["initial_cascade_level"]
         max_cost = constraints.get("max_cost") if constraints else None
@@ -283,8 +278,8 @@ class CascadeRouter(BaseRouter):
         return "openai", "gpt-3.5-turbo", "Cascade routing fallback", 0.5
 
     def _filter_models_by_constraints(
-        self, models: List[Tuple[str, str, float, float]], constraints: Optional[Dict[str, Any]]
-    ) -> List[Tuple[str, str, float, float]]:
+        self, models: list[tuple[str, str, float, float]], constraints: dict[str, Any] | None
+    ) -> list[tuple[str, str, float, float]]:
         """Filter models based on constraints."""
         if not constraints:
             return models
@@ -321,7 +316,7 @@ class CascadeRouter(BaseRouter):
         return True
 
     def _calculate_confidence(
-        self, analysis: Dict[str, Any], level: int, model_quality: float
+        self, analysis: dict[str, Any], level: int, model_quality: float
     ) -> float:
         """Calculate confidence score for the routing decision."""
         complexity = analysis["complexity_score"]
@@ -343,7 +338,7 @@ class CascadeRouter(BaseRouter):
         return min(1.0, max(0.0, confidence))
 
     def _generate_reasoning(
-        self, analysis: Dict[str, Any], provider: str, model: str, level: int, cost: float
+        self, analysis: dict[str, Any], provider: str, model: str, level: int, cost: float
     ) -> str:
         """Generate reasoning for the cascade routing decision."""
         level_names = {1: "budget", 2: "balanced", 3: "premium"}
@@ -362,7 +357,7 @@ class CascadeRouter(BaseRouter):
         return ". ".join(reasoning_parts)
 
     async def should_escalate(
-        self, response: str, original_analysis: Dict[str, Any], current_level: int
+        self, response: str, original_analysis: dict[str, Any], current_level: int
     ) -> bool:
         """
         Determine if the response should be escalated to a higher level.
@@ -388,8 +383,8 @@ class CascadeRouter(BaseRouter):
         return False
 
     async def _execute_step(
-        self, step: CascadeStep, messages: List[Dict], user_id: str, **kwargs
-    ) -> Tuple[Dict[str, Any], float]:
+        self, step: CascadeStep, messages: list[dict], user_id: str, **kwargs
+    ) -> tuple[dict[str, Any], float]:
         """Execute a single cascade step"""
         # This would integrate with your provider system
         # For now, returning mock implementation for testing
@@ -424,8 +419,8 @@ class CascadeRouter(BaseRouter):
         return MockProvider()
 
     async def _evaluate_response(
-        self, response: Dict[str, Any], original_messages: List[Dict], step: CascadeStep
-    ) -> Tuple[float, float]:
+        self, response: dict[str, Any], original_messages: list[dict], step: CascadeStep
+    ) -> tuple[float, float]:
         """
         Evaluate response quality and confidence
         Returns: (quality_score, confidence_score)
@@ -440,7 +435,7 @@ class CascadeRouter(BaseRouter):
 
         return quality_score, confidence_score
 
-    def _calculate_quality_score(self, content: str, messages: List[Dict]) -> float:
+    def _calculate_quality_score(self, content: str, messages: list[dict]) -> float:
         """Calculate quality score based on content analysis"""
         score = 0.5  # Base score
 
@@ -465,7 +460,7 @@ class CascadeRouter(BaseRouter):
 
         return min(score, 1.0)
 
-    def _calculate_confidence_score(self, content: str, response: Dict) -> float:
+    def _calculate_confidence_score(self, content: str, response: dict) -> float:
         """Calculate confidence score based on response characteristics"""
         score = 0.5  # Base score
 

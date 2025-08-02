@@ -7,16 +7,15 @@ This module provides the complete ModelMuxer application with advanced routing,
 multiple providers, ML-based classification, comprehensive monitoring, and more.
 """
 
-import asyncio
 import time
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import date, datetime
+from typing import Any
 
 import structlog
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 # Cache imports
@@ -30,13 +29,8 @@ from .config.enhanced_config import enhanced_config
 
 # Core exceptions
 from .core.exceptions import (
-    AuthenticationError,
-    CacheError,
-    ClassificationError,
     ModelMuxerError,
     ProviderError,
-    RateLimitError,
-    RoutingError,
 )
 
 # Enhanced cost tracking
@@ -49,15 +43,11 @@ from .middleware.rate_limit_middleware import RateLimitMiddleware
 
 # Core imports
 from .models import (
-    BudgetPeriodEnum,
     BudgetRequest,
-    CascadeConfig,
     ChatCompletionRequest,
     ChatCompletionResponse,
     ChatMessage,
     EnhancedChatCompletionRequest,
-    EnhancedChatCompletionResponse,
-    RoutingMetadata,
 )
 
 # Monitoring imports
@@ -96,8 +86,8 @@ class EnhancedModelMuxer:
         self.config = enhanced_config
 
         # Initialize components
-        self.providers: Dict[str, Any] = {}
-        self.routers: Dict[str, Any] = {}
+        self.providers: dict[str, Any] = {}
+        self.routers: dict[str, Any] = {}
         self.cache = None
         self.embedding_manager = None
         self.classifier = None
@@ -155,9 +145,7 @@ class EnhancedModelMuxer:
 
         # Anthropic
         if provider_config.anthropic_api_key:
-            self.providers["anthropic"] = AnthropicProvider(
-                api_key=provider_config.anthropic_api_key
-            )
+            self.providers["anthropic"] = AnthropicProvider(api_key=provider_config.anthropic_api_key)
             logger.info("anthropic_provider_initialized")
 
         # Mistral
@@ -425,10 +413,10 @@ class EnhancedModelMuxer:
 
     async def route_request(
         self,
-        messages: List[ChatMessage],
-        user_id: Optional[str] = None,
-        constraints: Optional[Dict[str, Any]] = None,
-        routing_strategy: Optional[str] = None,
+        messages: list[ChatMessage],
+        user_id: str | None = None,
+        constraints: dict[str, Any] | None = None,
+        routing_strategy: str | None = None,
     ) -> tuple:
         """Route a request to the optimal provider and model."""
         # Select router
@@ -451,7 +439,7 @@ class EnhancedModelMuxer:
         return provider_name, model, reasoning, confidence
 
     async def chat_completion(
-        self, request: ChatCompletionRequest, user_info: Dict[str, Any]
+        self, request: ChatCompletionRequest, user_info: dict[str, Any]
     ) -> ChatCompletionResponse:
         """Process a chat completion request."""
         start_time = time.time()
@@ -512,7 +500,7 @@ class EnhancedModelMuxer:
 
             raise
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Perform comprehensive health check."""
         if not self.health_checker:
             return {"status": "healthy", "message": "Health checking disabled"}
@@ -589,9 +577,7 @@ app.add_middleware(
 
 
 # Dependency for authentication
-async def get_current_user(
-    request: Request, authorization: Optional[str] = Header(None)
-) -> Dict[str, Any]:
+async def get_current_user(request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
     """Get current authenticated user."""
     if not model_muxer.auth_middleware:
         # Authentication disabled
@@ -651,9 +637,7 @@ async def logging_middleware(request: Request, call_next):
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(
-    request: ChatCompletionRequest, user_info: Dict[str, Any] = Depends(get_current_user)
-):
+async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_current_user)):
     """Enhanced chat completions endpoint with advanced routing."""
     try:
         # Check rate limits
@@ -688,7 +672,7 @@ async def chat_completions(
         logger.error("chat_completion_error", error=str(e), user_id=user_info.get("user_id"))
 
         if isinstance(e, ModelMuxerError):
-            raise HTTPException(status_code=400, detail=e.to_dict())
+            raise HTTPException(status_code=400, detail=e.to_dict()) from e
         else:
             raise HTTPException(
                 status_code=500,
@@ -699,7 +683,7 @@ async def chat_completions(
                         "code": "internal_server_error",
                     }
                 },
-            )
+            ) from e
 
 
 @app.get("/health")
@@ -727,7 +711,7 @@ async def metrics_endpoint():
 
 
 @app.get("/v1/models")
-async def list_models(user_info: Dict[str, Any] = Depends(get_current_user)):
+async def list_models(user_info: dict[str, Any] = Depends(get_current_user)):
     """List available models from all providers."""
     models = []
 
@@ -752,7 +736,7 @@ async def list_models(user_info: Dict[str, Any] = Depends(get_current_user)):
 
 
 @app.get("/v1/providers")
-async def list_providers(user_info: Dict[str, Any] = Depends(get_current_user)):
+async def list_providers(user_info: dict[str, Any] = Depends(get_current_user)):
     """List available providers and their status."""
     providers = []
 
@@ -788,9 +772,9 @@ async def list_providers(user_info: Dict[str, Any] = Depends(get_current_user)):
 
 @app.get("/v1/analytics/costs")
 async def get_cost_analytics(
-    user_info: Dict[str, Any] = Depends(get_current_user),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
+    user_info: dict[str, Any] = Depends(get_current_user),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
     group_by: str = Query("day", pattern="^(hour|day|provider|model)$"),
 ):
     """Get detailed cost analytics"""
@@ -803,7 +787,7 @@ async def get_cost_analytics(
 
 
 @app.get("/v1/analytics/budgets")
-async def get_budget_status(user_info: Dict[str, Any] = Depends(get_current_user)):
+async def get_budget_status(user_info: dict[str, Any] = Depends(get_current_user)):
     """Get current budget status and alerts"""
     user_id = user_info.get("user_id", "anonymous")
     budget_status = await model_muxer.cost_tracker.get_budget_status(user_id)
@@ -811,9 +795,7 @@ async def get_budget_status(user_info: Dict[str, Any] = Depends(get_current_user
 
 
 @app.post("/v1/analytics/budgets")
-async def set_budget(
-    budget_request: BudgetRequest, user_info: Dict[str, Any] = Depends(get_current_user)
-):
+async def set_budget(budget_request: BudgetRequest, user_info: dict[str, Any] = Depends(get_current_user)):
     """Set or update user budget"""
     user_id = user_info.get("user_id", "anonymous")
 
@@ -831,7 +813,7 @@ async def set_budget(
 @app.post("/v1/chat/completions/enhanced")
 async def enhanced_chat_completions(
     request: EnhancedChatCompletionRequest,
-    user_info: Dict[str, Any] = Depends(get_current_user),
+    user_info: dict[str, Any] = Depends(get_current_user),
     routing_strategy: str = Header("balanced", alias="X-Routing-Strategy"),
     max_budget: float = Header(0.1, alias="X-Max-Budget"),
     enable_cascade: bool = Header(True, alias="X-Enable-Cascade"),
@@ -924,7 +906,7 @@ async def enhanced_chat_completions(
             error_message=str(e),
         )
 
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 if __name__ == "__main__":

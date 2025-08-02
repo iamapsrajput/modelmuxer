@@ -10,15 +10,14 @@ through a single endpoint.
 
 import json
 import time
-import uuid
-from datetime import datetime
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 import structlog
 
 from ..core.utils import estimate_tokens
-from ..models import ChatCompletionResponse, ChatMessage, Choice, RouterMetadata, Usage
+from ..models import ChatCompletionResponse, ChatMessage
 from .base import AuthenticationError, LLMProvider, ProviderError, RateLimitError
 
 logger = structlog.get_logger(__name__)
@@ -27,9 +26,7 @@ logger = structlog.get_logger(__name__)
 class LiteLLMProvider(LLMProvider):
     """LiteLLM proxy provider implementation."""
 
-    def __init__(
-        self, base_url: str, api_key: str = None, custom_models: Optional[Dict[str, Dict]] = None
-    ):
+    def __init__(self, base_url: str, api_key: str = None, custom_models: dict[str, dict] | None = None):
         if not base_url:
             raise ValueError("LiteLLM base URL is required")
 
@@ -57,11 +54,11 @@ class LiteLLMProvider(LLMProvider):
         # Default rate limits (can be overridden per model)
         self.default_rate_limits = {"requests_per_minute": 100, "tokens_per_minute": 100000}
 
-    def _create_headers(self) -> Dict[str, str]:
+    def _create_headers(self) -> dict[str, str]:
         """Create headers for LiteLLM proxy requests."""
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": f"ModelMuxer/1.0.0 (LiteLLM Proxy)",
+            "User-Agent": "ModelMuxer/1.0.0 (LiteLLM Proxy)",
         }
 
         if self.api_key and self.api_key != "dummy-key":
@@ -69,7 +66,7 @@ class LiteLLMProvider(LLMProvider):
 
         return headers
 
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported models from LiteLLM proxy."""
         return self.supported_models
 
@@ -82,7 +79,7 @@ class LiteLLMProvider(LLMProvider):
 
         return input_cost + output_cost
 
-    def get_rate_limits(self) -> Dict[str, Any]:
+    def get_rate_limits(self) -> dict[str, Any]:
         """Get rate limit information."""
         rate_limits = {}
 
@@ -94,19 +91,18 @@ class LiteLLMProvider(LLMProvider):
             "note": "Rate limits are configured per model in LiteLLM proxy",
         }
 
-    def _prepare_messages(self, messages: List[ChatMessage]) -> List[Dict[str, str]]:
+    def _prepare_messages(self, messages: list[ChatMessage]) -> list[dict[str, str]]:
         """Convert ChatMessage objects to OpenAI format (LiteLLM is OpenAI-compatible)."""
         return [
-            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})}
-            for msg in messages
+            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})} for msg in messages
         ]
 
     async def chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> ChatCompletionResponse:
@@ -158,9 +154,7 @@ class LiteLLMProvider(LLMProvider):
             # Extract content
             choices = response_data.get("choices", [])
             if not choices:
-                raise ProviderError(
-                    "No choices returned from LiteLLM proxy", provider=self.provider_name
-                )
+                raise ProviderError("No choices returned from LiteLLM proxy", provider=self.provider_name)
 
             content = choices[0].get("message", {}).get("content", "")
             finish_reason = choices[0].get("finish_reason", "stop")
@@ -178,45 +172,37 @@ class LiteLLMProvider(LLMProvider):
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                raise RateLimitError(
-                    f"LiteLLM proxy rate limit exceeded", provider=self.provider_name
-                )
+                raise RateLimitError("LiteLLM proxy rate limit exceeded", provider=self.provider_name) from e
             elif e.response.status_code == 401:
-                raise AuthenticationError(
-                    f"LiteLLM proxy authentication failed", provider=self.provider_name
-                )
+                raise AuthenticationError("LiteLLM proxy authentication failed", provider=self.provider_name) from e
             else:
                 error_detail = ""
                 try:
                     error_data = e.response.json()
                     error_detail = error_data.get("error", {}).get("message", "")
-                except:
+                except (ValueError, KeyError, TypeError, AttributeError):
                     pass
 
                 raise ProviderError(
                     f"LiteLLM proxy error: {e.response.status_code} {error_detail}",
                     provider=self.provider_name,
                     status_code=e.response.status_code,
-                )
+                ) from e
         except httpx.RequestError as e:
-            raise ProviderError(
-                f"LiteLLM proxy request failed: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"LiteLLM proxy request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(
-                f"LiteLLM proxy unexpected error: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"LiteLLM proxy unexpected error: {str(e)}", provider=self.provider_name) from e
 
     async def stream_chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using LiteLLM proxy."""
         # Prepare request payload
         payload = {"model": model, "messages": self._prepare_messages(messages), "stream": True}
@@ -256,23 +242,19 @@ class LiteLLMProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(
-                f"LiteLLM proxy streaming request failed: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"LiteLLM proxy streaming request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
             raise ProviderError(
                 f"LiteLLM proxy streaming unexpected error: {str(e)}", provider=self.provider_name
-            )
+            ) from e
 
     async def health_check(self) -> bool:
         """Check if LiteLLM proxy is accessible."""
         try:
             # Try to get model list first
-            response = await self.client.get(
-                f"{self.base_url}/v1/models", headers=self._create_headers(), timeout=30.0
-            )
+            response = await self.client.get(f"{self.base_url}/v1/models", headers=self._create_headers(), timeout=30.0)
 
             if response.status_code == 200:
                 return True
@@ -280,9 +262,7 @@ class LiteLLMProvider(LLMProvider):
             # Fallback: try a simple chat completion
             if self.supported_models:
                 test_messages = [ChatMessage(role="user", content="Hi")]
-                await self.chat_completion(
-                    messages=test_messages, model=self.supported_models[0], max_tokens=1
-                )
+                await self.chat_completion(messages=test_messages, model=self.supported_models[0], max_tokens=1)
                 return True
 
             return False
@@ -291,12 +271,10 @@ class LiteLLMProvider(LLMProvider):
             logger.warning("litellm_health_check_failed", error=str(e))
             return False
 
-    async def get_available_models(self) -> List[Dict[str, Any]]:
+    async def get_available_models(self) -> list[dict[str, Any]]:
         """Get available models from LiteLLM proxy."""
         try:
-            response = await self.client.get(
-                f"{self.base_url}/v1/models", headers=self._create_headers(), timeout=30.0
-            )
+            response = await self.client.get(f"{self.base_url}/v1/models", headers=self._create_headers(), timeout=30.0)
 
             if response.status_code == 200:
                 data = response.json()
@@ -311,9 +289,9 @@ class LiteLLMProvider(LLMProvider):
     def add_custom_model(
         self,
         model_name: str,
-        pricing: Dict[str, float],
-        rate_limits: Optional[Dict[str, int]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        pricing: dict[str, float],
+        rate_limits: dict[str, int] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Add a custom model configuration."""
         self.custom_models[model_name] = {
@@ -325,11 +303,9 @@ class LiteLLMProvider(LLMProvider):
         self.supported_models.append(model_name)
         self.pricing[model_name] = pricing
 
-        logger.info(
-            "custom_model_added", model=model_name, pricing=pricing, rate_limits=rate_limits
-        )
+        logger.info("custom_model_added", model=model_name, pricing=pricing, rate_limits=rate_limits)
 
-    def get_model_info(self, model: str) -> Dict[str, Any]:
+    def get_model_info(self, model: str) -> dict[str, Any]:
         """Get detailed information about a model."""
         if model in self.custom_models:
             model_config = self.custom_models[model]

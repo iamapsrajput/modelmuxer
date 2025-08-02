@@ -8,7 +8,7 @@ logic to determine the optimal provider and model for requests.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import structlog
 
@@ -27,7 +27,7 @@ class HeuristicRouter(BaseRouter):
     and route them to the most appropriate provider and model.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__("heuristic", config)
 
         # Enhanced pattern definitions
@@ -208,7 +208,7 @@ class HeuristicRouter(BaseRouter):
             ],
         }
 
-    async def analyze_prompt(self, messages: List[ChatMessage]) -> Dict[str, Any]:
+    async def analyze_prompt(self, messages: list[ChatMessage]) -> dict[str, Any]:
         """Enhanced prompt analysis with weighted scoring."""
         # Combine all message content
         full_text = " ".join([msg.content for msg in messages if msg.content])
@@ -319,11 +319,11 @@ class HeuristicRouter(BaseRouter):
 
     async def _route_request(
         self,
-        messages: List[ChatMessage],
-        analysis: Dict[str, Any],
-        user_id: Optional[str],
-        constraints: Optional[Dict[str, Any]],
-    ) -> Tuple[str, str, str, float]:
+        messages: list[ChatMessage],
+        analysis: dict[str, Any],
+        user_id: str | None,
+        constraints: dict[str, Any] | None,
+    ) -> tuple[str, str, str, float]:
         """Route request based on heuristic analysis."""
         task_type = analysis["task_type"]
         confidence = analysis["confidence_score"]
@@ -351,8 +351,8 @@ class HeuristicRouter(BaseRouter):
         return "openai", "gpt-3.5-turbo", "Fallback to default model", 0.5
 
     def _filter_by_constraints(
-        self, preferences: List[Tuple[str, str, float]], constraints: Dict[str, Any]
-    ) -> List[Tuple[str, str, float]]:
+        self, preferences: list[tuple[str, str, float]], constraints: dict[str, Any]
+    ) -> list[tuple[str, str, float]]:
         """Filter model preferences based on constraints."""
         filtered = []
 
@@ -396,7 +396,7 @@ class HeuristicRouter(BaseRouter):
         return cost_estimates.get((provider, model), 0.005)
 
     def _generate_reasoning(
-        self, analysis: Dict[str, Any], provider: str, model: str, task_type: str
+        self, analysis: dict[str, Any], provider: str, model: str, task_type: str
     ) -> str:
         """Generate human-readable reasoning for the routing decision."""
         reasons = []

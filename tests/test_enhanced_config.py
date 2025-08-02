@@ -1,6 +1,5 @@
-# ModelMuxer Enhanced Configuration Tests
-# Copyright (c) 2025 Ajay Rajput
-# Licensed under Business Source License 1.1
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
 
 """
 Tests for the enhanced configuration system including all enterprise features.

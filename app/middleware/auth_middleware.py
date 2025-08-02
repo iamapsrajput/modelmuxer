@@ -9,14 +9,13 @@ middleware with support for multiple authentication methods.
 
 import hashlib
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import jwt
 import structlog
 from fastapi import Header, HTTPException, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from ..core.exceptions import AuthenticationError, RateLimitError
+from ..core.exceptions import AuthenticationError
 from ..core.utils import generate_request_id
 
 logger = structlog.get_logger(__name__)
@@ -30,7 +29,7 @@ class AuthMiddleware:
     schemes with rate limiting and user management.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
 
         # Authentication methods
@@ -41,7 +40,7 @@ class AuthMiddleware:
 
         # Rate limiting
         self.enable_rate_limiting = self.config.get("enable_rate_limiting", True)
-        self.rate_limit_storage: Dict[str, Dict[str, Any]] = {}
+        self.rate_limit_storage: dict[str, dict[str, Any]] = {}
         self.default_rate_limits = {
             "requests_per_minute": 60,
             "requests_per_hour": 1000,
@@ -49,7 +48,7 @@ class AuthMiddleware:
         }
 
         # User management
-        self.users: Dict[str, Dict[str, Any]] = {}
+        self.users: dict[str, dict[str, Any]] = {}
         self.load_users()
 
         # Security settings
@@ -79,9 +78,7 @@ class AuthMiddleware:
                 "created_at": user_data.get("created_at", time.time()),
             }
 
-    async def authenticate_request(
-        self, request: Request, authorization: Optional[str] = Header(None)
-    ) -> Dict[str, Any]:
+    async def authenticate_request(self, request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
         """
         Authenticate a request using configured methods.
 
@@ -160,7 +157,7 @@ class AuthMiddleware:
 
         return user_info
 
-    async def _authenticate_api_key(self, authorization: Optional[str]) -> Dict[str, Any]:
+    async def _authenticate_api_key(self, authorization: str | None) -> dict[str, Any]:
         """Authenticate using API key."""
         if not authorization:
             raise AuthenticationError("Missing authorization header")
@@ -199,7 +196,7 @@ class AuthMiddleware:
         user_info["api_key"] = api_key
         return user_info
 
-    async def _authenticate_jwt(self, authorization: Optional[str]) -> Dict[str, Any]:
+    async def _authenticate_jwt(self, authorization: str | None) -> dict[str, Any]:
         """Authenticate using JWT token."""
         if not authorization or not authorization.startswith("Bearer "):
             raise AuthenticationError("Missing or invalid JWT token")
@@ -244,17 +241,15 @@ class AuthMiddleware:
             return user_info
 
         except jwt.InvalidTokenError as e:
-            raise AuthenticationError(f"Invalid JWT token: {str(e)}")
+            raise AuthenticationError(f"Invalid JWT token: {str(e)}") from e
 
-    async def _authenticate_custom(
-        self, request: Request, authorization: Optional[str]
-    ) -> Dict[str, Any]:
+    async def _authenticate_custom(self, request: Request, authorization: str | None) -> dict[str, Any]:
         """Custom authentication method (placeholder for extension)."""
         # This is a placeholder for custom authentication logic
         # Organizations can extend this method for their specific needs
         raise AuthenticationError("Custom authentication not implemented")
 
-    async def _check_rate_limits(self, user_info: Dict[str, Any]) -> None:
+    async def _check_rate_limits(self, user_info: dict[str, Any]) -> None:
         """Check rate limits for the user."""
         user_id = user_info["user_id"]
         rate_limits = user_info.get("rate_limits", self.default_rate_limits)
@@ -278,12 +273,8 @@ class AuthMiddleware:
         user_limits["minute_requests"] = {
             k: v for k, v in user_limits["minute_requests"].items() if k >= current_minute - 1
         }
-        user_limits["hour_requests"] = {
-            k: v for k, v in user_limits["hour_requests"].items() if k >= current_hour - 1
-        }
-        user_limits["day_requests"] = {
-            k: v for k, v in user_limits["day_requests"].items() if k >= current_day - 1
-        }
+        user_limits["hour_requests"] = {k: v for k, v in user_limits["hour_requests"].items() if k >= current_hour - 1}
+        user_limits["day_requests"] = {k: v for k, v in user_limits["day_requests"].items() if k >= current_day - 1}
 
         # Count current requests
         minute_count = user_limits["minute_requests"].get(current_minute, 0)
@@ -339,7 +330,7 @@ class AuthMiddleware:
         self,
         user_id: str,
         expires_in: int = 3600,
-        additional_claims: Optional[Dict[str, Any]] = None,
+        additional_claims: dict[str, Any] | None = None,
     ) -> str:
         """Create a JWT token for a user."""
         payload = {"sub": user_id, "iat": int(time.time()), "exp": int(time.time()) + expires_in}
@@ -360,11 +351,11 @@ class AuthMiddleware:
 
         return jwt.encode(payload, self.jwt_secret, algorithm=self.jwt_algorithm)
 
-    def get_user_info(self, user_id: str) -> Optional[Dict[str, Any]]:
+    def get_user_info(self, user_id: str) -> dict[str, Any] | None:
         """Get user information."""
         return self.users.get(user_id)
 
-    def add_user(self, user_data: Dict[str, Any]) -> bool:
+    def add_user(self, user_data: dict[str, Any]) -> bool:
         """Add a new user."""
         user_id = user_data.get("user_id")
         if not user_id:
@@ -384,12 +375,10 @@ class AuthMiddleware:
         logger.info("user_added", user_id=user_id)
         return True
 
-    def get_rate_limit_stats(self) -> Dict[str, Any]:
+    def get_rate_limit_stats(self) -> dict[str, Any]:
         """Get rate limiting statistics."""
         total_users = len(self.rate_limit_storage)
-        active_users = sum(
-            1 for user_data in self.rate_limit_storage.values() if any(user_data.values())
-        )
+        active_users = sum(1 for user_data in self.rate_limit_storage.values() if any(user_data.values()))
 
         return {
             "total_users": total_users,

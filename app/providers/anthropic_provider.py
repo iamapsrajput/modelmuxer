@@ -6,10 +6,12 @@ Anthropic provider implementation.
 
 import json
 import time
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 
+from ..config.enhanced_config import enhanced_config as settings
 from ..models import ChatCompletionResponse, ChatMessage
 from .base import LLMProvider, ProviderError
 
@@ -21,9 +23,7 @@ class AnthropicProvider(LLMProvider):
         if not api_key:
             raise ValueError("Anthropic API key is required")
 
-        super().__init__(
-            api_key=api_key, base_url="https://api.anthropic.com/v1", provider_name="anthropic"
-        )
+        super().__init__(api_key=api_key, base_url="https://api.anthropic.com/v1", provider_name="anthropic")
 
         # Pricing per million tokens (updated as of 2024)
         self.pricing = {
@@ -34,14 +34,14 @@ class AnthropicProvider(LLMProvider):
 
         self.supported_models = list(self.pricing.keys())
 
-    def _create_headers(self) -> Dict[str, str]:
+    def _create_headers(self) -> dict[str, str]:
         """Create headers for Anthropic API requests."""
         headers = super()._create_headers()
         headers["x-api-key"] = self.api_key
         headers["anthropic-version"] = "2023-06-01"
         return headers
 
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported Anthropic models."""
         return self.supported_models
 
@@ -56,7 +56,7 @@ class AnthropicProvider(LLMProvider):
 
         return input_cost + output_cost
 
-    def _prepare_messages(self, messages: List[ChatMessage]) -> tuple[str, List[Dict[str, str]]]:
+    def _prepare_messages(self, messages: list[ChatMessage]) -> tuple[str, list[dict[str, str]]]:
         """Convert ChatMessage objects to Anthropic format."""
         system_message = ""
         conversation_messages = []
@@ -76,10 +76,10 @@ class AnthropicProvider(LLMProvider):
 
     async def chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> ChatCompletionResponse:
@@ -111,9 +111,7 @@ class AnthropicProvider(LLMProvider):
                 payload[key] = value
 
         try:
-            response = await self.client.post(
-                f"{self.base_url}/messages", headers=self._create_headers(), json=payload
-            )
+            response = await self.client.post(f"{self.base_url}/messages", headers=self._create_headers(), json=payload)
 
             self._handle_http_error(response)
             response_data = response.json()
@@ -134,9 +132,7 @@ class AnthropicProvider(LLMProvider):
             # Extract content
             content_blocks = response_data.get("content", [])
             if not content_blocks:
-                raise ProviderError(
-                    "No content returned from Anthropic", provider=self.provider_name
-                )
+                raise ProviderError("No content returned from Anthropic", provider=self.provider_name)
 
             # Combine all text content blocks
             content = ""
@@ -166,22 +162,20 @@ class AnthropicProvider(LLMProvider):
             )
 
         except httpx.RequestError as e:
-            raise ProviderError(f"Anthropic request failed: {str(e)}", provider=self.provider_name)
+            raise ProviderError(f"Anthropic request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(
-                f"Anthropic unexpected error: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"Anthropic unexpected error: {str(e)}", provider=self.provider_name) from e
 
     async def stream_chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using Anthropic API."""
         # Prepare messages
         system_message, conversation_messages = self._prepare_messages(messages)
@@ -252,12 +246,8 @@ class AnthropicProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(
-                f"Anthropic streaming request failed: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"Anthropic streaming request failed: {str(e)}", provider=self.provider_name) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(
-                f"Anthropic streaming unexpected error: {str(e)}", provider=self.provider_name
-            )
+            raise ProviderError(f"Anthropic streaming unexpected error: {str(e)}", provider=self.provider_name) from e

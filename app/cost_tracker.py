@@ -4,7 +4,7 @@
 Cost calculation and tracking utilities.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tiktoken
 
@@ -45,7 +45,7 @@ class CostTracker:
 
         return self._tokenizers[key]
 
-    def count_tokens(self, messages: List[ChatMessage], provider: str, model: str) -> int:
+    def count_tokens(self, messages: list[ChatMessage], provider: str, model: str) -> int:
         """Count tokens in a list of messages."""
         tokenizer = self.get_tokenizer(provider, model)
 
@@ -62,7 +62,7 @@ class CostTracker:
 
         return total_tokens
 
-    def estimate_output_tokens(self, max_tokens: Optional[int] = None) -> int:
+    def estimate_output_tokens(self, max_tokens: int | None = None) -> int:
         """Estimate output tokens based on max_tokens parameter."""
         if max_tokens:
             return min(max_tokens, 1000)  # Cap at reasonable default
@@ -88,11 +88,11 @@ class CostTracker:
 
     def estimate_request_cost(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         provider: str,
         model: str,
-        max_tokens: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        max_tokens: int | None = None,
+    ) -> dict[str, Any]:
         """Estimate the cost of a request before making it."""
         input_tokens = self.count_tokens(messages, provider, model)
         estimated_output_tokens = self.estimate_output_tokens(max_tokens)
@@ -107,7 +107,7 @@ class CostTracker:
             "model": model,
         }
 
-    def get_cheapest_model_for_task(self, task_type: str = "general") -> Dict[str, str]:
+    def get_cheapest_model_for_task(self, task_type: str = "general") -> dict[str, str]:
         """Get the cheapest model for a given task type."""
         # Define model preferences by task type
         task_models = {
@@ -145,10 +145,10 @@ class CostTracker:
 
     def compare_model_costs(
         self,
-        messages: List[ChatMessage],
-        models: List[Dict[str, str]],
-        max_tokens: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        messages: list[ChatMessage],
+        models: list[dict[str, str]],
+        max_tokens: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Compare costs across multiple models for the same request."""
         comparisons = []
 
@@ -163,7 +163,7 @@ class CostTracker:
         # Sort by estimated cost
         return sorted(comparisons, key=lambda x: x["estimated_cost"])
 
-    def get_model_info(self, provider: str, model: str) -> Dict[str, Any]:
+    def get_model_info(self, provider: str, model: str) -> dict[str, Any]:
         """Get detailed information about a model including pricing."""
         if provider not in self.pricing or model not in self.pricing[provider]:
             return {}

@@ -11,7 +11,7 @@ and routes requests to appropriate providers based on prompt characteristics.
 import asyncio
 import json
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 
@@ -31,7 +31,7 @@ class RouterTester:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.client.aclose()
 
-    def create_test_request(self, messages: List[Dict[str, str]], **kwargs) -> Dict[str, Any]:
+    def create_test_request(self, messages: list[dict[str, str]], **kwargs) -> dict[str, Any]:
         """Create a test request payload."""
         return {
             "messages": messages,
@@ -179,7 +179,7 @@ class RouterTester:
 
                     # Check if routing matches expectation (flexible check)
                     if selected_provider == test_case["expected_provider"]:
-                        print(f"   ✅ Routing as expected")
+                        print("   ✅ Routing as expected")
                     else:
                         print(
                             f"   ⚠️  Routing differs from expected ({test_case['expected_provider']})"
@@ -219,7 +219,7 @@ class RouterTester:
                             if data == "[DONE]":
                                 break
                             try:
-                                chunk = json.loads(data)
+                                json.loads(data)  # Validate JSON format
                                 chunks_received += 1
                             except json.JSONDecodeError:
                                 continue
@@ -296,7 +296,7 @@ class RouterTester:
                 print(f"❌ {test_name} ERROR: {e}")
 
         print(f"\n{'='*50}")
-        print(f"📊 TEST SUMMARY")
+        print("📊 TEST SUMMARY")
         print("=" * 50)
         print(f"Passed: {passed}/{total}")
         print(f"Success Rate: {(passed/total)*100:.1f}%")

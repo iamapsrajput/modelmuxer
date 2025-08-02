@@ -4,11 +4,11 @@
 Abstract base class for LLM providers.
 """
 
-import time
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any
 
 import httpx
 
@@ -18,7 +18,7 @@ from ..models import ChatCompletionResponse, ChatMessage, Choice, RouterMetadata
 class ProviderError(Exception):
     """Base exception for provider errors."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None, provider: str = None):
+    def __init__(self, message: str, status_code: int | None = None, provider: str = None):
         self.message = message
         self.status_code = status_code
         self.provider = provider
@@ -61,10 +61,10 @@ class LLMProvider(ABC):
     @abstractmethod
     async def chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> ChatCompletionResponse:
@@ -90,12 +90,12 @@ class LLMProvider(ABC):
     @abstractmethod
     async def stream_chat_completion(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """
         Stream a chat completion.
 
@@ -127,7 +127,7 @@ class LLMProvider(ABC):
         pass
 
     @abstractmethod
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """
         Get list of supported models for this provider.
 
@@ -136,7 +136,7 @@ class LLMProvider(ABC):
         """
         pass
 
-    def _create_headers(self) -> Dict[str, str]:
+    def _create_headers(self) -> dict[str, str]:
         """Create headers for API requests."""
         return {
             "Content-Type": "application/json",
@@ -167,7 +167,7 @@ class LLMProvider(ABC):
             try:
                 error_data = response.json()
                 error_message = error_data.get("error", {}).get("message", "Unknown error")
-            except:
+            except (ValueError, KeyError, TypeError):
                 error_message = f"HTTP {response.status_code} error"
 
             raise ProviderError(

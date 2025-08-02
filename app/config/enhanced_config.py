@@ -8,7 +8,6 @@ ModelMuxer features including routing, caching, authentication, and monitoring.
 """
 
 import os
-from typing import Any, Dict, List, Optional, Union
 
 import structlog
 from pydantic import Field, field_validator
@@ -21,30 +20,30 @@ class ProviderConfig(BaseSettings):
     """Configuration for LLM providers."""
 
     # OpenAI
-    openai_api_key: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
-    openai_base_url: Optional[str] = Field(default=None, env="OPENAI_BASE_URL")
+    openai_api_key: str | None = Field(default=None, env="OPENAI_API_KEY")
+    openai_base_url: str | None = Field(default=None, env="OPENAI_BASE_URL")
 
     # Anthropic
-    anthropic_api_key: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")
+    anthropic_api_key: str | None = Field(default=None, env="ANTHROPIC_API_KEY")
 
     # Mistral
-    mistral_api_key: Optional[str] = Field(default=None, env="MISTRAL_API_KEY")
+    mistral_api_key: str | None = Field(default=None, env="MISTRAL_API_KEY")
 
     # Google
-    google_api_key: Optional[str] = Field(default=None, env="GOOGLE_API_KEY")
+    google_api_key: str | None = Field(default=None, env="GOOGLE_API_KEY")
 
     # Cohere
-    cohere_api_key: Optional[str] = Field(default=None, env="COHERE_API_KEY")
+    cohere_api_key: str | None = Field(default=None, env="COHERE_API_KEY")
 
     # Groq
-    groq_api_key: Optional[str] = Field(default=None, env="GROQ_API_KEY")
+    groq_api_key: str | None = Field(default=None, env="GROQ_API_KEY")
 
     # Together AI
-    together_api_key: Optional[str] = Field(default=None, env="TOGETHER_API_KEY")
+    together_api_key: str | None = Field(default=None, env="TOGETHER_API_KEY")
 
     # LiteLLM Proxy
-    litellm_base_url: Optional[str] = Field(default=None, env="LITELLM_BASE_URL")
-    litellm_api_key: Optional[str] = Field(default=None, env="LITELLM_API_KEY")
+    litellm_base_url: str | None = Field(default=None, env="LITELLM_BASE_URL")
+    litellm_api_key: str | None = Field(default=None, env="LITELLM_API_KEY")
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
@@ -66,7 +65,9 @@ class ProviderConfig(BaseSettings):
             self.together_api_key,
         ]
 
-        configured_providers = [p for p in providers if p and not p.startswith("your-") and not p.endswith("-here")]
+        configured_providers = [
+            p for p in providers if p and not p.startswith("your-") and not p.endswith("-here")
+        ]
 
         if not configured_providers:
             raise ValueError(
@@ -111,7 +112,7 @@ class RoutingConfig(BaseSettings):
             return v
         return "heuristic:0.4,semantic:0.4,cascade:0.2"
 
-    def get_strategy_weights_dict(self) -> Dict[str, float]:
+    def get_strategy_weights_dict(self) -> dict[str, float]:
         """Parse strategy weights string into dictionary."""
         weights = {}
         for pair in self.hybrid_strategy_weights.split(","):
@@ -139,7 +140,7 @@ class CacheConfig(BaseSettings):
 
     # Memory cache settings
     memory_max_size: int = Field(default=1000, env="MEMORY_CACHE_MAX_SIZE")
-    memory_max_memory_mb: Optional[int] = Field(default=None, env="MEMORY_CACHE_MAX_MEMORY_MB")
+    memory_max_memory_mb: int | None = Field(default=None, env="MEMORY_CACHE_MAX_MEMORY_MB")
 
     # Redis cache settings
     redis_url: str = Field(default="redis://localhost:6379", env="REDIS_URL")
@@ -211,15 +212,15 @@ class AuthConfig(BaseSettings):
             raise ValueError("JWT_SECRET_KEY must be at least 32 characters long for security")
         return v
 
-    def get_api_keys_list(self) -> List[str]:
+    def get_api_keys_list(self) -> list[str]:
         """Parse API keys string into list."""
         return [key.strip() for key in self.api_keys.split(",") if key.strip()]
 
-    def get_methods_list(self) -> List[str]:
+    def get_methods_list(self) -> list[str]:
         """Parse auth methods string into list."""
         return [method.strip() for method in self.methods.split(",") if method.strip()]
 
-    def get_allowed_origins_list(self) -> List[str]:
+    def get_allowed_origins_list(self) -> list[str]:
         """Parse allowed origins string into list."""
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
@@ -313,7 +314,7 @@ class ClassificationConfig(BaseSettings):
     # Embedding settings
     embedding_model: str = Field(default="all-MiniLM-L6-v2", env="EMBEDDING_MODEL")
     embedding_cache_enabled: bool = Field(default=True, env="EMBEDDING_CACHE_ENABLED")
-    embedding_cache_dir: Optional[str] = Field(default=None, env="EMBEDDING_CACHE_DIR")
+    embedding_cache_dir: str | None = Field(default=None, env="EMBEDDING_CACHE_DIR")
 
     # Classification settings
     confidence_threshold: float = Field(default=0.6, env="CLASSIFICATION_CONFIDENCE_THRESHOLD")
@@ -348,11 +349,11 @@ class ModelMuxerConfig:
         self.simple_query_max_length = int(os.getenv("SIMPLE_QUERY_MAX_LENGTH", "100"))
         self.max_tokens_default = int(os.getenv("MAX_TOKENS_DEFAULT", "1000"))
 
-    def get_allowed_api_keys(self) -> List[str]:
+    def get_allowed_api_keys(self) -> list[str]:
         """Get list of allowed API keys from auth configuration."""
         return self.auth.get_api_keys_list()
 
-    def get_provider_pricing(self) -> Dict[str, Dict[str, float]]:
+    def get_provider_pricing(self) -> dict[str, dict[str, float]]:
         """Get provider pricing information for cost calculation."""
         return {
             "openai": {

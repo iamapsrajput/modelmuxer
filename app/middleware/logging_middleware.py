@@ -9,15 +9,14 @@ structured logging, performance metrics, and audit trails.
 
 import json
 import time
-import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import structlog
 from fastapi import Request, Response
 from fastapi.responses import StreamingResponse
 
-from ..core.utils import generate_request_id, sanitize_input
+from ..core.utils import generate_request_id
 
 logger = structlog.get_logger(__name__)
 
@@ -30,7 +29,7 @@ class LoggingMiddleware:
     error monitoring, and audit trails for compliance.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
 
         # Logging configuration
@@ -67,8 +66,8 @@ class LoggingMiddleware:
         )
 
         # Request tracking
-        self.request_metrics: Dict[str, List[float]] = {}
-        self.error_counts: Dict[str, int] = {}
+        self.request_metrics: dict[str, list[float]] = {}
+        self.error_counts: dict[str, int] = {}
 
         logger.info(
             "logging_middleware_initialized",
@@ -79,8 +78,8 @@ class LoggingMiddleware:
         )
 
     async def log_request(
-        self, request: Request, user_info: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, request: Request, user_info: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Log incoming request with metadata.
 
@@ -163,7 +162,7 @@ class LoggingMiddleware:
         }
 
     async def log_response(
-        self, response: Response, request_context: Dict[str, Any], error: Optional[Exception] = None
+        self, response: Response, request_context: dict[str, Any], error: Exception | None = None
     ) -> None:
         """
         Log response with performance metrics.
@@ -293,7 +292,7 @@ class LoggingMiddleware:
 
         return "unknown"
 
-    def _sanitize_headers(self, headers: Dict[str, str]) -> Dict[str, str]:
+    def _sanitize_headers(self, headers: dict[str, str]) -> dict[str, str]:
         """Sanitize sensitive headers."""
         if not self.sanitize_sensitive_data:
             return headers
@@ -325,7 +324,7 @@ class LoggingMiddleware:
         else:
             return data
 
-    def _audit_log(self, event_type: str, data: Dict[str, Any]) -> None:
+    def _audit_log(self, event_type: str, data: dict[str, Any]) -> None:
         """Write audit log entry."""
         audit_entry = {"audit_event": event_type, "timestamp": datetime.now().isoformat(), **data}
 
@@ -333,7 +332,7 @@ class LoggingMiddleware:
         audit_logger = structlog.get_logger("audit")
         audit_logger.info("audit_event", **audit_entry)
 
-    def get_performance_metrics(self) -> Dict[str, Any]:
+    def get_performance_metrics(self) -> dict[str, Any]:
         """Get performance metrics for all endpoints."""
         metrics = {}
 

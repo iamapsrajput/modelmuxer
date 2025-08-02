@@ -6,11 +6,11 @@ Authentication and security utilities.
 
 import hashlib
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import Header, HTTPException, Request
-# Removed unused imports: HTTPAuthorizationCredentials, HTTPBearer
 
+# Removed unused imports: HTTPAuthorizationCredentials, HTTPBearer
 from .config import settings
 
 
@@ -20,9 +20,9 @@ class APIKeyAuth:
     def __init__(self):
         self.allowed_keys = set(settings.get_allowed_api_keys())
         # Simple rate limiting storage (in production, use Redis)
-        self.rate_limit_storage: Dict[str, Dict[str, Any]] = {}
+        self.rate_limit_storage: dict[str, dict[str, Any]] = {}
 
-    def extract_api_key(self, authorization: Optional[str] = None) -> Optional[str]:
+    def extract_api_key(self, authorization: str | None = None) -> str | None:
         """Extract API key from Authorization header."""
         if not authorization:
             return None
@@ -46,7 +46,7 @@ class APIKeyAuth:
 
     def check_rate_limit(
         self, user_id: str, requests_per_minute: int = 60, requests_per_hour: int = 1000
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Simple rate limiting check.
         In production, use Redis with sliding window.
@@ -64,7 +64,9 @@ class APIKeyAuth:
         user_limits["minute_requests"] = {
             k: v for k, v in user_limits["minute_requests"].items() if k >= current_minute - 1
         }
-        user_limits["hour_requests"] = {k: v for k, v in user_limits["hour_requests"].items() if k >= current_hour - 1}
+        user_limits["hour_requests"] = {
+            k: v for k, v in user_limits["hour_requests"].items() if k >= current_hour - 1
+        }
 
         # Count current requests
         minute_count = user_limits["minute_requests"].get(current_minute, 0)
@@ -96,8 +98,8 @@ class APIKeyAuth:
         }
 
     async def authenticate_request(
-        self, request: Request, authorization: Optional[str] = Header(None)
-    ) -> Dict[str, Any]:
+        self, request: Request, authorization: str | None = Header(None)
+    ) -> dict[str, Any]:
         """
         Authenticate a request and return user information.
 
@@ -161,7 +163,7 @@ class SecurityHeaders:
     """Security headers middleware."""
 
     @staticmethod
-    def get_security_headers() -> Dict[str, str]:
+    def get_security_headers() -> dict[str, str]:
         """Get security headers to add to responses."""
         return {
             "X-Content-Type-Options": "nosniff",
