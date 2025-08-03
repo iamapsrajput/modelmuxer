@@ -1,0 +1,128 @@
+# ModelMuxer Alpine Production Dockerfile - Security-focused build with minimal attack surface
+
+# Stage 1: Build dependencies and compile Python packages
+FROM python:3.11-alpine AS builder
+
+# Set build arguments
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
+ARG BUILDARCH
+ARG TARGETARCH
+
+# Install build dependencies
+RUN apk add --no-cache \
+    gcc \
+    g++ \
+    make \
+    cmake \
+    git \
+    curl \
+    musl-dev \
+    linux-headers \
+    libffi-dev \
+    openssl-dev
+
+# Install Poetry for dependency management
+RUN pip install --no-cache-dir poetry==1.7.1
+
+# Configure Poetry to create virtual environment in project
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VENV_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
+# Configure Poetry settings explicitly
+RUN poetry config virtualenvs.create true && \
+    poetry config virtualenvs.in-project true
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock* ./
+
+# Install dependencies and create virtual environment
+RUN poetry install --without dev,ml,monitoring --no-root && \
+    rm -rf $POETRY_CACHE_DIR && \
+    # Verify .venv was created
+    ls -la /app/.venv/
+
+# Stage 2: Runtime image
+FROM python:3.11-alpine AS runtime
+
+# Set build arguments for metadata
+ARG VERSION=latest
+ARG BUILD_DATE
+ARG VCS_REF
+
+# Add metadata labels
+LABEL maintainer="Ajay Rajput" \
+    version="${VERSION}" \
+    build-date="${BUILD_DATE}" \
+    vcs-ref="${VCS_REF}" \
+    description="ModelMuxer - Intelligent LLM Routing Engine (Alpine)" \
+    org.opencontainers.image.title="ModelMuxer" \
+    org.opencontainers.image.description="Production-ready LLM routing with cost optimization (Alpine)" \
+    org.opencontainers.image.version="${VERSION}" \
+    org.opencontainers.image.created="${BUILD_DATE}" \
+    org.opencontainers.image.revision="${VCS_REF}" \
+    org.opencontainers.image.vendor="Ajay Rajput" \
+    org.opencontainers.image.licenses="BSL-1.1"
+
+# Install runtime dependencies only - minimal set for Alpine
+RUN apk add --no-cache \
+    curl \
+    ca-certificates \
+    tzdata \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user for security
+RUN addgroup -g 1000 modelmuxer && \
+    adduser -D -u 1000 -G modelmuxer -s /bin/sh modelmuxer
+
+# Set working directory
+WORKDIR /app
+
+# Copy virtual environment from builder stage
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Verify virtual environment was copied correctly
+RUN ls -la /app/.venv/ && \
+    python --version && \
+    which python
+
+# Copy application code
+COPY --chown=modelmuxer:modelmuxer . .
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/logs /app/cache /app/tmp \
+    && chown -R modelmuxer:modelmuxer /app \
+    && chmod -R 755 /app
+
+# Switch to non-root user
+USER modelmuxer
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Set environment variables
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Run the application with proper signal handling
+CMD ["python", "-m", "uvicorn", "app.main_enhanced:app", \
+    "--host", "0.0.0.0", \
+    "--port", "8000", \
+    "--workers", "1", \
+    "--loop", "uvloop", \
+    "--http", "httptools", \
+    "--access-log"]
