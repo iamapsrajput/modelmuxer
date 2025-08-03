@@ -158,8 +158,11 @@ access.log
 
 # Cache files
 .cache/
-cache/
 *.cache
+# Allow app/cache/ Python modules but ignore cache data
+cache/embeddings/
+!app/cache/
+app/cache/__pycache__/
 
 # Configuration files with secrets
 config/secrets.yaml

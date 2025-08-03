@@ -17,7 +17,7 @@ on:
 
 env:
   KUBE_NAMESPACE: modelmuxer-production
-  HELM_RELEASE: modelmuxer-production
+  DEPLOYMENT_NAME: modelmuxer-production
   ENVIRONMENT: production
 
 jobs:

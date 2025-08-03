@@ -37,14 +37,10 @@ jobs:
       - name: Install dependencies
         run: poetry install --with dev
 
-      - name: Run black (code formatting)
-        run: poetry run black --check --diff app/ tests/
-
-      - name: Run isort (import sorting)
-        run: poetry run isort --check-only --diff app/ tests/
-
-      - name: Run flake8 (linting)
-        run: poetry run flake8 app/ tests/
+      - name: Run ruff (linting and formatting)
+        run: |
+          poetry run ruff check app/ tests/
+          poetry run ruff format --check app/ tests/
 
       - name: Run mypy (type checking)
         run: poetry run mypy app/

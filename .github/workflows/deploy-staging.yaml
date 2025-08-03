@@ -15,7 +15,7 @@ on:
 
 env:
   KUBE_NAMESPACE: modelmuxer-staging
-  HELM_RELEASE: modelmuxer-staging
+  DEPLOYMENT_NAME: modelmuxer-staging
   ENVIRONMENT: staging
 
 jobs:

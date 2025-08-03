@@ -578,7 +578,9 @@ class AdvancedCostTracker:
                         "status": (
                             "exceeded"
                             if utilization_percent >= 100
-                            else "warning" if utilization_percent >= 80 else "normal"
+                            else "warning"
+                            if utilization_percent >= 80
+                            else "normal"
                         ),
                     }
                 )

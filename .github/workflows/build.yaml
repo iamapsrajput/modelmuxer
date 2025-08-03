@@ -116,6 +116,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Authenticate with Snyk
+      run: snyk auth ${{ secrets.SNYK_TOKEN }}
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
     - name: Run Snyk to check Docker image for vulnerabilities
       uses: snyk/actions/docker@master
       env:
