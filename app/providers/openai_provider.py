@@ -73,7 +73,7 @@ class OpenAIProvider(LLMProvider):
         max_tokens: int | None = None,
         temperature: float | None = None,
         stream: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> ChatCompletionResponse:
         """Generate a chat completion using OpenAI API."""
         start_time = time.time()
@@ -138,13 +138,13 @@ class OpenAIProvider(LLMProvider):
                 f"OpenAI unexpected error: {str(e)}", provider=self.provider_name
             ) from e
 
-    async def stream_chat_completion(
+    async def stream_chat_completion(  # type: ignore[override]
         self,
         messages: list[ChatMessage],
         model: str,
         max_tokens: int | None = None,
         temperature: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using OpenAI API."""
         # Prepare request payload

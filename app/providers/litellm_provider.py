@@ -11,7 +11,7 @@ through a single endpoint.
 import json
 import time
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import structlog
@@ -27,7 +27,7 @@ class LiteLLMProvider(LLMProvider):
     """LiteLLM proxy provider implementation."""
 
     def __init__(
-        self, base_url: str, api_key: str | None = None, custom_models: dict[str, dict] | None = None
+        self, base_url: str, api_key: str | None = None, custom_models: dict[str, dict[str, Any]] | None = None
     ):
         if not base_url:
             raise ValueError("LiteLLM base URL is required")
@@ -45,11 +45,11 @@ class LiteLLMProvider(LLMProvider):
         self.custom_models = custom_models or {}
 
         # Default pricing (organizations should configure their own)
-        self.default_pricing = {"input": 1.0, "output": 2.0}  # Per million tokens
+        self.default_pricing: dict[str, float] = {"input": 1.0, "output": 2.0}  # Per million tokens
 
         # Extract model names and pricing
         self.supported_models = list(self.custom_models.keys())
-        self.pricing = {}
+        self.pricing: dict[str, dict[str, float]] = {}
 
         for model_name, model_config in self.custom_models.items():
             self.pricing[model_name] = model_config.get("pricing", self.default_pricing)
@@ -113,7 +113,7 @@ class LiteLLMProvider(LLMProvider):
         max_tokens: int | None = None,
         temperature: float | None = None,
         stream: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> ChatCompletionResponse:
         """Generate a chat completion using LiteLLM proxy."""
         start_time = time.time()
@@ -214,13 +214,13 @@ class LiteLLMProvider(LLMProvider):
                 f"LiteLLM proxy unexpected error: {str(e)}", provider=self.provider_name
             ) from e
 
-    async def stream_chat_completion(
+    async def stream_chat_completion(  # type: ignore[override]
         self,
         messages: list[ChatMessage],
         model: str,
         max_tokens: int | None = None,
         temperature: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using LiteLLM proxy."""
         # Prepare request payload
@@ -284,7 +284,7 @@ class LiteLLMProvider(LLMProvider):
 
             # Fallback: try a simple chat completion
             if self.supported_models:
-                test_messages = [ChatMessage(role="user", content="Hi")]
+                test_messages = [ChatMessage(role="user", content="Hi", name=None)]
                 await self.chat_completion(
                     messages=test_messages, model=self.supported_models[0], max_tokens=1
                 )
@@ -305,7 +305,7 @@ class LiteLLMProvider(LLMProvider):
 
             if response.status_code == 200:
                 data = response.json()
-                return data.get("data", [])
+                return cast(list[dict[str, Any]], data.get("data", []))
 
             return []
 

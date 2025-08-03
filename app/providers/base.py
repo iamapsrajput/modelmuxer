@@ -54,10 +54,10 @@ class LLMProvider(ABC):
         # Use secure HTTP client configuration
         self.client = SecurityConfig.get_secure_httpx_client()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> 'LLMProvider':
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         await self.client.aclose()
 
     @abstractmethod
@@ -68,7 +68,7 @@ class LLMProvider(ABC):
         max_tokens: int | None = None,
         temperature: float | None = None,
         stream: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> ChatCompletionResponse:
         """
         Generate a chat completion.
@@ -87,7 +87,7 @@ class LLMProvider(ABC):
         Raises:
             ProviderError: For various provider-specific errors
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     async def stream_chat_completion(
@@ -96,7 +96,7 @@ class LLMProvider(ABC):
         model: str,
         max_tokens: int | None = None,
         temperature: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """
         Stream a chat completion.
@@ -111,7 +111,7 @@ class LLMProvider(ABC):
         Yields:
             Streaming response chunks in OpenAI format
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def calculate_cost(self, input_tokens: int, output_tokens: int, model: str) -> float:
@@ -126,7 +126,7 @@ class LLMProvider(ABC):
         Returns:
             Cost in USD
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_supported_models(self) -> list[str]:
@@ -136,7 +136,7 @@ class LLMProvider(ABC):
         Returns:
             List of model names
         """
-        pass
+        raise NotImplementedError
 
     def _create_headers(self) -> dict[str, str]:
         """Create headers for API requests."""
@@ -199,7 +199,7 @@ class LLMProvider(ABC):
             choices=[
                 Choice(
                     index=0,
-                    message=ChatMessage(role="assistant", content=content),
+                    message=ChatMessage(role="assistant", content=content, name=None),
                     finish_reason=finish_reason,
                 )
             ],
@@ -221,7 +221,7 @@ class LLMProvider(ABC):
         """Check if the provider is healthy and accessible."""
         try:
             # Simple health check - attempt to make a minimal request
-            test_messages = [ChatMessage(role="user", content="Hi")]
+            test_messages = [ChatMessage(role="user", content="Hi", name=None)]
             models = self.get_supported_models()
             if not models:
                 return False

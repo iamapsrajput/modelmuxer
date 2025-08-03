@@ -17,7 +17,7 @@ from .config import settings
 class APIKeyAuth:
     """API key authentication handler."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.allowed_keys = set(settings.get_allowed_api_keys())
         # Simple rate limiting storage (in production, use Redis)
         self.rate_limit_storage: dict[str, dict[str, Any]] = {}
@@ -218,7 +218,7 @@ def sanitize_user_input(text: str, max_length: int = 100000) -> str:
 
     # Remove excessive whitespace
     lines = sanitized.split("\n")
-    sanitized_lines = []
+    sanitized_lines: list[str] = []
     for line in lines:
         # Keep reasonable amount of whitespace
         if len(line.strip()) > 0 or len(sanitized_lines) == 0:

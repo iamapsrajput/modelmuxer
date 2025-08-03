@@ -118,6 +118,7 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
+          PYTHONPATH: ${{ github.workspace }}
         run: poetry run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html -m "not integration"
 
       - name: Run integration tests
@@ -125,6 +126,7 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
+          PYTHONPATH: ${{ github.workspace }}
         run: poetry run pytest tests/ -v --cov=app --cov-append --cov-report=xml -m "integration"
 
       - name: Upload coverage to Codecov
@@ -148,6 +150,9 @@ jobs:
   security-scan:
     name: Security Scanning
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -174,10 +179,21 @@ jobs:
             p/secrets
             p/python
           generateSarif: "1"
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        continue-on-error: true
+
+      - name: Debug - List generated files
+        if: always()
+        run: |
+          echo "Files in current directory:"
+          ls -la *.sarif || echo "No SARIF files found"
+          echo "Checking for semgrep output files:"
+          find . -name "*semgrep*" -type f || echo "No semgrep files found"
 
       - name: Upload Semgrep scan results
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif
 

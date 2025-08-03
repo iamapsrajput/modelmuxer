@@ -25,7 +25,8 @@ jobs:
 
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
-      image-url: ${{ steps.build.outputs.image-url }}
+      image-ref: ${{ steps.meta.outputs.tags }}
+      image-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
     steps:
     - name: Checkout code
@@ -80,7 +81,7 @@ jobs:
     - name: Run Trivy vulnerability scanner on image
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+        image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
         format: 'sarif'
         output: 'trivy-image-results.sarif'
 
@@ -93,7 +94,7 @@ jobs:
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
       with:
-        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+        image: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
         format: spdx-json
         output-file: sbom.spdx.json
 
@@ -108,18 +109,21 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
     steps:
     - name: Run Snyk to check Docker image for vulnerabilities
       uses: snyk/actions/docker@master
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
-        image: ${{ needs.build.outputs.image-url }}
+        image: ${{ needs.build.outputs.image-name }}:latest
         args: --severity-threshold=high --file=Dockerfile.production
 
     - name: Upload Snyk results to GitHub Code Scanning
       uses: github/codeql-action/upload-sarif@v3
-      if: always()
+      if: always() && hashFiles('snyk.sarif') != ''
       with:
         sarif_file: snyk.sarif
 
@@ -146,11 +150,15 @@ jobs:
 
     - name: Sign container image
       run: |
-        cosign sign --yes ${{ needs.build.outputs.image-url }}@${{ needs.build.outputs.image-digest }}
+        IMAGE_REF="${{ needs.build.outputs.image-name }}@${{ needs.build.outputs.image-digest }}"
+        echo "Signing image: $IMAGE_REF"
+        cosign sign --yes "$IMAGE_REF"
 
     - name: Verify signature
       run: |
-        cosign verify ${{ needs.build.outputs.image-url }}@${{ needs.build.outputs.image-digest }} \
+        IMAGE_REF="${{ needs.build.outputs.image-name }}@${{ needs.build.outputs.image-digest }}"
+        echo "Verifying signature for: $IMAGE_REF"
+        cosign verify "$IMAGE_REF" \
           --certificate-identity-regexp="https://github.com/${{ github.repository }}" \
           --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 
@@ -168,7 +176,7 @@ jobs:
     - name: Update Helm chart values
       run: |
         # Extract image tag from metadata
-        IMAGE_TAG=$(echo "${{ needs.build.outputs.image-url }}" | cut -d':' -f2)
+        IMAGE_TAG="latest"
         
         # Update Helm values file
         sed -i "s|tag: .*|tag: \"${IMAGE_TAG}\"|g" helm/modelmuxer/values.yaml
@@ -179,7 +187,7 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add helm/modelmuxer/values.yaml
-        git commit -m "chore: update image tag to ${{ needs.build.outputs.image-url }}" || exit 0
+        git commit -m "chore: update image tag to ${{ needs.build.outputs.image-name }}:${IMAGE_TAG}" || exit 0
         git push
 
   notify:
@@ -195,7 +203,7 @@ jobs:
         status: success
         text: |
           ✅ Docker image built and pushed successfully
-          Image: ${{ needs.build.outputs.image-url }}
+          Image: ${{ needs.build.outputs.image-name }}:latest
           Commit: ${{ github.sha }}
           Branch: ${{ github.ref_name }}
       env:
@@ -226,7 +234,7 @@ jobs:
           ## Changes in this Release
           
           ### Docker Image
-          - **Image**: ${{ needs.build.outputs.image-url }}
+          - **Image**: ${{ needs.build.outputs.image-name }}:latest
           - **Digest**: ${{ needs.build.outputs.image-digest }}
           - **Signed**: ✅ (Cosign)
           
@@ -238,10 +246,10 @@ jobs:
           ### Deployment
           ```bash
           # Pull the image
-          docker pull ${{ needs.build.outputs.image-url }}
+          docker pull ${{ needs.build.outputs.image-name }}:latest
           
           # Verify signature
-          cosign verify ${{ needs.build.outputs.image-url }}@${{ needs.build.outputs.image-digest }} \
+          cosign verify ${{ needs.build.outputs.image-name }}@${{ needs.build.outputs.image-digest }} \
             --certificate-identity-regexp="https://github.com/${{ github.repository }}" \
             --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
           
