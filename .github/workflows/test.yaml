@@ -113,21 +113,38 @@ jobs:
       - name: Install dependencies
         run: poetry install --with dev
 
+      - name: Debug - Check Python path and imports
+        run: |
+          export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
+          echo "PYTHONPATH: $PYTHONPATH"
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+          echo "App directory contents:"
+          ls -la app/
+          echo "Cache directory contents:"
+          ls -la app/cache/
+          echo "Testing Python imports:"
+          python -c "import sys; print('Python path:', sys.path)"
+          python -c "from app.cache import MemoryCache, RedisCache; print('Cache imports successful')" || echo "Cache import failed"
+
       - name: Run unit tests
         env:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
-          PYTHONPATH: ${{ github.workspace }}
-        run: poetry run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html -m "not integration"
+        run: |
+          export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
+          poetry run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html -m "not integration"
 
       - name: Run integration tests
         env:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
-          PYTHONPATH: ${{ github.workspace }}
-        run: poetry run pytest tests/ -v --cov=app --cov-append --cov-report=xml -m "integration"
+        run: |
+          export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
+          poetry run pytest tests/ -v --cov=app --cov-append --cov-report=xml -m "integration"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3

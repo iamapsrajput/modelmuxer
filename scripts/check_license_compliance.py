@@ -14,13 +14,7 @@ from pathlib import Path
 class LicenseComplianceChecker:
     """Check license compliance across the ModelMuxer project."""
 
-    REQUIRED_FILES = [
-        "LICENSE",
-        "COPYRIGHT",
-        "NOTICE",
-        "TRADEMARKS.md",
-        "THIRD_PARTY_LICENSES.md"
-    ]
+    REQUIRED_FILES = ["LICENSE", "COPYRIGHT", "NOTICE", "TRADEMARKS.md", "THIRD_PARTY_LICENSES.md"]
 
     REQUIRED_HEADERS = {
         ".py": "# ModelMuxer (c) 2025 Ajay Rajput",
@@ -76,7 +70,7 @@ class LicenseComplianceChecker:
         self.REQUIRED_HEADERS[suffix]
 
         try:
-            with open(file_path, encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
         except UnicodeDecodeError:
             return True  # Skip binary files
@@ -84,7 +78,7 @@ class LicenseComplianceChecker:
             return False
 
         # Check first 10 lines for the copyright notice
-        lines = content.split('\n')[:10]
+        lines = content.split("\n")[:10]
         for line in lines:
             if "ModelMuxer (c) 2025 Ajay Rajput" in line:
                 return True
@@ -96,9 +90,11 @@ class LicenseComplianceChecker:
         missing_headers = []
 
         for file_path in self.project_root.rglob("*"):
-            if (file_path.is_file() and
-                not self.should_skip(file_path) and
-                file_path.suffix.lower() in self.REQUIRED_HEADERS):
+            if (
+                file_path.is_file()
+                and not self.should_skip(file_path)
+                and file_path.suffix.lower() in self.REQUIRED_HEADERS
+            ):
 
                 if not self.check_file_header(file_path):
                     missing_headers.append(str(file_path.relative_to(self.project_root)))
@@ -115,9 +111,11 @@ class LicenseComplianceChecker:
         license_file = self.project_root / "LICENSE"
         if license_file.exists():
             try:
-                content = license_file.read_text(encoding='utf-8')
+                content = license_file.read_text(encoding="utf-8")
                 if "Business Source License 1.1" not in content:
-                    self.errors.append("LICENSE file does not contain 'Business Source License 1.1'")
+                    self.errors.append(
+                        "LICENSE file does not contain 'Business Source License 1.1'"
+                    )
                 if "Ajay Rajput" not in content:
                     self.errors.append("LICENSE file does not contain 'Ajay Rajput'")
                 if "January 1, 2027" not in content:
@@ -130,9 +128,11 @@ class LicenseComplianceChecker:
         pyproject_file = self.project_root / "pyproject.toml"
         if pyproject_file.exists():
             try:
-                content = pyproject_file.read_text(encoding='utf-8')
+                content = pyproject_file.read_text(encoding="utf-8")
                 if 'license = { text = "Business Source License 1.1" }' not in content:
-                    self.warnings.append("pyproject.toml license field should be 'Business Source License 1.1'")
+                    self.warnings.append(
+                        "pyproject.toml license field should be 'Business Source License 1.1'"
+                    )
             except Exception as e:
                 self.warnings.append(f"Could not read pyproject.toml: {e}")
 
@@ -141,7 +141,7 @@ class LicenseComplianceChecker:
         readme_file = self.project_root / "README.md"
         if readme_file.exists():
             try:
-                content = readme_file.read_text(encoding='utf-8')
+                content = readme_file.read_text(encoding="utf-8")
                 if "Business Source License" not in content:
                     self.warnings.append("README.md should mention Business Source License")
                 if "licensing@modelmuxer.com" not in content:
@@ -174,10 +174,14 @@ class LicenseComplianceChecker:
             "summary": {
                 "total_errors": len(errors),
                 "total_warnings": len(warnings),
-                "required_files_check": "PASS" if not any("Missing required" in e for e in errors) else "FAIL",
-                "header_check": "PASS" if not any("missing license headers" in e for e in errors) else "FAIL",
-                "content_check": "PASS" if not any("LICENSE file" in e for e in errors) else "FAIL"
-            }
+                "required_files_check": (
+                    "PASS" if not any("Missing required" in e for e in errors) else "FAIL"
+                ),
+                "header_check": (
+                    "PASS" if not any("missing license headers" in e for e in errors) else "FAIL"
+                ),
+                "content_check": "PASS" if not any("LICENSE file" in e for e in errors) else "FAIL",
+            },
         }
 
         return report
@@ -199,26 +203,26 @@ def main():
     print(f"Warnings: {report['summary']['total_warnings']}")
     print()
 
-    if report['errors']:
+    if report["errors"]:
         print("❌ ERRORS:")
-        for error in report['errors']:
+        for error in report["errors"]:
             print(f"  {error}")
         print()
 
-    if report['warnings']:
+    if report["warnings"]:
         print("⚠️  WARNINGS:")
-        for warning in report['warnings']:
+        for warning in report["warnings"]:
             print(f"  {warning}")
         print()
 
     # Save detailed report
     report_file = project_root / "compliance_report.json"
-    with open(report_file, 'w') as f:
+    with open(report_file, "w") as f:
         json.dump(report, f, indent=2)
     print(f"Detailed report saved to: {report_file}")
 
     # Exit with error code if compliance failed
-    if report['compliance_status'] == "FAIL":
+    if report["compliance_status"] == "FAIL":
         print("\n❌ License compliance check FAILED")
         sys.exit(1)
     else:

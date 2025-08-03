@@ -83,17 +83,24 @@ class TestProviderConfig:
         """Test default provider configuration."""
         # Clear environment variables and override model config to prevent .env file loading
         env_vars_to_clear = [
-            'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'MISTRAL_API_KEY', 
-            'GOOGLE_API_KEY', 'COHERE_API_KEY', 'GROQ_API_KEY', 'TOGETHER_API_KEY',
-            'LITELLM_BASE_URL', 'LITELLM_API_KEY', 'OPENAI_BASE_URL'
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "MISTRAL_API_KEY",
+            "GOOGLE_API_KEY",
+            "COHERE_API_KEY",
+            "GROQ_API_KEY",
+            "TOGETHER_API_KEY",
+            "LITELLM_BASE_URL",
+            "LITELLM_API_KEY",
+            "OPENAI_BASE_URL",
         ]
-        
+
         with patch.dict(os.environ, {key: "" for key in env_vars_to_clear}, clear=False):
             # Temporarily override the model config to prevent .env file loading
             original_config = ProviderConfig.model_config
             ProviderConfig.model_config = ProviderConfig.model_config.copy()
-            ProviderConfig.model_config['env_file'] = None
-            
+            ProviderConfig.model_config["env_file"] = None
+
             try:
                 config = ProviderConfig()
 

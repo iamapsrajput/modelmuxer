@@ -113,6 +113,9 @@ jobs:
       contents: read
       security-events: write
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Run Snyk to check Docker image for vulnerabilities
       uses: snyk/actions/docker@master
       env:
@@ -161,34 +164,6 @@ jobs:
         cosign verify "$IMAGE_REF" \
           --certificate-identity-regexp="https://github.com/${{ github.repository }}" \
           --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
-
-  update-helm-chart:
-    name: Update Helm Chart
-    runs-on: ubuntu-latest
-    needs: [build, sign-image]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Update Helm chart values
-      run: |
-        # Extract image tag from metadata
-        IMAGE_TAG="latest"
-        
-        # Update Helm values file
-        sed -i "s|tag: .*|tag: \"${IMAGE_TAG}\"|g" helm/modelmuxer/values.yaml
-        sed -i "s|digest: .*|digest: \"${{ needs.build.outputs.image-digest }}\"|g" helm/modelmuxer/values.yaml
-
-    - name: Commit and push changes
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add helm/modelmuxer/values.yaml
-        git commit -m "chore: update image tag to ${{ needs.build.outputs.image-name }}:${IMAGE_TAG}" || exit 0
-        git push
 
   notify:
     name: Notify Build Status
@@ -253,10 +228,8 @@ jobs:
             --certificate-identity-regexp="https://github.com/${{ github.repository }}" \
             --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
           
-          # Deploy with Helm
-          helm upgrade --install modelmuxer ./helm/modelmuxer \
-            --set image.tag=${{ github.ref_name }} \
-            --set image.digest=${{ needs.build.outputs.image-digest }}
+          # Deploy with kubectl (using Kubernetes manifests)
+          kubectl apply -f infra/k8s/
           ```
         draft: false
         prerelease: ${{ contains(github.ref_name, '-') }}

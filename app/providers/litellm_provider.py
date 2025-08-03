@@ -27,7 +27,10 @@ class LiteLLMProvider(LLMProvider):
     """LiteLLM proxy provider implementation."""
 
     def __init__(
-        self, base_url: str, api_key: str | None = None, custom_models: dict[str, dict[str, Any]] | None = None
+        self,
+        base_url: str,
+        api_key: str | None = None,
+        custom_models: dict[str, dict[str, Any]] | None = None,
     ):
         if not base_url:
             raise ValueError("LiteLLM base URL is required")

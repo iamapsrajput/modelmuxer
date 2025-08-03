@@ -54,7 +54,7 @@ class LLMProvider(ABC):
         # Use secure HTTP client configuration
         self.client = SecurityConfig.get_secure_httpx_client()
 
-    async def __aenter__(self) -> 'LLMProvider':
+    async def __aenter__(self) -> "LLMProvider":
         return self
 
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:

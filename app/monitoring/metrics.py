@@ -30,7 +30,7 @@ except ImportError:
         def inc(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def labels(self, *args: Any, **kwargs: Any) -> 'PrometheusCounter':
+        def labels(self, *args: Any, **kwargs: Any) -> "PrometheusCounter":
             return self
 
     class Gauge:
@@ -40,7 +40,7 @@ except ImportError:
         def set(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def labels(self, *args: Any, **kwargs: Any) -> 'Gauge':
+        def labels(self, *args: Any, **kwargs: Any) -> "Gauge":
             return self
 
     class Histogram:
@@ -50,7 +50,7 @@ except ImportError:
         def observe(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def labels(self, *args: Any, **kwargs: Any) -> 'Histogram':
+        def labels(self, *args: Any, **kwargs: Any) -> "Histogram":
             return self
 
     class Info:

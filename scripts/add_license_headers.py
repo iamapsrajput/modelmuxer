@@ -103,7 +103,7 @@ def has_license_header(content: str, header_type: str) -> bool:
     header_lines[0].strip()
 
     # Look for copyright notice in first few lines
-    lines = content.split('\n')[:10]
+    lines = content.split("\n")[:10]
     for line in lines:
         if "ModelMuxer (c) 2025 Ajay Rajput" in line:
             return True
@@ -113,7 +113,7 @@ def has_license_header(content: str, header_type: str) -> bool:
 def add_header_to_file(file_path: Path, header_type: str) -> bool:
     """Add license header to a file. Returns True if file was modified."""
     try:
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
     except UnicodeDecodeError:
         print(f"Skipping binary file: {file_path}")
@@ -126,23 +126,23 @@ def add_header_to_file(file_path: Path, header_type: str) -> bool:
         return False
 
     header_lines = HEADERS[header_type]
-    header_text = '\n'.join(header_lines)
+    header_text = "\n".join(header_lines)
 
     # Handle special cases for different file types
     if header_type == "python":
         # Handle shebang lines
         if content.startswith("#!"):
-            lines = content.split('\n')
+            lines = content.split("\n")
             shebang = lines[0]
-            rest = '\n'.join(lines[1:])
-            new_content = shebang + '\n' + header_text + rest
+            rest = "\n".join(lines[1:])
+            new_content = shebang + "\n" + header_text + rest
         else:
             new_content = header_text + content
     else:
         new_content = header_text + content
 
     try:
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(new_content)
         return True
     except Exception as e:
