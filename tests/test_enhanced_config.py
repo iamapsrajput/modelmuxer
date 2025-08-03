@@ -159,13 +159,28 @@ class TestCacheConfig:
 
     def test_default_cache_config(self):
         """Test default cache configuration."""
-        config = CacheConfig()
+        # Remove environment variables that might affect defaults
+        env_vars_to_remove = ["REDIS_URL"]
+        
+        with patch.dict(os.environ, clear=False) as patched_env:
+            for key in env_vars_to_remove:
+                patched_env.pop(key, None)
+            # Temporarily override the model config to prevent .env file loading
+            original_config = CacheConfig.model_config
+            CacheConfig.model_config = CacheConfig.model_config.copy()
+            CacheConfig.model_config['env_file'] = None
+            
+            try:
+                config = CacheConfig()
 
-        assert config.enabled is True
-        assert config.backend == "memory"
-        assert config.default_ttl == 3600
-        assert config.memory_max_size == 1000
-        assert config.redis_url == "redis://localhost:6379"
+                assert config.enabled is True
+                assert config.backend == "memory"
+                assert config.default_ttl == 3600
+                assert config.memory_max_size == 1000
+                assert config.redis_url == "redis://localhost:6379"
+            finally:
+                # Restore original config
+                CacheConfig.model_config = original_config
 
     def test_cache_config_from_env(self):
         """Test cache configuration from environment variables."""

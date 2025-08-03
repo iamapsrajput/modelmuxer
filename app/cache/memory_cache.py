@@ -176,7 +176,9 @@ class MemoryCache(CacheInterface):
                 return None
 
             # Update access information and move to end (most recently used)
-            updated_entry = entry._replace(access_count=entry.access_count + 1, last_accessed=current_time)
+            updated_entry = entry._replace(
+                access_count=entry.access_count + 1, last_accessed=current_time
+            )
 
             # Move to end (most recently used)
             del self._cache[key]

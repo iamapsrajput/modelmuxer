@@ -65,7 +65,9 @@ class RedisCache(CacheInterface):
         # Initialize connection
         self._initialize_connection(max_connections)
 
-        logger.info("redis_cache_initialized", redis_url=redis_url, db=db, compression=compression_enabled)
+        logger.info(
+            "redis_cache_initialized", redis_url=redis_url, db=db, compression=compression_enabled
+        )
 
     def _initialize_connection(self, max_connections: int) -> None:
         """Initialize Redis connection pool."""
