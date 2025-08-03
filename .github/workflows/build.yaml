@@ -64,7 +64,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./Dockerfile.production
+        file: ./Dockerfile.alpine
         platforms: linux/amd64,linux/arm64
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
@@ -130,7 +130,7 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
         image: ${{ needs.build.outputs.image-name }}:latest
-        args: --severity-threshold=high --file=Dockerfile.production --exclude-app-vulns
+        args: --severity-threshold=high --file=Dockerfile.alpine --exclude-app-vulns
 
     - name: Upload Snyk results to GitHub Code Scanning
       uses: github/codeql-action/upload-sarif@v3

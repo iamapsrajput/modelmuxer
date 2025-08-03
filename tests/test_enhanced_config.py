@@ -161,7 +161,7 @@ class TestCacheConfig:
         """Test default cache configuration."""
         # Remove environment variables that might affect defaults
         env_vars_to_remove = ["REDIS_URL"]
-        
+
         with patch.dict(os.environ, clear=False) as patched_env:
             for key in env_vars_to_remove:
                 patched_env.pop(key, None)
@@ -169,7 +169,7 @@ class TestCacheConfig:
             original_config = CacheConfig.model_config
             CacheConfig.model_config = CacheConfig.model_config.copy()
             CacheConfig.model_config['env_file'] = None
-            
+
             try:
                 config = CacheConfig()
 

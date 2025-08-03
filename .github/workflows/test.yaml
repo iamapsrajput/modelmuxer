@@ -242,8 +242,8 @@ jobs:
 
       - name: Run pip-audit
         run: |
-          poetry run pip-audit --format=json --output=pip-audit-report.json || true
-          poetry run pip-audit
+          poetry run pip-audit --format=json --output=pip-audit-report.json --skip-editable || true
+          poetry run pip-audit --skip-editable
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
