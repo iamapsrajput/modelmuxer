@@ -42,7 +42,7 @@ class CascadeRouter(BaseRouter):
     quality thresholds.
     """
 
-    def __init__(self, cost_tracker=None, config: dict[str, Any] | None = None):
+    def __init__(self, cost_tracker: Any = None, config: dict[str, Any] | None = None):
         super().__init__("cascade", config)
 
         self.cost_tracker = cost_tracker
@@ -91,18 +91,18 @@ class CascadeRouter(BaseRouter):
 
     async def route_with_cascade(
         self,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         cascade_type: str = "balanced",
         max_budget: float = 0.1,
-        user_id: str = None,
-        **kwargs,
+        user_id: str | None = None,
+        **kwargs: Any,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """
         Execute cascade routing with cost and quality thresholds
         Returns: (response, routing_metadata)
         """
         cascade_chain = self.cascade_chains.get(cascade_type, self.cascade_chains["balanced"])
-        routing_metadata = {
+        routing_metadata: dict[str, Any] = {
             "cascade_type": cascade_type,
             "steps_attempted": [],
             "total_cost": 0.0,
@@ -418,14 +418,14 @@ class CascadeRouter(BaseRouter):
         # This would return the actual provider instance
         # For now, return a mock
         class MockProvider:
-            async def chat_completion(self, **kwargs):
+            async def chat_completion(self, **kwargs) -> None:
                 return {
                     "id": "test-123",
                     "choices": [{"message": {"content": "Mock response for testing"}}],
                     "usage": {"prompt_tokens": 50, "completion_tokens": 20},
                 }
 
-            def calculate_cost(self, prompt_tokens, completion_tokens, model):
+            def calculate_cost(self, prompt_tokens, completion_tokens, model) -> None:
                 return 0.002
 
         return MockProvider()

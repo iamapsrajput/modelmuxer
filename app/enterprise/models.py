@@ -26,6 +26,7 @@ from sqlalchemy.sql import func
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
+
     pass
 
 
@@ -86,7 +87,9 @@ class Organization(Base):
 
     # Subscription details
     plan_type: Column[Any] = Column(SQLEnum(PlanType), nullable=False, default=PlanType.FREE)
-    status: Column[Any] = Column(SQLEnum(OrganizationStatus), nullable=False, default=OrganizationStatus.ACTIVE)
+    status: Column[Any] = Column(
+        SQLEnum(OrganizationStatus), nullable=False, default=OrganizationStatus.ACTIVE
+    )
     trial_ends_at = Column(DateTime)
     subscription_id = Column(String(255))  # External subscription ID
 

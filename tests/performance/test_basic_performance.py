@@ -57,7 +57,9 @@ class TestPerformance:
             """Make a routing decision."""
             from app.models import ChatMessage
 
-            messages = [ChatMessage(role="user", content="What is the capital of France?", name=None)]
+            messages = [
+                ChatMessage(role="user", content="What is the capital of France?", name=None)
+            ]
             return await router.analyze_prompt(messages)
 
         result = await benchmark(routing_decision)

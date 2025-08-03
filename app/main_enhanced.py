@@ -155,7 +155,9 @@ class EnhancedModelMuxer:
 
         # Anthropic
         if provider_config.anthropic_api_key:
-            self.providers["anthropic"] = AnthropicProvider(api_key=provider_config.anthropic_api_key)
+            self.providers["anthropic"] = AnthropicProvider(
+                api_key=provider_config.anthropic_api_key
+            )
             logger.info("anthropic_provider_initialized")
 
         # Mistral
@@ -362,7 +364,9 @@ class EnhancedModelMuxer:
                     "version": "1.0.0",
                     "providers": ",".join(self.providers.keys()),
                     "routers": ",".join(self.routers.keys()),
-                    "cache_backend": self.config.cache.backend if self.config.cache.enabled else "none",
+                    "cache_backend": self.config.cache.backend
+                    if self.config.cache.enabled
+                    else "none",
                 }
             )
 
@@ -545,7 +549,7 @@ model_muxer = EnhancedModelMuxer()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> None:
     """Application lifespan manager."""
     # Startup
     logger.info("enhanced_modelmuxer_starting")
@@ -588,7 +592,9 @@ app.add_middleware(
 
 
 # Dependency for authentication
-async def get_current_user(request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
+async def get_current_user(
+    request: Request, authorization: str | None = Header(None)
+) -> dict[str, Any]:
     """Get current authenticated user."""
     if not model_muxer.auth_middleware:
         # Authentication disabled
@@ -599,7 +605,7 @@ async def get_current_user(request: Request, authorization: str | None = Header(
 
 # Middleware for request/response logging
 @app.middleware("http")
-async def logging_middleware(request: Request, call_next):
+async def logging_middleware(request: Request, call_next) -> None:
     """Request/response logging middleware."""
     if not model_muxer.logging_middleware:
         return await call_next(request)
@@ -650,7 +656,9 @@ async def logging_middleware(request: Request, call_next):
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_current_user)):
+async def chat_completions(
+    request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_current_user)
+):
     """Enhanced chat completions endpoint with advanced routing."""
     try:
         # Check rate limits
@@ -700,7 +708,7 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
 
 
 @app.get("/health")
-async def health_endpoint():
+async def health_endpoint() -> None:
     """Health check endpoint."""
     try:
         health_status = await model_muxer.health_check()
@@ -714,7 +722,7 @@ async def health_endpoint():
 
 
 @app.get("/metrics")
-async def metrics_endpoint():
+async def metrics_endpoint() -> None:
     """Prometheus metrics endpoint."""
     if not model_muxer.metrics_collector:
         raise HTTPException(status_code=404, detail="Metrics not enabled")
@@ -815,7 +823,9 @@ async def get_budget_status(user_info: dict[str, Any] = Depends(get_current_user
 
 
 @app.post("/v1/analytics/budgets")
-async def set_budget(budget_request: BudgetRequest, user_info: dict[str, Any] = Depends(get_current_user)):
+async def set_budget(
+    budget_request: BudgetRequest, user_info: dict[str, Any] = Depends(get_current_user)
+):
     """Set or update user budget"""
     user_id = user_info.get("user_id", "anonymous")
 

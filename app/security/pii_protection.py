@@ -77,9 +77,13 @@ class PIIDetector:
     def _initialize_patterns(self) -> dict[PIIType, list[re.Pattern[str]]]:
         """Initialize regex patterns for PII detection."""
         return {
-            PIIType.EMAIL: [re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", re.IGNORECASE)],
+            PIIType.EMAIL: [
+                re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", re.IGNORECASE)
+            ],
             PIIType.PHONE: [
-                re.compile(r"\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b"),
+                re.compile(
+                    r"\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b"
+                ),
                 re.compile(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b"),
                 re.compile(r"\(\d{3}\)\s?\d{3}[-.\s]?\d{4}"),
             ],
@@ -245,8 +249,12 @@ class PIIProtector:
     def _default_policies(self) -> dict[PIIType, RedactionPolicy]:
         """Default redaction policies for different PII types."""
         return {
-            PIIType.EMAIL: RedactionPolicy(PIIType.EMAIL, RedactionAction.MASK, preserve_format=True),
-            PIIType.PHONE: RedactionPolicy(PIIType.PHONE, RedactionAction.MASK, preserve_format=True),
+            PIIType.EMAIL: RedactionPolicy(
+                PIIType.EMAIL, RedactionAction.MASK, preserve_format=True
+            ),
+            PIIType.PHONE: RedactionPolicy(
+                PIIType.PHONE, RedactionAction.MASK, preserve_format=True
+            ),
             PIIType.SSN: RedactionPolicy(PIIType.SSN, RedactionAction.REDACT),
             PIIType.CREDIT_CARD: RedactionPolicy(PIIType.CREDIT_CARD, RedactionAction.REDACT),
             PIIType.IP_ADDRESS: RedactionPolicy(PIIType.IP_ADDRESS, RedactionAction.HASH),
@@ -300,7 +308,11 @@ class PIIProtector:
 
             # Apply redaction
             replacement = self._apply_redaction(detection, policy)
-            protected_text = protected_text[: detection.start_pos] + replacement + protected_text[detection.end_pos :]
+            protected_text = (
+                protected_text[: detection.start_pos]
+                + replacement
+                + protected_text[detection.end_pos :]
+            )
 
             # Update detection with redacted value
             detection.value = replacement

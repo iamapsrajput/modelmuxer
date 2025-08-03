@@ -25,7 +25,7 @@ class RouterTester:
         self.headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         self.client = httpx.AsyncClient(timeout=60.0)
 
-    async def __aenter__(self) -> 'RouterTester':
+    async def __aenter__(self) -> "RouterTester":
         return self
 
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:

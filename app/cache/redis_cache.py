@@ -50,7 +50,7 @@ class RedisCache(CacheInterface):
 
         # Redis connection
         self.redis: Redis | None = None
-        self.connection_pool = None
+        self.connection_pool: redis.ConnectionPool | None = None
 
         # Cache statistics
         self.stats = {
@@ -226,7 +226,7 @@ class RedisCache(CacheInterface):
             elif ttl == -1:  # Key exists but has no expiry
                 return -1
             else:
-                return ttl
+                return int(ttl)
 
         except Exception as e:
             logger.error("cache_ttl_error", key=key, error=str(e))
@@ -327,7 +327,7 @@ class RedisCache(CacheInterface):
                 deleted_count = await self.redis.delete(*keys)
                 self.stats["deletes"] += deleted_count
                 logger.info("cache_pattern_cleared", pattern=pattern, deleted=deleted_count)
-                return deleted_count
+                return int(deleted_count)
 
             return 0
 
@@ -374,7 +374,7 @@ class RedisCache(CacheInterface):
         try:
             # Try a simple ping
             pong = await self.redis.ping()
-            return pong == b"PONG" or pong == "PONG"
+            return bool(pong == b"PONG" or pong == "PONG")
 
         except Exception as e:
             logger.error("redis_health_check_failed", error=str(e))
@@ -411,7 +411,7 @@ class RedisCache(CacheInterface):
             await self.redis.close()
             logger.info("redis_connection_closed")
 
-    def get_stats(self) -> dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         total_requests = self.stats["hits"] + self.stats["misses"]
         hit_rate = self.stats["hits"] / max(total_requests, 1)

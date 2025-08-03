@@ -84,7 +84,7 @@ class Settings(BaseSettings):
         case_sensitive = False
 
     @validator("allowed_api_keys")
-    def parse_api_keys(cls, v):
+    def parse_api_keys(cls, v) -> None:
         """Parse comma-separated API keys into a list."""
         if isinstance(v, str):
             return [key.strip() for key in v.split(",") if key.strip()]

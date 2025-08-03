@@ -20,7 +20,7 @@ class CostTracker:
         # Initialize tokenizers for different providers
         self._tokenizers = {}
 
-    def get_tokenizer(self, provider: str, model: str):
+    def get_tokenizer(self, provider: str, model: str) -> None:
         """Get or create tokenizer for a specific model."""
         key = f"{provider}:{model}"
         if key not in self._tokenizers:

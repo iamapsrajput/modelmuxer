@@ -108,9 +108,13 @@ class EnhancedModelMuxerTester:
 
             # Test routing with sample messages
             test_messages = [
-                ChatMessage(role="user", content="Write a Python function to sort a list", name=None),
+                ChatMessage(
+                    role="user", content="Write a Python function to sort a list", name=None
+                ),
                 ChatMessage(role="user", content="What is the capital of France?", name=None),
-                ChatMessage(role="user", content="Explain machine learning in simple terms", name=None),
+                ChatMessage(
+                    role="user", content="Explain machine learning in simple terms", name=None
+                ),
             ]
 
             for router_name, router in routers.items():

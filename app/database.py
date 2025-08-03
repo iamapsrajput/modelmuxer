@@ -19,7 +19,7 @@ class Database:
     def __init__(self, db_path: str = None):
         self.db_path = db_path or settings.database_url.replace("sqlite:///", "")
 
-    async def init_database(self):
+    async def init_database(self) -> None:
         """Initialize database tables."""
         async with aiosqlite.connect(self.db_path) as db:
             # Requests table for logging all API calls

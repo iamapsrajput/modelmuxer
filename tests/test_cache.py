@@ -370,7 +370,7 @@ class TestCacheIntegration:
         assert await cache.exists("user:456:profile") is True  # Should remain
 
     @patch("app.cache.redis_cache.redis.Redis")
-    async def test_cache_backend_switching(self, mock_redis_class) -> None:
+    async def test_cache_backend_switching(self, mock_redis_class: Any) -> None:
         """Test switching between cache backends."""
         # Test memory cache
         memory_cache = MemoryCache()

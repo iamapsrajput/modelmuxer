@@ -36,7 +36,7 @@ providers = {}
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> None:
     """Application lifespan manager."""
     # Startup
     print("🚀 Starting ModelMuxer LLM Router...")
@@ -99,7 +99,7 @@ app.add_middleware(
 
 # Custom exception handlers
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> None:
     """Handle request validation errors."""
     return JSONResponse(
         status_code=400,
@@ -112,7 +112,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
+async def http_exception_handler(request: Request, exc: HTTPException) -> None:
     """Handle HTTP exceptions."""
     return JSONResponse(
         status_code=exc.status_code,
@@ -126,7 +126,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 @app.middleware("http")
-async def add_security_headers(request: Request, call_next):
+async def add_security_headers(request: Request, call_next) -> None:
     """Add security headers to all responses."""
     response = await call_next(request)
 
@@ -138,7 +138,7 @@ async def add_security_headers(request: Request, call_next):
 
 
 @app.middleware("http")
-async def validate_request_middleware(request: Request, call_next):
+async def validate_request_middleware(request: Request, call_next) -> None:
     """Validate request size and other security checks."""
     # Skip validation for health check
     if request.url.path == "/health":
@@ -361,7 +361,7 @@ async def stream_chat_completion(
 
 
 @app.get("/health", response_model=HealthResponse)
-async def health_check():
+async def health_check() -> None:
     """Health check endpoint."""
     return HealthResponse(status="healthy", version="1.0.0", timestamp=datetime.now())
 

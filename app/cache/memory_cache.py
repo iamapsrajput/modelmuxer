@@ -66,7 +66,7 @@ class MemoryCache(CacheInterface):
         }
 
         # Background cleanup
-        self._cleanup_thread = None
+        self._cleanup_thread: threading.Thread | None = None
         self._stop_cleanup = threading.Event()
         self._start_cleanup_thread()
 
@@ -390,7 +390,7 @@ class MemoryCache(CacheInterface):
             logger.error("memory_cache_health_check_failed", error=str(e))
             return False
 
-    def get_stats(self) -> dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         total_requests = self.stats["hits"] + self.stats["misses"]
         hit_rate = self.stats["hits"] / max(total_requests, 1)

@@ -104,7 +104,7 @@ class RoutingConfig(BaseSettings):
     hybrid_consensus_threshold: float = Field(default=0.6, env="HYBRID_CONSENSUS_THRESHOLD")
 
     @field_validator("hybrid_strategy_weights", mode="before")
-    def parse_strategy_weights(cls, v):
+    def parse_strategy_weights(cls, v) -> None:
         if isinstance(v, dict):
             # Convert dict back to string format for storage
             return ",".join([f"{k}:{v}" for k, v in v.items()])
@@ -122,7 +122,7 @@ class RoutingConfig(BaseSettings):
         return weights
 
     @field_validator("default_strategy", mode="before")
-    def validate_strategy(cls, v):
+    def validate_strategy(cls, v) -> None:
         valid_strategies = ["heuristic", "semantic", "cascade", "hybrid"]
         if v not in valid_strategies:
             raise ValueError(f"Invalid routing strategy. Must be one of: {valid_strategies}")
@@ -149,7 +149,7 @@ class CacheConfig(BaseSettings):
     redis_compression: bool = Field(default=True, env="REDIS_COMPRESSION")
 
     @field_validator("backend", mode="before")
-    def validate_backend(cls, v):
+    def validate_backend(cls, v) -> None:
         valid_backends = ["memory", "redis"]
         if v not in valid_backends:
             raise ValueError(f"Invalid cache backend. Must be one of: {valid_backends}")
@@ -177,25 +177,25 @@ class AuthConfig(BaseSettings):
     allowed_origins: str = Field(default="*", env="ALLOWED_ORIGINS")
 
     @field_validator("api_keys", mode="before")
-    def parse_api_keys(cls, v):
+    def parse_api_keys(cls, v) -> None:
         if isinstance(v, list):
             return ",".join(v)
         return v if isinstance(v, str) else ""
 
     @field_validator("methods", mode="before")
-    def parse_auth_methods(cls, v):
+    def parse_auth_methods(cls, v) -> None:
         if isinstance(v, list):
             return ",".join(v)
         return v if isinstance(v, str) else "api_key"
 
     @field_validator("allowed_origins", mode="before")
-    def parse_allowed_origins(cls, v):
+    def parse_allowed_origins(cls, v) -> None:
         if isinstance(v, list):
             return ",".join(v)
         return v if isinstance(v, str) else "*"
 
     @field_validator("jwt_secret")
-    def validate_jwt_secret(cls, v):
+    def validate_jwt_secret(cls, v) -> None:
         """Validate JWT secret is set and secure."""
         import os
 
@@ -249,7 +249,7 @@ class RateLimitConfig(BaseSettings):
     system_load_threshold: float = Field(default=0.8, env="SYSTEM_LOAD_THRESHOLD")
 
     @field_validator("algorithm", mode="before")
-    def validate_algorithm(cls, v):
+    def validate_algorithm(cls, v) -> None:
         valid_algorithms = ["token_bucket", "sliding_window", "fixed_window"]
         if v not in valid_algorithms:
             raise ValueError(f"Invalid rate limit algorithm. Must be one of: {valid_algorithms}")
@@ -297,7 +297,7 @@ class LoggingConfig(BaseSettings):
     audit_enabled: bool = Field(default=True, env="AUDIT_LOGGING_ENABLED")
 
     @field_validator("level", mode="before")
-    def validate_log_level(cls, v):
+    def validate_log_level(cls, v) -> None:
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if v.upper() not in valid_levels:
             raise ValueError(f"Invalid log level. Must be one of: {valid_levels}")

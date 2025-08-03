@@ -32,7 +32,9 @@ class TestHeuristicRouter(unittest.TestCase):
         self.assertEqual(analysis["task_type"], "code")
 
         # Test with inline code
-        messages = [ChatMessage(role="user", content="Use the `print()` function in Python", name=None)]
+        messages = [
+            ChatMessage(role="user", content="Use the `print()` function in Python", name=None)
+        ]
         analysis = self.router.analyze_prompt(messages)
         self.assertTrue(analysis["has_code"])
 
@@ -79,7 +81,9 @@ class TestHeuristicRouter(unittest.TestCase):
     def test_model_selection_code(self) -> None:
         """Test model selection for code-related prompts."""
         messages = [
-            ChatMessage(role="user", content="Write a Python function to implement binary search", name=None)
+            ChatMessage(
+                role="user", content="Write a Python function to implement binary search", name=None
+            )
         ]
         provider, model, reason = self.router.select_model(messages)
 

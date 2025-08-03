@@ -214,7 +214,7 @@ class HeuristicRouter(BaseRouter):
         full_text = " ".join([msg.content for msg in messages if msg.content])
         full_text_lower = full_text.lower()
 
-        analysis = {
+        analysis: dict[str, Any] = {
             "total_length": len(full_text),
             "message_count": len(messages),
             "word_count": len(full_text.split()),

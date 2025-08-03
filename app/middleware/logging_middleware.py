@@ -46,10 +46,14 @@ class LoggingMiddleware:
         # Security and privacy
         self.sanitize_sensitive_data = self.config.get("sanitize_sensitive_data", True)
         self.sensitive_headers = set(
-            self.config.get("sensitive_headers", ["authorization", "x-api-key", "cookie", "x-auth-token"])
+            self.config.get(
+                "sensitive_headers", ["authorization", "x-api-key", "cookie", "x-auth-token"]
+            )
         )
         self.sensitive_fields = set(
-            self.config.get("sensitive_fields", ["password", "token", "api_key", "secret", "private_key"])
+            self.config.get(
+                "sensitive_fields", ["password", "token", "api_key", "secret", "private_key"]
+            )
         )
 
         # Audit logging
@@ -73,7 +77,9 @@ class LoggingMiddleware:
             audit_logging=self.enable_audit_log,
         )
 
-    async def log_request(self, request: Request, user_info: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def log_request(
+        self, request: Request, user_info: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Log incoming request with metadata.
 

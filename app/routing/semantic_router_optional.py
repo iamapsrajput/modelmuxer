@@ -58,12 +58,16 @@ class OptionalSemanticRouter(BaseRouter):
                 logger.info("semantic_router_initialized_ml_mode", model=self.model_name)
             except Exception as e:
                 if not self.use_fallback:
-                    raise ConfigurationError(f"Failed to initialize sentence transformer: {e}") from e
+                    raise ConfigurationError(
+                        f"Failed to initialize sentence transformer: {e}"
+                    ) from e
                 logger.warning("semantic_router_ml_init_failed_using_fallback", error=str(e))
 
         if not self.use_ml_mode:
             if not self.use_fallback:
-                raise ConfigurationError("Sentence transformers not available and fallback disabled")
+                raise ConfigurationError(
+                    "Sentence transformers not available and fallback disabled"
+                )
             logger.info("semantic_router_initialized_fallback_mode")
 
         # Route definitions
@@ -252,7 +256,9 @@ class OptionalSemanticRouter(BaseRouter):
 
             except Exception as e:
                 logger.error("failed_to_generate_ml_embeddings", route=route_name, error=str(e))
-                raise RoutingError(f"Failed to generate embeddings for route {route_name}: {e}") from e
+                raise RoutingError(
+                    f"Failed to generate embeddings for route {route_name}: {e}"
+                ) from e
 
     def _initialize_keyword_routes(self, route_definitions: dict) -> None:
         """Initialize routes using keyword patterns."""

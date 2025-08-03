@@ -195,7 +195,7 @@ class GroqProvider(LLMProvider):
     async def stream_chat_completion(
         self,
         messages: list[ChatMessage],
-        model: str = "llama-3.1-8b-instant",
+        model: str,
         max_tokens: int | None = None,
         temperature: float | None = None,
         **kwargs: Any,

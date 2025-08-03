@@ -388,7 +388,9 @@ class AdvancedCostTracker:
         finally:
             conn.close()
 
-    async def _update_usage_cache(self, user_id: str, cost: float, provider: str, model: str) -> None:
+    async def _update_usage_cache(
+        self, user_id: str, cost: float, provider: str, model: str
+    ) -> None:
         """Update real-time usage cache in Redis."""
         try:
             # Update daily usage
@@ -410,7 +412,9 @@ class AdvancedCostTracker:
         except Exception as e:
             logger.warning("redis_usage_update_failed", error=str(e))
 
-    async def _check_budget_alerts(self, user_id: str, cost: float, provider: str, model: str) -> None:
+    async def _check_budget_alerts(
+        self, user_id: str, cost: float, provider: str, model: str
+    ) -> None:
         """Check if budget alerts should be triggered."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
