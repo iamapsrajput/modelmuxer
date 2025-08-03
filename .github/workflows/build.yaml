@@ -137,6 +137,7 @@ jobs:
       if: always() && hashFiles('snyk.sarif') != ''
       with:
         sarif_file: snyk.sarif
+        category: snyk-container-scan
 
   sign-image:
     name: Sign Container Image

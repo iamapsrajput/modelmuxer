@@ -183,6 +183,7 @@ jobs:
         if: always()
         with:
           sarif_file: "trivy-results.sarif"
+          category: trivy-fs-scan
 
       - name: Run Semgrep security scan
         uses: returntocorp/semgrep-action@v1
@@ -209,6 +210,7 @@ jobs:
         if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif
+          category: semgrep-scan
 
   dependency-check:
     name: Dependency Vulnerability Check
