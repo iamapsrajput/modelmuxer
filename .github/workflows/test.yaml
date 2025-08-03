@@ -35,7 +35,7 @@ jobs:
           poetry config virtualenvs.in-project true
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev,ml
 
       - name: Run ruff (linting and formatting)
         run: |
@@ -107,7 +107,7 @@ jobs:
           poetry config virtualenvs.in-project true
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev,ml
 
       - name: Debug - Check Python path and imports
         run: |
@@ -231,7 +231,7 @@ jobs:
           poetry config virtualenvs.in-project true
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev,ml
 
       - name: Run safety check
         run: |
@@ -274,7 +274,7 @@ jobs:
           poetry config virtualenvs.in-project true
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev,ml
 
       - name: Run performance tests
         run: poetry run pytest tests/performance/ -v --benchmark-json=benchmark.json

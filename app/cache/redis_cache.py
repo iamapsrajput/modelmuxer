@@ -1,3 +1,5 @@
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
 """
 Redis-based caching implementation for ModelMuxer.
 
@@ -63,9 +65,7 @@ class RedisCache(CacheInterface):
         # Initialize connection
         self._initialize_connection(max_connections)
 
-        logger.info(
-            "redis_cache_initialized", redis_url=redis_url, db=db, compression=compression_enabled
-        )
+        logger.info("redis_cache_initialized", redis_url=redis_url, db=db, compression=compression_enabled)
 
     def _initialize_connection(self, max_connections: int) -> None:
         """Initialize Redis connection pool."""
