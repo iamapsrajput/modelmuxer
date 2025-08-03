@@ -168,7 +168,7 @@ class TestCacheConfig:
             # Temporarily override the model config to prevent .env file loading
             original_config = CacheConfig.model_config
             CacheConfig.model_config = CacheConfig.model_config.copy()
-            CacheConfig.model_config['env_file'] = None
+            CacheConfig.model_config["env_file"] = None
 
             try:
                 config = CacheConfig()

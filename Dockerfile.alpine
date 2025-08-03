@@ -1,7 +1,7 @@
 # ModelMuxer Alpine Production Dockerfile - Security-focused build with minimal attack surface
 
-# Stage 1: Build dependencies and compile Python packages
-FROM python:3.11-alpine AS builder
+# Stage 1: Build dependencies and compile Python packages  
+FROM python:3.13-alpine AS builder
 
 # Set build arguments
 ARG BUILDPLATFORM
@@ -49,7 +49,7 @@ RUN poetry install --without dev,ml,monitoring --no-root && \
     ls -la /app/.venv/
 
 # Stage 2: Runtime image
-FROM python:3.11-alpine AS runtime
+FROM python:3.13-alpine AS runtime
 
 # Set build arguments for metadata
 ARG VERSION=latest
