@@ -29,7 +29,9 @@ class TogetherProvider(LLMProvider):
         if not api_key:
             raise AuthenticationError("Together AI API key is required")
 
-        super().__init__(api_key=api_key, base_url="https://api.together.xyz/v1", provider_name="together")
+        super().__init__(
+            api_key=api_key, base_url="https://api.together.xyz/v1", provider_name="together"
+        )
 
         # Pricing per million tokens (as of 2024)
         self.pricing = {
@@ -93,7 +95,8 @@ class TogetherProvider(LLMProvider):
     def _prepare_messages(self, messages: list[ChatMessage]) -> list[dict[str, str]]:
         """Convert ChatMessage objects to Together AI format (OpenAI-compatible)."""
         return [
-            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})} for msg in messages
+            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})}
+            for msg in messages
         ]
 
     async def chat_completion(
@@ -153,7 +156,9 @@ class TogetherProvider(LLMProvider):
             # Extract content
             choices = response_data.get("choices", [])
             if not choices:
-                raise ProviderError("No choices returned from Together AI", provider=self.provider_name)
+                raise ProviderError(
+                    "No choices returned from Together AI", provider=self.provider_name
+                )
 
             content = choices[0].get("message", {}).get("content", "")
             finish_reason = choices[0].get("finish_reason", "stop")
@@ -171,9 +176,13 @@ class TogetherProvider(LLMProvider):
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                raise RateLimitError("Together AI API rate limit exceeded", provider=self.provider_name) from e
+                raise RateLimitError(
+                    "Together AI API rate limit exceeded", provider=self.provider_name
+                ) from e
             elif e.response.status_code == 401:
-                raise AuthenticationError("Together AI API authentication failed", provider=self.provider_name) from e
+                raise AuthenticationError(
+                    "Together AI API authentication failed", provider=self.provider_name
+                ) from e
             else:
                 error_detail = ""
                 try:
@@ -188,11 +197,15 @@ class TogetherProvider(LLMProvider):
                     status_code=e.response.status_code,
                 ) from e
         except httpx.RequestError as e:
-            raise ProviderError(f"Together AI request failed: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Together AI request failed: {str(e)}", provider=self.provider_name
+            ) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Together AI unexpected error: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Together AI unexpected error: {str(e)}", provider=self.provider_name
+            ) from e
 
     async def stream_chat_completion(
         self,
@@ -241,17 +254,23 @@ class TogetherProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(f"Together AI streaming request failed: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Together AI streaming request failed: {str(e)}", provider=self.provider_name
+            ) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Together AI streaming unexpected error: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Together AI streaming unexpected error: {str(e)}", provider=self.provider_name
+            ) from e
 
     async def health_check(self) -> bool:
         """Check if Together AI API is accessible."""
         try:
             test_messages = [ChatMessage(role="user", content="Hi")]
-            await self.chat_completion(messages=test_messages, model="meta-llama/Llama-3-8b-chat-hf", max_tokens=1)
+            await self.chat_completion(
+                messages=test_messages, model="meta-llama/Llama-3-8b-chat-hf", max_tokens=1
+            )
             return True
         except Exception as e:
             logger.warning("together_health_check_failed", error=str(e))

@@ -182,7 +182,9 @@ class SecurityManager:
             "email": user_data.get("email"),
             "role": user_data.get("role", UserRole.VIEWER),
             "org_id": user_data.get("org_id"),
-            "permissions": list(ROLE_PERMISSIONS.get(UserRole(user_data.get("role", UserRole.VIEWER)), set())),
+            "permissions": list(
+                ROLE_PERMISSIONS.get(UserRole(user_data.get("role", UserRole.VIEWER)), set())
+            ),
             "exp": expire,
             "iat": datetime.utcnow(),
             "type": "access",
@@ -296,10 +298,16 @@ class SecurityManager:
 
             if attempts >= MAX_LOGIN_ATTEMPTS:
                 # Lock account
-                self.redis_client.setex(f"account_locked:{user_id}", LOCKOUT_DURATION_MINUTES * 60, "locked")
-                logger.warning("account_locked", user_id=user_id, attempts=attempts, ip_address=ip_address)
+                self.redis_client.setex(
+                    f"account_locked:{user_id}", LOCKOUT_DURATION_MINUTES * 60, "locked"
+                )
+                logger.warning(
+                    "account_locked", user_id=user_id, attempts=attempts, ip_address=ip_address
+                )
             else:
-                logger.warning("login_failed", user_id=user_id, attempts=attempts, ip_address=ip_address)
+                logger.warning(
+                    "login_failed", user_id=user_id, attempts=attempts, ip_address=ip_address
+                )
 
     def is_account_locked(self, user_id: str) -> bool:
         """Check if account is locked due to failed login attempts."""

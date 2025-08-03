@@ -81,14 +81,32 @@ class TestProviderConfig:
 
     def test_default_provider_config(self):
         """Test default provider configuration."""
-        config = ProviderConfig()
+        # Clear environment variables and override model config to prevent .env file loading
+        env_vars_to_clear = [
+            'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'MISTRAL_API_KEY', 
+            'GOOGLE_API_KEY', 'COHERE_API_KEY', 'GROQ_API_KEY', 'TOGETHER_API_KEY',
+            'LITELLM_BASE_URL', 'LITELLM_API_KEY', 'OPENAI_BASE_URL'
+        ]
+        
+        with patch.dict(os.environ, {key: "" for key in env_vars_to_clear}, clear=False):
+            # Temporarily override the model config to prevent .env file loading
+            original_config = ProviderConfig.model_config
+            ProviderConfig.model_config = ProviderConfig.model_config.copy()
+            ProviderConfig.model_config['env_file'] = None
+            
+            try:
+                config = ProviderConfig()
 
-        assert config.openai_api_key is None
-        assert config.anthropic_api_key is None
-        assert config.mistral_api_key is None
-        assert config.google_api_key is None
-        assert config.groq_api_key is None
-        # Note: timeout and max_retries are not in the actual ProviderConfig
+                # When env vars are set to empty strings, they become empty strings, not None
+                assert config.openai_api_key == "" or config.openai_api_key is None
+                assert config.anthropic_api_key == "" or config.anthropic_api_key is None
+                assert config.mistral_api_key == "" or config.mistral_api_key is None
+                assert config.google_api_key == "" or config.google_api_key is None
+                assert config.groq_api_key == "" or config.groq_api_key is None
+                # Note: timeout and max_retries are not in the actual ProviderConfig
+            finally:
+                # Restore original config
+                ProviderConfig.model_config = original_config
 
     def test_provider_config_from_env(self):
         """Test provider configuration from environment variables."""

@@ -227,7 +227,9 @@ class LLMProvider(ABC):
                 return False
 
             # Use the first available model for health check
-            await self.chat_completion(messages=test_messages, model=models[0], max_tokens=1, temperature=0.0)
+            await self.chat_completion(
+                messages=test_messages, model=models[0], max_tokens=1, temperature=0.0
+            )
             return True
         except Exception:
             return False

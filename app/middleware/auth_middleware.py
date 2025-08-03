@@ -78,7 +78,9 @@ class AuthMiddleware:
                 "created_at": user_data.get("created_at", time.time()),
             }
 
-    async def authenticate_request(self, request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
+    async def authenticate_request(
+        self, request: Request, authorization: str | None = Header(None)
+    ) -> dict[str, Any]:
         """
         Authenticate a request using configured methods.
 
@@ -243,7 +245,9 @@ class AuthMiddleware:
         except jwt.InvalidTokenError as e:
             raise AuthenticationError(f"Invalid JWT token: {str(e)}") from e
 
-    async def _authenticate_custom(self, request: Request, authorization: str | None) -> dict[str, Any]:
+    async def _authenticate_custom(
+        self, request: Request, authorization: str | None
+    ) -> dict[str, Any]:
         """Custom authentication method (placeholder for extension)."""
         # This is a placeholder for custom authentication logic
         # Organizations can extend this method for their specific needs
@@ -273,8 +277,12 @@ class AuthMiddleware:
         user_limits["minute_requests"] = {
             k: v for k, v in user_limits["minute_requests"].items() if k >= current_minute - 1
         }
-        user_limits["hour_requests"] = {k: v for k, v in user_limits["hour_requests"].items() if k >= current_hour - 1}
-        user_limits["day_requests"] = {k: v for k, v in user_limits["day_requests"].items() if k >= current_day - 1}
+        user_limits["hour_requests"] = {
+            k: v for k, v in user_limits["hour_requests"].items() if k >= current_hour - 1
+        }
+        user_limits["day_requests"] = {
+            k: v for k, v in user_limits["day_requests"].items() if k >= current_day - 1
+        }
 
         # Count current requests
         minute_count = user_limits["minute_requests"].get(current_minute, 0)
@@ -378,7 +386,9 @@ class AuthMiddleware:
     def get_rate_limit_stats(self) -> dict[str, Any]:
         """Get rate limiting statistics."""
         total_users = len(self.rate_limit_storage)
-        active_users = sum(1 for user_data in self.rate_limit_storage.values() if any(user_data.values()))
+        active_users = sum(
+            1 for user_data in self.rate_limit_storage.values() if any(user_data.values())
+        )
 
         return {
             "total_users": total_users,

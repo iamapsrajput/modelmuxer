@@ -33,7 +33,9 @@ class HybridRouter(BaseRouter):
         super().__init__("hybrid", config)
 
         # Configuration
-        self.strategy_weights = self.config.get("strategy_weights", {"heuristic": 0.4, "semantic": 0.4, "cascade": 0.2})
+        self.strategy_weights = self.config.get(
+            "strategy_weights", {"heuristic": 0.4, "semantic": 0.4, "cascade": 0.2}
+        )
 
         self.enable_consensus = self.config.get("enable_consensus", True)
         self.consensus_threshold = self.config.get("consensus_threshold", 0.6)
@@ -63,7 +65,11 @@ class HybridRouter(BaseRouter):
 
         # Validate that at least one router is available
         available_routers = sum(
-            [1 for router in [self.heuristic_router, self.semantic_router, self.cascade_router] if router is not None]
+            [
+                1
+                for router in [self.heuristic_router, self.semantic_router, self.cascade_router]
+                if router is not None
+            ]
         )
 
         if available_routers == 0:
@@ -106,7 +112,9 @@ class HybridRouter(BaseRouter):
 
         return combined_analysis
 
-    def _combine_analyses(self, analyses: dict[str, dict[str, Any]], messages: list[ChatMessage]) -> dict[str, Any]:
+    def _combine_analyses(
+        self, analyses: dict[str, dict[str, Any]], messages: list[ChatMessage]
+    ) -> dict[str, Any]:
         """Combine analyses from multiple strategies."""
         if not analyses:
             # Fallback analysis
@@ -163,16 +171,24 @@ class HybridRouter(BaseRouter):
         # Check for consensus
         if self.enable_consensus:
             # Count how many strategies agree on the task type
-            agreement_count = sum(1 for task_type, _ in task_types if task_type == best_task_type[0])
+            agreement_count = sum(
+                1 for task_type, _ in task_types if task_type == best_task_type[0]
+            )
             consensus_ratio = agreement_count / len(task_types)
 
             combined["consensus"] = consensus_ratio >= self.consensus_threshold
             combined["consensus_score"] = consensus_ratio
 
         # Add strategy-specific insights
-        combined["has_code"] = any(analysis.get("has_code", False) for analysis in analyses.values())
-        combined["has_complexity"] = any(analysis.get("has_complexity", False) for analysis in analyses.values())
-        combined["is_simple"] = any(analysis.get("is_simple", False) for analysis in analyses.values())
+        combined["has_code"] = any(
+            analysis.get("has_code", False) for analysis in analyses.values()
+        )
+        combined["has_complexity"] = any(
+            analysis.get("has_complexity", False) for analysis in analyses.values()
+        )
+        combined["is_simple"] = any(
+            analysis.get("is_simple", False) for analysis in analyses.values()
+        )
 
         return combined
 
@@ -232,7 +248,9 @@ class HybridRouter(BaseRouter):
             )
 
         # Combine recommendations
-        final_recommendation = self._combine_recommendations(strategy_recommendations, analysis, constraints)
+        final_recommendation = self._combine_recommendations(
+            strategy_recommendations, analysis, constraints
+        )
 
         return final_recommendation
 
@@ -276,13 +294,13 @@ class HybridRouter(BaseRouter):
 
         # Select the highest scoring recommendation
         scored_recommendations.sort(key=lambda x: x[0], reverse=True)
-        best_score, best_strategy, provider, model, reasoning, confidence = scored_recommendations[0]
+        best_score, best_strategy, provider, model, reasoning, confidence = scored_recommendations[
+            0
+        ]
 
         # Generate combined reasoning
         strategy_names = [rec[0] for rec in recommendations]  # rec[0] is the strategy name
-        combined_reasoning = (
-            f"Hybrid routing (strategies: {', '.join(strategy_names)}) selected {best_strategy}: {reasoning}"
-        )
+        combined_reasoning = f"Hybrid routing (strategies: {', '.join(strategy_names)}) selected {best_strategy}: {reasoning}"
 
         # Calculate combined confidence
         combined_confidence = min(1.0, best_score)

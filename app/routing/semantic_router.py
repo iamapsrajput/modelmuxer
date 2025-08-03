@@ -197,7 +197,9 @@ class SemanticRouter(BaseRouter):
 
             except Exception as e:
                 logger.error("failed_to_generate_embeddings", route=route_name, error=str(e))
-                raise RoutingError(f"Failed to generate embeddings for route {route_name}: {e}") from e
+                raise RoutingError(
+                    f"Failed to generate embeddings for route {route_name}: {e}"
+                ) from e
 
     async def analyze_prompt(self, messages: list[ChatMessage]) -> dict[str, Any]:
         """Analyze prompt using semantic similarity."""
@@ -226,7 +228,9 @@ class SemanticRouter(BaseRouter):
                 "similarity_score": similarity_score,
                 "all_similarities": similarities,
                 "confidence_score": similarity_score,
-                "task_type": (route_name if similarity_score > self.similarity_threshold else "general"),
+                "task_type": (
+                    route_name if similarity_score > self.similarity_threshold else "general"
+                ),
             }
 
             logger.debug(
@@ -349,7 +353,9 @@ class SemanticRouter(BaseRouter):
         }
         return cost_estimates.get((provider, model), 0.005)
 
-    def _generate_reasoning(self, analysis: dict[str, Any], provider: str, model: str, task_type: str) -> str:
+    def _generate_reasoning(
+        self, analysis: dict[str, Any], provider: str, model: str, task_type: str
+    ) -> str:
         """Generate reasoning for the routing decision."""
         similarity = analysis.get("similarity_score", 0.0)
         semantic_route = analysis.get("semantic_route", "unknown")
@@ -361,7 +367,9 @@ class SemanticRouter(BaseRouter):
         ]
 
         if similarity < self.similarity_threshold:
-            reasoning_parts.append(f"Low confidence (< {self.similarity_threshold}), using general routing")
+            reasoning_parts.append(
+                f"Low confidence (< {self.similarity_threshold}), using general routing"
+            )
 
         return ". ".join(reasoning_parts)
 

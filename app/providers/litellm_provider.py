@@ -26,7 +26,9 @@ logger = structlog.get_logger(__name__)
 class LiteLLMProvider(LLMProvider):
     """LiteLLM proxy provider implementation."""
 
-    def __init__(self, base_url: str, api_key: str = None, custom_models: dict[str, dict] | None = None):
+    def __init__(
+        self, base_url: str, api_key: str | None = None, custom_models: dict[str, dict] | None = None
+    ):
         if not base_url:
             raise ValueError("LiteLLM base URL is required")
 
@@ -63,7 +65,11 @@ class LiteLLMProvider(LLMProvider):
         }
 
         # Only add auth header if we have a real API key (not test placeholder)
-        if self.api_key and not self.api_key.startswith("TEST-PLACEHOLDER") and self.api_key != "dummy-key":
+        if (
+            self.api_key
+            and not self.api_key.startswith("TEST-PLACEHOLDER")
+            and self.api_key != "dummy-key"
+        ):
             headers["Authorization"] = f"Bearer {self.api_key}"
 
         return headers
@@ -96,7 +102,8 @@ class LiteLLMProvider(LLMProvider):
     def _prepare_messages(self, messages: list[ChatMessage]) -> list[dict[str, str]]:
         """Convert ChatMessage objects to OpenAI format (LiteLLM is OpenAI-compatible)."""
         return [
-            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})} for msg in messages
+            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})}
+            for msg in messages
         ]
 
     async def chat_completion(
@@ -156,7 +163,9 @@ class LiteLLMProvider(LLMProvider):
             # Extract content
             choices = response_data.get("choices", [])
             if not choices:
-                raise ProviderError("No choices returned from LiteLLM proxy", provider=self.provider_name)
+                raise ProviderError(
+                    "No choices returned from LiteLLM proxy", provider=self.provider_name
+                )
 
             content = choices[0].get("message", {}).get("content", "")
             finish_reason = choices[0].get("finish_reason", "stop")
@@ -174,9 +183,13 @@ class LiteLLMProvider(LLMProvider):
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                raise RateLimitError("LiteLLM proxy rate limit exceeded", provider=self.provider_name) from e
+                raise RateLimitError(
+                    "LiteLLM proxy rate limit exceeded", provider=self.provider_name
+                ) from e
             elif e.response.status_code == 401:
-                raise AuthenticationError("LiteLLM proxy authentication failed", provider=self.provider_name) from e
+                raise AuthenticationError(
+                    "LiteLLM proxy authentication failed", provider=self.provider_name
+                ) from e
             else:
                 error_detail = ""
                 try:
@@ -191,11 +204,15 @@ class LiteLLMProvider(LLMProvider):
                     status_code=e.response.status_code,
                 ) from e
         except httpx.RequestError as e:
-            raise ProviderError(f"LiteLLM proxy request failed: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"LiteLLM proxy request failed: {str(e)}", provider=self.provider_name
+            ) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"LiteLLM proxy unexpected error: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"LiteLLM proxy unexpected error: {str(e)}", provider=self.provider_name
+            ) from e
 
     async def stream_chat_completion(
         self,
@@ -244,7 +261,9 @@ class LiteLLMProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(f"LiteLLM proxy streaming request failed: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"LiteLLM proxy streaming request failed: {str(e)}", provider=self.provider_name
+            ) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
@@ -256,7 +275,9 @@ class LiteLLMProvider(LLMProvider):
         """Check if LiteLLM proxy is accessible."""
         try:
             # Try to get model list first
-            response = await self.client.get(f"{self.base_url}/v1/models", headers=self._create_headers(), timeout=30.0)
+            response = await self.client.get(
+                f"{self.base_url}/v1/models", headers=self._create_headers(), timeout=30.0
+            )
 
             if response.status_code == 200:
                 return True
@@ -264,7 +285,9 @@ class LiteLLMProvider(LLMProvider):
             # Fallback: try a simple chat completion
             if self.supported_models:
                 test_messages = [ChatMessage(role="user", content="Hi")]
-                await self.chat_completion(messages=test_messages, model=self.supported_models[0], max_tokens=1)
+                await self.chat_completion(
+                    messages=test_messages, model=self.supported_models[0], max_tokens=1
+                )
                 return True
 
             return False
@@ -276,7 +299,9 @@ class LiteLLMProvider(LLMProvider):
     async def get_available_models(self) -> list[dict[str, Any]]:
         """Get available models from LiteLLM proxy."""
         try:
-            response = await self.client.get(f"{self.base_url}/v1/models", headers=self._create_headers(), timeout=30.0)
+            response = await self.client.get(
+                f"{self.base_url}/v1/models", headers=self._create_headers(), timeout=30.0
+            )
 
             if response.status_code == 200:
                 data = response.json()
@@ -305,7 +330,9 @@ class LiteLLMProvider(LLMProvider):
         self.supported_models.append(model_name)
         self.pricing[model_name] = pricing
 
-        logger.info("custom_model_added", model=model_name, pricing=pricing, rate_limits=rate_limits)
+        logger.info(
+            "custom_model_added", model=model_name, pricing=pricing, rate_limits=rate_limits
+        )
 
     def get_model_info(self, model: str) -> dict[str, Any]:
         """Get detailed information about a model."""

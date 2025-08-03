@@ -29,7 +29,9 @@ class CohereProvider(LLMProvider):
         if not api_key:
             raise AuthenticationError("Cohere API key is required")
 
-        super().__init__(api_key=api_key, base_url="https://api.cohere.ai/v1", provider_name="cohere")
+        super().__init__(
+            api_key=api_key, base_url="https://api.cohere.ai/v1", provider_name="cohere"
+        )
 
         # Pricing per million tokens (as of 2024)
         self.pricing = {
@@ -192,9 +194,13 @@ class CohereProvider(LLMProvider):
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                raise RateLimitError("Cohere API rate limit exceeded", provider=self.provider_name) from e
+                raise RateLimitError(
+                    "Cohere API rate limit exceeded", provider=self.provider_name
+                ) from e
             elif e.response.status_code == 401:
-                raise AuthenticationError("Cohere API authentication failed", provider=self.provider_name) from e
+                raise AuthenticationError(
+                    "Cohere API authentication failed", provider=self.provider_name
+                ) from e
             else:
                 error_detail = ""
                 try:
@@ -209,11 +215,15 @@ class CohereProvider(LLMProvider):
                     status_code=e.response.status_code,
                 ) from e
         except httpx.RequestError as e:
-            raise ProviderError(f"Cohere request failed: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Cohere request failed: {str(e)}", provider=self.provider_name
+            ) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Cohere unexpected error: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Cohere unexpected error: {str(e)}", provider=self.provider_name
+            ) from e
 
     async def stream_chat_completion(
         self,
@@ -297,11 +307,15 @@ class CohereProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(f"Cohere streaming request failed: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Cohere streaming request failed: {str(e)}", provider=self.provider_name
+            ) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Cohere streaming unexpected error: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Cohere streaming unexpected error: {str(e)}", provider=self.provider_name
+            ) from e
 
     async def health_check(self) -> bool:
         """Check if Cohere API is accessible."""

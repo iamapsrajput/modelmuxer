@@ -150,13 +150,17 @@ async def validate_request_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-async def get_authenticated_user(request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
+async def get_authenticated_user(
+    request: Request, authorization: str | None = Header(None)
+) -> dict[str, Any]:
     """Dependency to authenticate requests."""
     return await auth.authenticate_request(request, authorization)
 
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
-async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)):
+async def chat_completions(
+    request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)
+):
     """
     Create a chat completion using the optimal LLM provider.
 
@@ -171,7 +175,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
             message.content = sanitize_user_input(message.content)
 
         # Route the request to the best provider/model
-        provider_name, model_name, routing_reason = router.select_model(messages=request.messages, user_id=user_id)
+        provider_name, model_name, routing_reason = router.select_model(
+            messages=request.messages, user_id=user_id
+        )
 
         # Check if provider is available
         if provider_name not in providers:
@@ -208,7 +214,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
         # Handle streaming vs non-streaming
         if request.stream:
             return StreamingResponse(
-                stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time),
+                stream_chat_completion(
+                    provider, request, model_name, routing_reason, user_id, start_time
+                ),
                 media_type="text/plain",
             )
         else:
@@ -221,7 +229,8 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
                 **{
                     k: v
                     for k, v in request.dict().items()
-                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
+                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
+                    and v is not None
                 },
             )
 
@@ -303,7 +312,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
         ) from e
 
 
-async def stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time):
+async def stream_chat_completion(
+    provider, request, model_name, routing_reason, user_id, start_time
+):
     """Handle streaming chat completion."""
     try:
         async for chunk in provider.stream_chat_completion(
@@ -314,7 +325,8 @@ async def stream_chat_completion(provider, request, model_name, routing_reason, 
             **{
                 k: v
                 for k, v in request.dict().items()
-                if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
+                if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
+                and v is not None
             },
         ):
             yield f"data: {json.dumps(chunk)}\n\n"
@@ -323,8 +335,12 @@ async def stream_chat_completion(provider, request, model_name, routing_reason, 
 
         # Log streaming request (with estimated tokens)
         response_time_ms = (time.time() - start_time) * 1000
-        estimated_tokens = cost_tracker.count_tokens(request.messages, provider.provider_name, model_name)
-        estimated_cost = cost_tracker.calculate_cost(provider.provider_name, model_name, estimated_tokens, 100)
+        estimated_tokens = cost_tracker.count_tokens(
+            request.messages, provider.provider_name, model_name
+        )
+        estimated_cost = cost_tracker.calculate_cost(
+            provider.provider_name, model_name, estimated_tokens, 100
+        )
 
         await db.log_request(
             user_id=user_id,

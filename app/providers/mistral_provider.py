@@ -22,7 +22,9 @@ class MistralProvider(LLMProvider):
         if not api_key:
             raise ValueError("Mistral API key is required")
 
-        super().__init__(api_key=api_key, base_url="https://api.mistral.ai/v1", provider_name="mistral")
+        super().__init__(
+            api_key=api_key, base_url="https://api.mistral.ai/v1", provider_name="mistral"
+        )
 
         # Pricing per million tokens (updated as of 2024)
         self.pricing = {
@@ -57,7 +59,8 @@ class MistralProvider(LLMProvider):
     def _prepare_messages(self, messages: list[ChatMessage]) -> list[dict[str, str]]:
         """Convert ChatMessage objects to Mistral format (same as OpenAI)."""
         return [
-            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})} for msg in messages
+            {"role": msg.role, "content": msg.content, **({"name": msg.name} if msg.name else {})}
+            for msg in messages
         ]
 
     def _estimate_tokens(self, text: str) -> int:
@@ -135,11 +138,15 @@ class MistralProvider(LLMProvider):
             )
 
         except httpx.RequestError as e:
-            raise ProviderError(f"Mistral request failed: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Mistral request failed: {str(e)}", provider=self.provider_name
+            ) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Mistral unexpected error: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Mistral unexpected error: {str(e)}", provider=self.provider_name
+            ) from e
 
     async def stream_chat_completion(
         self,
@@ -187,8 +194,12 @@ class MistralProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(f"Mistral streaming request failed: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Mistral streaming request failed: {str(e)}", provider=self.provider_name
+            ) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Mistral streaming unexpected error: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Mistral streaming unexpected error: {str(e)}", provider=self.provider_name
+            ) from e

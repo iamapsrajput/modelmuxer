@@ -133,7 +133,7 @@ jobs:
         run: |
           kubectl run migration-job-$(date +%s) \
             --namespace=${{ env.KUBE_NAMESPACE }} \
-            --image=ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag || 'develop' }} \
+            --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || 'develop' }} \
             --restart=Never \
             --env="DATABASE_URL=postgresql://postgres:${{ secrets.POSTGRES_PASSWORD }}@postgresql-staging:5432/modelmuxer" \
             --command -- python -m alembic upgrade head
@@ -162,7 +162,7 @@ jobs:
           # Run basic API tests against staging
           kubectl run smoke-test-$(date +%s) \
             --namespace=${{ env.KUBE_NAMESPACE }} \
-            --image=ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag || 'develop' }} \
+            --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || 'develop' }} \
             --restart=Never \
             --env="API_BASE_URL=http://${{ env.HELM_RELEASE }}:8000" \
             --env="ENVIRONMENT=staging" \

@@ -271,9 +271,7 @@ class PIIProtector:
         self.policies[pii_type] = policy
         logger.info("pii_policy_updated", pii_type=pii_type.value, action=policy.action.value)
 
-    def protect_text(
-        self, text: str, user_id: str | None = None
-    ) -> tuple[str, list[PIIDetection]]:
+    def protect_text(self, text: str, user_id: str | None = None) -> tuple[str, list[PIIDetection]]:
         """Protect text by detecting and redacting PII according to policies."""
         detections = self.detector.detect_pii(text)
 

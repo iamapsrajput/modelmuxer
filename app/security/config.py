@@ -36,7 +36,9 @@ class SecurityConfig:
             "verify": True,  # Always verify SSL certificates
             "follow_redirects": False,  # Disable automatic redirects
             "timeout": httpx.Timeout(60.0, connect=10.0),  # Set reasonable timeouts
-            "limits": httpx.Limits(max_keepalive_connections=5, max_connections=10, keepalive_expiry=30.0),
+            "limits": httpx.Limits(
+                max_keepalive_connections=5, max_connections=10, keepalive_expiry=30.0
+            ),
         }
         # Merge with user-provided kwargs
         config = {**default_config, **kwargs}
@@ -99,4 +101,8 @@ MIN_JWT_SECRET_LENGTH = 32
 MIN_PASSWORD_LENGTH = 12
 
 # Rate limiting defaults
-DEFAULT_RATE_LIMITS = {"requests_per_minute": 60, "requests_per_hour": 1000, "requests_per_day": 10000}
+DEFAULT_RATE_LIMITS = {
+    "requests_per_minute": 60,
+    "requests_per_hour": 1000,
+    "requests_per_day": 10000,
+}

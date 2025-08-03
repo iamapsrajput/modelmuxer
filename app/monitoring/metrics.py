@@ -24,44 +24,44 @@ except ImportError:
 
     # Create dummy classes that do nothing
     class PrometheusCounter:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def inc(self, *args, **kwargs):
+        def inc(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def labels(self, *args, **kwargs):
+        def labels(self, *args: Any, **kwargs: Any) -> 'PrometheusCounter':
             return self
 
     class Gauge:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def set(self, *args, **kwargs):
+        def set(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def labels(self, *args, **kwargs):
+        def labels(self, *args: Any, **kwargs: Any) -> 'Gauge':
             return self
 
     class Histogram:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def observe(self, *args, **kwargs):
+        def observe(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def labels(self, *args, **kwargs):
+        def labels(self, *args: Any, **kwargs: Any) -> 'Histogram':
             return self
 
     class Info:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def info(self, *args, **kwargs):
+        def info(self, *args: Any, **kwargs: Any) -> None:
             pass
 
     class CollectorRegistry:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             pass
 
 
@@ -81,7 +81,8 @@ class MetricsCollector:
 
         if not PROMETHEUS_AVAILABLE:
             logger.warning(
-                "prometheus_not_available", message="Metrics collection disabled - prometheus-client not installed"
+                "prometheus_not_available",
+                message="Metrics collection disabled - prometheus-client not installed",
             )
 
         # Request metrics
@@ -119,7 +120,7 @@ class MetricsCollector:
         self.provider_tokens = PrometheusCounter(
             "modelmuxer_provider_tokens_total",
             "Total tokens processed by provider",
-            ["provider", "model", "type"],  # type: input/output
+            ["provider", "model", "type"],  # token type: input/output
             registry=self.registry,
         )
 
@@ -186,7 +187,7 @@ class MetricsCollector:
         self.memory_usage = Gauge(
             "modelmuxer_memory_usage_bytes",
             "Memory usage in bytes",
-            ["type"],  # type: rss/vms/shared
+            ["type"],  # memory type: rss/vms/shared
             registry=self.registry,
         )
 
@@ -207,7 +208,9 @@ class MetricsCollector:
         )
 
         # System info
-        self.system_info = Info("modelmuxer_system_info", "System information", registry=self.registry)
+        self.system_info = Info(
+            "modelmuxer_system_info", "System information", registry=self.registry
+        )
 
         # Enhanced Production Metrics (Part 3)
         # =====================================
@@ -299,9 +302,9 @@ class MetricsCollector:
 
         # Internal tracking
         self.start_time = time.time()
-        self.request_counts = defaultdict(int)
-        self.error_counts = defaultdict(int)
-        self.active_users_set = set()
+        self.request_counts: defaultdict[str, int] = defaultdict(int)
+        self.error_counts: defaultdict[str, int] = defaultdict(int)
+        self.active_users_set: set[str] = set()
         self.last_active_users_update = time.time()
 
         logger.info("metrics_collector_initialized")
@@ -344,10 +347,14 @@ class MetricsCollector:
         self.provider_duration.labels(provider=provider, model=model).observe(duration)
 
         if input_tokens > 0:
-            self.provider_tokens.labels(provider=provider, model=model, type="input").inc(input_tokens)
+            self.provider_tokens.labels(provider=provider, model=model, type="input").inc(
+                input_tokens
+            )
 
         if output_tokens > 0:
-            self.provider_tokens.labels(provider=provider, model=model, type="output").inc(output_tokens)
+            self.provider_tokens.labels(provider=provider, model=model, type="output").inc(
+                output_tokens
+            )
 
         if cost > 0:
             self.provider_cost.labels(provider=provider, model=model).inc(cost)
@@ -378,7 +385,9 @@ class MetricsCollector:
 
     def record_error(self, error_type: str, endpoint: str, provider: str | None = None) -> None:
         """Record error metrics."""
-        self.errors_total.labels(error_type=error_type, endpoint=endpoint, provider=provider or "unknown").inc()
+        self.errors_total.labels(
+            error_type=error_type, endpoint=endpoint, provider=provider or "unknown"
+        ).inc()
 
         # Update internal tracking
         self.error_counts[error_type] += 1
@@ -416,33 +425,39 @@ class MetricsCollector:
         routing_strategy: str = "cascade",
     ) -> None:
         """Record cascade routing metrics."""
-        self.cascade_steps_total.labels(cascade_type=cascade_type, final_provider=final_provider).observe(steps_count)
+        self.cascade_steps_total.labels(
+            cascade_type=cascade_type, final_provider=final_provider
+        ).observe(steps_count)
 
         self.cost_per_request.labels(
             provider=final_provider, model="cascade", routing_strategy=routing_strategy
         ).observe(total_cost)
 
         if quality_score is not None:
-            self.quality_score_distribution.labels(provider=final_provider, model="cascade").observe(quality_score)
+            self.quality_score_distribution.labels(
+                provider=final_provider, model="cascade"
+            ).observe(quality_score)
 
         if confidence_score is not None:
-            self.confidence_score_distribution.labels(provider=final_provider, model="cascade").observe(
-                confidence_score
-            )
+            self.confidence_score_distribution.labels(
+                provider=final_provider, model="cascade"
+            ).observe(confidence_score)
 
     def record_single_request_cost(
         self, provider: str, model: str, cost: float, routing_strategy: str = "single"
     ) -> None:
         """Record cost for single model requests."""
-        self.cost_per_request.labels(provider=provider, model=model, routing_strategy=routing_strategy).observe(cost)
+        self.cost_per_request.labels(
+            provider=provider, model=model, routing_strategy=routing_strategy
+        ).observe(cost)
 
     def update_budget_utilization(
         self, user_id: str, budget_type: str, provider: str, utilization_percent: float
     ) -> None:
         """Update budget utilization metrics."""
-        self.budget_utilization_ratio.labels(user_id=user_id, budget_type=budget_type, provider=provider).set(
-            utilization_percent
-        )
+        self.budget_utilization_ratio.labels(
+            user_id=user_id, budget_type=budget_type, provider=provider
+        ).set(utilization_percent)
 
     def record_user_activity(self, user_id: str) -> None:
         """Record user activity for active users tracking."""
@@ -453,7 +468,9 @@ class MetricsCollector:
         if current_time - self.last_active_users_update > 300:
             cutoff_time = current_time - 86400  # 24 hours ago
             self.active_users_set = {
-                (uid, timestamp) for uid, timestamp in self.active_users_set if timestamp > cutoff_time
+                (uid, timestamp)
+                for uid, timestamp in self.active_users_set
+                if timestamp > cutoff_time
             }
 
             # Update active users count
@@ -491,7 +508,8 @@ class MetricsCollector:
             "total_errors": sum(self.error_counts.values()),
             "requests_per_endpoint": dict(self.request_counts),
             "errors_by_type": dict(self.error_counts),
-            "error_rate": sum(self.error_counts.values()) / max(sum(self.request_counts.values()), 1),
+            "error_rate": sum(self.error_counts.values())
+            / max(sum(self.request_counts.values()), 1),
         }
 
     def reset_counters(self) -> None:

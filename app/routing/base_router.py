@@ -71,7 +71,9 @@ class BaseRouter(RouterInterface):
                 analysis = self._apply_constraints(analysis, constraints)
 
             # Perform the actual routing
-            provider, model, reasoning, confidence = await self._route_request(messages, analysis, user_id, constraints)
+            provider, model, reasoning, confidence = await self._route_request(
+                messages, analysis, user_id, constraints
+            )
 
             # Update metrics
             response_time = time.time() - start_time
@@ -127,7 +129,9 @@ class BaseRouter(RouterInterface):
         """
         pass
 
-    def _apply_constraints(self, analysis: dict[str, Any], constraints: dict[str, Any]) -> dict[str, Any]:
+    def _apply_constraints(
+        self, analysis: dict[str, Any], constraints: dict[str, Any]
+    ) -> dict[str, Any]:
         """Apply routing constraints to the analysis."""
         # Budget constraints
         if "max_cost" in constraints:
@@ -155,14 +159,18 @@ class BaseRouter(RouterInterface):
         # Update average response time
         total_requests = self.metrics["total_requests"]
         current_avg = self.metrics["average_response_time"]
-        self.metrics["average_response_time"] = (current_avg * (total_requests - 1) + response_time) / total_requests
+        self.metrics["average_response_time"] = (
+            current_avg * (total_requests - 1) + response_time
+        ) / total_requests
 
     def get_metrics(self) -> dict[str, Any]:
         """Get router performance metrics."""
         return {
             "router_name": self.name,
             "metrics": self.metrics.copy(),
-            "success_rate": (self.metrics["successful_routes"] / max(self.metrics["total_requests"], 1)),
+            "success_rate": (
+                self.metrics["successful_routes"] / max(self.metrics["total_requests"], 1)
+            ),
         }
 
     def get_supported_strategies(self) -> list[str]:

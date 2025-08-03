@@ -47,14 +47,14 @@ jobs:
         sudo chmod +x /usr/local/bin/cosign
 
         # Verify image signature
-        cosign verify ghcr.io/${{ github.repository }}:${IMAGE_TAG} \
+        cosign verify ghcr.io/${{ github.repository_owner }}/modelmuxer:${IMAGE_TAG} \
           --certificate-identity-regexp="https://github.com/${{ github.repository }}" \
           --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 
     - name: Run security scan on production image
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag || github.event.release.tag_name }}
+        image-ref: ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }}
         format: 'table'
         exit-code: '1'
         severity: 'CRITICAL,HIGH'
@@ -147,7 +147,7 @@ jobs:
 
         kubectl run migration-job-$(date +%s) \
           --namespace=${{ env.KUBE_NAMESPACE }} \
-          --image=ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
+          --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
           --restart=Never \
           --env="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
           --command -- python -m alembic upgrade head
@@ -187,7 +187,7 @@ jobs:
         # Run comprehensive production smoke tests
         kubectl run prod-smoke-test-$(date +%s) \
           --namespace=${{ env.KUBE_NAMESPACE }} \
-          --image=ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
+          --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
           --restart=Never \
           --env="API_BASE_URL=https://api.modelmuxer.com" \
           --env="ENVIRONMENT=production" \
@@ -202,7 +202,7 @@ jobs:
         # Run performance tests to ensure no regression
         kubectl run perf-test-$(date +%s) \
           --namespace=${{ env.KUBE_NAMESPACE }} \
-          --image=ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
+          --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
           --restart=Never \
           --env="API_BASE_URL=https://api.modelmuxer.com" \
           --env="PERF_TEST_API_KEY=${{ secrets.PERF_TEST_API_KEY }}" \

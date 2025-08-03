@@ -26,7 +26,7 @@ except ImportError:
     PROMETHEUS_AVAILABLE = False
     CONTENT_TYPE_LATEST = "text/plain; charset=utf-8"
 
-    def generate_latest():
+    def generate_latest() -> str:
         """Fallback when prometheus is not available."""
         return "# Prometheus not available\n"
 
@@ -41,10 +41,7 @@ from .classification.prompt_classifier import PromptClassifier
 from .config.enhanced_config import enhanced_config
 
 # Core exceptions
-from .core.exceptions import (
-    ModelMuxerError,
-    ProviderError,
-)
+from .core.exceptions import ModelMuxerError, ProviderError
 
 # Enhanced cost tracking
 from .cost_tracker_enhanced import AdvancedCostTracker, BudgetPeriod
@@ -95,7 +92,7 @@ class EnhancedModelMuxer:
     comprehensive monitoring, caching, authentication, and rate limiting.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = enhanced_config
 
         # Initialize components
@@ -118,7 +115,7 @@ class EnhancedModelMuxer:
         # Initialize all components
         self._initialize_components()
 
-    def _initialize_components(self):
+    def _initialize_components(self) -> None:
         """Initialize all ModelMuxer components."""
         logger.info("initializing_enhanced_modelmuxer")
 
@@ -145,7 +142,7 @@ class EnhancedModelMuxer:
 
         logger.info("enhanced_modelmuxer_initialized")
 
-    def _initialize_providers(self):
+    def _initialize_providers(self) -> None:
         """Initialize LLM providers."""
         provider_config = self.config.providers
 
@@ -158,7 +155,9 @@ class EnhancedModelMuxer:
 
         # Anthropic
         if provider_config.anthropic_api_key:
-            self.providers["anthropic"] = AnthropicProvider(api_key=provider_config.anthropic_api_key)
+            self.providers["anthropic"] = AnthropicProvider(
+                api_key=provider_config.anthropic_api_key
+            )
             logger.info("anthropic_provider_initialized")
 
         # Mistral
@@ -201,7 +200,7 @@ class EnhancedModelMuxer:
         else:
             logger.info("providers_initialized", count=len(self.providers))
 
-    def _initialize_cache(self):
+    def _initialize_cache(self) -> None:
         """Initialize caching system."""
         cache_config = self.config.cache
 
@@ -236,7 +235,7 @@ class EnhancedModelMuxer:
             )
             logger.info("memory_cache_initialized")
 
-    def _initialize_cost_tracking(self):
+    def _initialize_cost_tracking(self) -> None:
         """Initialize enhanced cost tracking system."""
         try:
             # Use Redis URL from cache config if available
@@ -255,7 +254,7 @@ class EnhancedModelMuxer:
             )
             logger.info("cost_tracker_initialized_with_fallback")
 
-    def _initialize_classification(self):
+    def _initialize_classification(self) -> None:
         """Initialize ML-based classification."""
         classification_config = self.config.classification
 
@@ -287,7 +286,7 @@ class EnhancedModelMuxer:
             self.embedding_manager = None
             self.classifier = None
 
-    def _initialize_routing(self):
+    def _initialize_routing(self) -> None:
         """Initialize routing strategies."""
         routing_config = self.config.routing
 
@@ -344,7 +343,7 @@ class EnhancedModelMuxer:
         self.default_router = self.routers[default_strategy]
         logger.info("routing_initialized", default_strategy=default_strategy)
 
-    def _initialize_monitoring(self):
+    def _initialize_monitoring(self) -> None:
         """Initialize monitoring and metrics."""
         monitoring_config = self.config.monitoring
 
@@ -370,7 +369,7 @@ class EnhancedModelMuxer:
 
         logger.info("monitoring_initialized")
 
-    def _initialize_middleware(self):
+    def _initialize_middleware(self) -> None:
         """Initialize middleware components."""
         # Authentication middleware
         if self.config.auth.enabled:
@@ -590,7 +589,9 @@ app.add_middleware(
 
 
 # Dependency for authentication
-async def get_current_user(request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
+async def get_current_user(
+    request: Request, authorization: str | None = Header(None)
+) -> dict[str, Any]:
     """Get current authenticated user."""
     if not model_muxer.auth_middleware:
         # Authentication disabled
@@ -650,7 +651,9 @@ async def logging_middleware(request: Request, call_next):
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_current_user)):
+async def chat_completions(
+    request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_current_user)
+):
     """Enhanced chat completions endpoint with advanced routing."""
     try:
         # Check rate limits
@@ -808,7 +811,9 @@ async def get_budget_status(user_info: dict[str, Any] = Depends(get_current_user
 
 
 @app.post("/v1/analytics/budgets")
-async def set_budget(budget_request: BudgetRequest, user_info: dict[str, Any] = Depends(get_current_user)):
+async def set_budget(
+    budget_request: BudgetRequest, user_info: dict[str, Any] = Depends(get_current_user)
+):
     """Set or update user budget"""
     user_id = user_info.get("user_id", "anonymous")
 

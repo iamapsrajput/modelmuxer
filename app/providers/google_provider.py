@@ -203,9 +203,13 @@ class GoogleProvider(LLMProvider):
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                raise RateLimitError("Google API rate limit exceeded", provider=self.provider_name) from e
+                raise RateLimitError(
+                    "Google API rate limit exceeded", provider=self.provider_name
+                ) from e
             elif e.response.status_code == 401:
-                raise AuthenticationError("Google API authentication failed", provider=self.provider_name) from e
+                raise AuthenticationError(
+                    "Google API authentication failed", provider=self.provider_name
+                ) from e
             else:
                 raise ProviderError(
                     f"Google API error: {e.response.status_code}",
@@ -213,11 +217,15 @@ class GoogleProvider(LLMProvider):
                     status_code=e.response.status_code,
                 ) from e
         except httpx.RequestError as e:
-            raise ProviderError(f"Google request failed: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Google request failed: {str(e)}", provider=self.provider_name
+            ) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Google unexpected error: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Google unexpected error: {str(e)}", provider=self.provider_name
+            ) from e
 
     async def stream_chat_completion(
         self,
@@ -294,7 +302,9 @@ class GoogleProvider(LLMProvider):
                                         "object": "chat.completion.chunk",
                                         "created": int(time.time()),
                                         "model": model,
-                                        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                                        "choices": [
+                                            {"index": 0, "delta": {}, "finish_reason": "stop"}
+                                        ],
                                     }
                                     yield final_chunk
                                     break
@@ -303,17 +313,23 @@ class GoogleProvider(LLMProvider):
                             continue
 
         except httpx.RequestError as e:
-            raise ProviderError(f"Google streaming request failed: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Google streaming request failed: {str(e)}", provider=self.provider_name
+            ) from e
         except Exception as e:
             if isinstance(e, ProviderError):
                 raise
-            raise ProviderError(f"Google streaming unexpected error: {str(e)}", provider=self.provider_name) from e
+            raise ProviderError(
+                f"Google streaming unexpected error: {str(e)}", provider=self.provider_name
+            ) from e
 
     async def health_check(self) -> bool:
         """Check if Google Gemini API is accessible."""
         try:
             test_messages = [ChatMessage(role="user", content="Hi")]
-            await self.chat_completion(messages=test_messages, model="gemini-1.5-flash", max_tokens=1)
+            await self.chat_completion(
+                messages=test_messages, model="gemini-1.5-flash", max_tokens=1
+            )
             return True
         except Exception as e:
             logger.warning("google_health_check_failed", error=str(e))
