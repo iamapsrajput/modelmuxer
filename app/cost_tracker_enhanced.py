@@ -26,21 +26,21 @@ logger = structlog.get_logger(__name__)
 class MockRedisClient:
     """Mock Redis client for testing when Redis is not available."""
 
-    def __init__(self):
-        self._data = {}
+    def __init__(self) -> None:
+        self._data: dict[str, Any] = {}
 
-    def incrbyfloat(self, key: str, amount: float):
-        current = self._data.get(key, 0.0)
+    def incrbyfloat(self, key: str, amount: float) -> float:
+        current = float(self._data.get(key, 0.0))
         self._data[key] = current + amount
-        return self._data[key]
+        return float(self._data[key])
 
-    def expire(self, key: str, seconds: int):
+    def expire(self, key: str, seconds: int) -> None:
         pass  # Mock implementation
 
-    def setex(self, key: str, seconds: int, value: str):
+    def setex(self, key: str, seconds: int, value: str) -> None:
         self._data[key] = value
 
-    def get(self, key: str):
+    def get(self, key: str) -> Any:
         return self._data.get(key)
 
 
@@ -58,10 +58,10 @@ class Budget:
     budget_limit: float
     provider: str | None = None
     model: str | None = None
-    alert_thresholds: list[float] = None
-    created_at: datetime = None
+    alert_thresholds: list[float] | None = None
+    created_at: datetime | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.alert_thresholds is None:
             self.alert_thresholds = [50.0, 80.0, 95.0]
         if self.created_at is None:
@@ -81,7 +81,7 @@ class CascadeRequestLog:
     response_time: float
     success: bool
     final_model: str | None = None
-    escalation_reasons: list[str] = None
+    escalation_reasons: list[str] | None = None
     error_message: str | None = None
 
 
@@ -100,7 +100,7 @@ class AdvancedCostTracker:
             self.redis_client = MockRedisClient()
         self._initialize_database()
 
-    def _initialize_database(self):
+    def _initialize_database(self) -> None:
         """Initialize SQLite database with enhanced schema."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -185,8 +185,8 @@ class AdvancedCostTracker:
         budget_limit: float,
         provider: str | None = None,
         model: str | None = None,
-        alert_thresholds: list[float] = None,
-    ):
+        alert_thresholds: list[float] | None = None,
+    ) -> None:
         """Set or update user budget."""
         if alert_thresholds is None:
             alert_thresholds = [50.0, 80.0, 95.0]
@@ -248,7 +248,7 @@ class AdvancedCostTracker:
         cascade_metadata: dict[str, Any],
         success: bool,
         error_message: str | None = None,
-    ):
+    ) -> None:
         """Log a cascade request with detailed metadata."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -340,7 +340,7 @@ class AdvancedCostTracker:
         prompt_tokens: int = 0,
         completion_tokens: int = 0,
         error_message: str | None = None,
-    ):
+    ) -> None:
         """Log a simple (non-cascade) request."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -388,7 +388,7 @@ class AdvancedCostTracker:
         finally:
             conn.close()
 
-    async def _update_usage_cache(self, user_id: str, cost: float, provider: str, model: str):
+    async def _update_usage_cache(self, user_id: str, cost: float, provider: str, model: str) -> None:
         """Update real-time usage cache in Redis."""
         try:
             # Update daily usage
@@ -410,7 +410,7 @@ class AdvancedCostTracker:
         except Exception as e:
             logger.warning("redis_usage_update_failed", error=str(e))
 
-    async def _check_budget_alerts(self, user_id: str, cost: float, provider: str, model: str):
+    async def _check_budget_alerts(self, user_id: str, cost: float, provider: str, model: str) -> None:
         """Check if budget alerts should be triggered."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()

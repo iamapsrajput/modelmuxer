@@ -30,7 +30,7 @@ class SecurityConfig:
         return context
 
     @staticmethod
-    def get_secure_httpx_client(**kwargs) -> httpx.AsyncClient:
+    def get_secure_httpx_client(**kwargs: Any) -> httpx.AsyncClient:
         """Get a securely configured httpx client."""
         default_config = {
             "verify": True,  # Always verify SSL certificates

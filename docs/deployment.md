@@ -6,6 +6,8 @@ This guide covers deploying ModelMuxer in various environments from development 
 
 ### 1. Docker Compose (Recommended for Development)
 
+> **Note**: On macOS, you can use Apple's built-in containerization instead of Docker Desktop. The commands below work with any Docker-compatible container runtime.
+
 ```bash
 # Clone and setup
 git clone https://github.com/iamapsrajput/ModelMuxer.git
@@ -65,7 +67,7 @@ gcloud run deploy modelmuxer \
 
 ### Architecture Overview
 
-```
+```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Load Balancer │────│  ModelMuxer API │────│   Provider APIs │
 │   (nginx/ALB)   │    │   (3+ replicas) │    │ (OpenAI, etc.)  │
@@ -218,34 +220,34 @@ spec:
         app: modelmuxer
     spec:
       containers:
-      - name: modelmuxer
-        image: modelmuxer:latest
-        ports:
-        - containerPort: 8000
-        envFrom:
-        - configMapRef:
-            name: modelmuxer-config
-        - secretRef:
-            name: modelmuxer-secrets
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: modelmuxer
+          image: modelmuxer:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: modelmuxer-config
+            - secretRef:
+                name: modelmuxer-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
 ```
 
 #### Service and Ingress
@@ -261,8 +263,8 @@ spec:
   selector:
     app: modelmuxer
   ports:
-  - port: 80
-    targetPort: 8000
+    - port: 80
+      targetPort: 8000
   type: ClusterIP
 
 ---
@@ -278,20 +280,20 @@ metadata:
     nginx.ingress.kubernetes.io/rate-limit: "100"
 spec:
   tls:
-  - hosts:
-    - api.yourdomain.com
-    secretName: modelmuxer-tls
+    - hosts:
+        - api.yourdomain.com
+      secretName: modelmuxer-tls
   rules:
-  - host: api.yourdomain.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: modelmuxer-service
-            port:
-              number: 80
+    - host: api.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: modelmuxer-service
+                port:
+                  number: 80
 ```
 
 ### Step 4: Monitoring Setup
@@ -415,19 +417,19 @@ maxclients 10000
 ```yaml
 # alerts.yaml
 groups:
-- name: modelmuxer
-  rules:
-  - alert: HighErrorRate
-    expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
-    for: 5m
-    annotations:
-      summary: High error rate detected
-  
-  - alert: HighLatency
-    expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
-    for: 5m
-    annotations:
-      summary: High latency detected
+  - name: modelmuxer
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        annotations:
+          summary: High error rate detected
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        annotations:
+          summary: High latency detected
 ```
 
 ## Troubleshooting
@@ -435,11 +437,13 @@ groups:
 ### Common Issues
 
 1. **Database Connection Issues**
+
    ```bash
    kubectl logs -f deployment/modelmuxer | grep database
    ```
 
 2. **Provider API Failures**
+
    ```bash
    kubectl exec -it deployment/modelmuxer -- curl http://localhost:8000/health/detailed
    ```

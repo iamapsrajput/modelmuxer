@@ -25,7 +25,7 @@ logger = structlog.get_logger(__name__)
 class CohereProvider(LLMProvider):
     """Cohere API provider implementation."""
 
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str | None = None):
         if not api_key:
             raise AuthenticationError("Cohere API key is required")
 
@@ -113,7 +113,7 @@ class CohereProvider(LLMProvider):
         max_tokens: int | None = None,
         temperature: float | None = None,
         stream: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> ChatCompletionResponse:
         """Generate a chat completion using Cohere API."""
         start_time = time.time()
@@ -231,7 +231,7 @@ class CohereProvider(LLMProvider):
         model: str = "command-r",
         max_tokens: int | None = None,
         temperature: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using Cohere API."""
         # Convert messages to Cohere format
@@ -320,7 +320,7 @@ class CohereProvider(LLMProvider):
     async def health_check(self) -> bool:
         """Check if Cohere API is accessible."""
         try:
-            test_messages = [ChatMessage(role="user", content="Hi")]
+            test_messages = [ChatMessage(role="user", content="Hi", name=None)]
             await self.chat_completion(messages=test_messages, model="command-light", max_tokens=1)
             return True
         except Exception as e:

@@ -46,14 +46,10 @@ class LoggingMiddleware:
         # Security and privacy
         self.sanitize_sensitive_data = self.config.get("sanitize_sensitive_data", True)
         self.sensitive_headers = set(
-            self.config.get(
-                "sensitive_headers", ["authorization", "x-api-key", "cookie", "x-auth-token"]
-            )
+            self.config.get("sensitive_headers", ["authorization", "x-api-key", "cookie", "x-auth-token"])
         )
         self.sensitive_fields = set(
-            self.config.get(
-                "sensitive_fields", ["password", "token", "api_key", "secret", "private_key"]
-            )
+            self.config.get("sensitive_fields", ["password", "token", "api_key", "secret", "private_key"])
         )
 
         # Audit logging
@@ -77,9 +73,7 @@ class LoggingMiddleware:
             audit_logging=self.enable_audit_log,
         )
 
-    async def log_request(
-        self, request: Request, user_info: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def log_request(self, request: Request, user_info: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Log incoming request with metadata.
 
@@ -250,28 +244,32 @@ class LoggingMiddleware:
                 logger.info("request_completed", **response_data)
 
         # Audit logging
-        if self.enable_audit_log:
+        if self.enable_audit_log and request_context:
             if error and "error" in self.audit_events:
                 self._audit_log(
                     "error",
                     {
-                        "request_id": request_context["request_id"],
-                        "user_id": request_context.get("user_info", {}).get("user_id"),
-                        "endpoint": request_context["endpoint"],
+                        "request_id": request_context.get("request_id", "unknown"),
+                        "user_id": request_context.get("user_info", {}).get("user_id")
+                        if request_context.get("user_info")
+                        else None,
+                        "endpoint": request_context.get("endpoint", "unknown"),
                         "error_type": type(error).__name__,
                         "error_message": str(error),
-                        "client_ip": request_context["client_ip"],
+                        "client_ip": request_context.get("client_ip", "unknown"),
                     },
                 )
             elif response and response.status_code == 200 and "completion" in self.audit_events:
                 self._audit_log(
                     "completion",
                     {
-                        "request_id": request_context["request_id"],
-                        "user_id": request_context.get("user_info", {}).get("user_id"),
-                        "endpoint": request_context["endpoint"],
-                        "duration_ms": response_data["duration_ms"],
-                        "client_ip": request_context["client_ip"],
+                        "request_id": request_context.get("request_id", "unknown"),
+                        "user_id": request_context.get("user_info", {}).get("user_id")
+                        if request_context.get("user_info")
+                        else None,
+                        "endpoint": request_context.get("endpoint", "unknown"),
+                        "duration_ms": response_data.get("duration_ms", 0),
+                        "client_ip": request_context.get("client_ip", "unknown"),
                     },
                 )
 

@@ -1,9 +1,9 @@
 # ModelMuxer™
 
-**The Enterprise-Grade Intelligent LLM Routing Engine**
+## The Enterprise-Grade Intelligent LLM Routing Engine
 
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-96%20Passing-green.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-108%20Total-green.svg)](tests/)
 [![Coverage](https://img.shields.io/badge/Coverage-35%25-yellow.svg)](htmlcov/)
 [![Production Ready](https://img.shields.io/badge/Production-Ready-green.svg)](docs/deployment.md)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
@@ -23,7 +23,7 @@ ModelMuxer is a production-ready, enterprise-grade LLM routing platform that int
 
 ModelMuxer is built with a microservices architecture designed for enterprise scale:
 
-```
+```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Load Balancer │────│  ModelMuxer API │────│   Provider APIs │
 │    (NGINX)      │    │   (FastAPI)     │    │ (OpenAI, etc.)  │
@@ -190,7 +190,7 @@ DEFAULT_MONTHLY_BUDGET=100.0
 
 ## API Usage
 
-### Basic Chat Completion
+### Chat Completion API
 
 ```bash
 curl -X POST "http://localhost:8000/v1/chat/completions" \
@@ -512,7 +512,7 @@ ModelMuxer is licensed under the [Business Source License 1.1](LICENSE).
 ### 💼 Commercial Licensing
 
 For commercial use, enterprise licenses, or questions about licensing,
-contact: licensing@modelmuxer.com
+contact: [licensing@modelmuxer.com](mailto:licensing@modelmuxer.com)
 
 ### 🏛️ Academic and Research Use
 
@@ -537,7 +537,7 @@ research projects. Please cite the project in academic publications.
 - 📊 **Advanced Analytics**: Enhanced reporting and business intelligence
 - 🔒 **Enhanced Security**: Additional compliance and security features
 
-Contact enterprise@modelmuxer.com for more information.
+Contact [enterprise@modelmuxer.com](mailto:enterprise@modelmuxer.com) for more information.
 
 ## 🙏 Acknowledgments
 

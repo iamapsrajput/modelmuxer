@@ -6,6 +6,7 @@ Tests for the monitoring and metrics system.
 """
 
 import time
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -16,11 +17,11 @@ from app.monitoring.metrics import HealthChecker, MetricsCollector
 class TestMetricsCollector:
     """Test the metrics collection system."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.metrics = MetricsCollector()
 
-    def test_request_counter(self):
+    def test_request_counter(self) -> None:
         """Test request counting metrics."""
         # Record some requests using available methods
         self.metrics.record_auth_attempt("api_key", "success", "user")
@@ -30,7 +31,7 @@ class TestMetricsCollector:
         # Verify the metrics are recorded (no exception means success)
         assert True  # If we get here, the methods worked
 
-    def test_cache_operations(self):
+    def test_cache_operations(self) -> None:
         """Test cache operation tracking."""
         # Record cache operations
         self.metrics.record_cache_operation("get", "hit")
@@ -43,7 +44,7 @@ class TestMetricsCollector:
         # Verify the methods work without error
         assert True
 
-    def test_error_tracking(self):
+    def test_error_tracking(self) -> None:
         """Test error tracking metrics."""
         # Record some errors
         self.metrics.record_error("rate_limit", "/chat/completions", "openai")
@@ -53,7 +54,7 @@ class TestMetricsCollector:
         # Verify the methods work without error
         assert True
 
-    def test_organization_activity(self):
+    def test_organization_activity(self) -> None:
         """Test organization activity tracking."""
         # Record organization activity
         self.metrics.record_organization_activity("org123", "enterprise", 0.05)
@@ -62,7 +63,7 @@ class TestMetricsCollector:
         # Verify the methods work without error
         assert True
 
-    def test_user_activity_tracking(self):
+    def test_user_activity_tracking(self) -> None:
         """Test user activity tracking."""
         # Record user activity
         self.metrics.record_user_activity("user123")
@@ -72,7 +73,7 @@ class TestMetricsCollector:
         # Verify the methods work without error
         assert True
 
-    def test_rate_limit_tracking(self):
+    def test_rate_limit_tracking(self) -> None:
         """Test rate limit tracking."""
         # Record rate limit hits
         self.metrics.record_rate_limit_hit("user123", "requests_per_minute")
@@ -81,7 +82,7 @@ class TestMetricsCollector:
         # Verify the methods work without error
         assert True
 
-    def test_provider_health_tracking(self):
+    def test_provider_health_tracking(self) -> None:
         """Test provider health tracking."""
         # Update provider health status
         self.metrics.update_provider_health("openai", True)
@@ -91,7 +92,7 @@ class TestMetricsCollector:
         # Verify the methods work without error
         assert True
 
-    def test_system_metrics(self):
+    def test_system_metrics(self) -> None:
         """Test system metrics tracking."""
         # Update system metrics
         self.metrics.update_active_connections(5)
@@ -101,7 +102,7 @@ class TestMetricsCollector:
         # Verify the methods work without error
         assert True
 
-    def test_summary_stats(self):
+    def test_summary_stats(self) -> None:
         """Test summary statistics."""
         # Record some metrics first
         self.metrics.record_error("timeout", "/chat/completions", "openai")
@@ -120,7 +121,7 @@ class TestMetricsCollector:
 class TestHealthChecker:
     """Test health checker functionality."""
 
-    def test_health_checker_initialization(self):
+    def test_health_checker_initialization(self) -> None:
         """Test health checker initialization."""
         health_checker = HealthChecker()
 
@@ -128,7 +129,7 @@ class TestHealthChecker:
         assert hasattr(health_checker, "health_checks")
         assert hasattr(health_checker, "check_interval")
 
-    def test_check_system_resources(self):
+    def test_check_system_resources(self) -> None:
         """Test system resource health check."""
         health_checker = HealthChecker()
 
@@ -138,7 +139,7 @@ class TestHealthChecker:
         # Should return a dict (might be empty if psutil not available)
         assert isinstance(resources, dict)
 
-    def test_get_overall_health_empty(self):
+    def test_get_overall_health_empty(self) -> None:
         """Test overall health status with no components."""
         health_checker = HealthChecker()
 
@@ -151,7 +152,7 @@ class TestHealthChecker:
         assert health_status["status"] == "healthy"  # No components means healthy
 
     @patch("app.monitoring.metrics.time.time")
-    def test_get_overall_health_with_components(self, mock_time):
+    def test_get_overall_health_with_components(self, mock_time: Any) -> None:
         """Test overall health status with mock components."""
         mock_time.return_value = 1609459200.0  # Fixed timestamp
 
@@ -179,7 +180,7 @@ class TestHealthChecker:
 class TestHealthChecks:
     """Test health check functionality."""
 
-    def test_basic_health_check(self):
+    def test_basic_health_check(self) -> None:
         """Test basic health check."""
         health_checker = HealthChecker()
 
@@ -190,7 +191,7 @@ class TestHealthChecks:
         assert "components" in health_status
         assert health_status["status"] in ["healthy", "degraded", "unhealthy"]
 
-    def test_component_health_checks(self):
+    def test_component_health_checks(self) -> None:
         """Test individual component health checks."""
         health_checker = HealthChecker()
 
@@ -212,7 +213,7 @@ class TestHealthChecks:
             assert "status" in component_status
             assert "last_check" in component_status
 
-    def test_health_check_with_errors(self):
+    def test_health_check_with_errors(self) -> None:
         """Test health check when there are errors."""
         health_checker = HealthChecker()
 
@@ -236,7 +237,7 @@ class TestHealthChecks:
 class TestMetricsIntegration:
     """Integration tests for metrics system."""
 
-    def test_end_to_end_metrics_flow(self):
+    def test_end_to_end_metrics_flow(self) -> None:
         """Test complete metrics flow from request to reporting."""
         metrics = MetricsCollector()
 
@@ -267,7 +268,7 @@ class TestMetricsIntegration:
         assert isinstance(stats, dict)
         assert "uptime_seconds" in stats
 
-    def test_metrics_aggregation(self):
+    def test_metrics_aggregation(self) -> None:
         """Test metrics aggregation across multiple requests."""
         metrics = MetricsCollector()
 

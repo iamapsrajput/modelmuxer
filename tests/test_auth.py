@@ -23,54 +23,54 @@ from tests.test_constants import (
 class TestAPIKeyAuth:
     """Test the API key authentication handler."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         with patch("app.auth.settings") as mock_settings:
             mock_settings.get_allowed_api_keys.return_value = get_test_api_keys()
             self.auth = APIKeyAuth()
 
-    def test_extract_api_key_bearer_format(self):
+    def test_extract_api_key_bearer_format(self) -> None:
         """Test API key extraction from Bearer format."""
         authorization = f"Bearer {TEST_API_KEY_SAMPLE}"
         api_key = self.auth.extract_api_key(authorization)
 
         assert api_key == TEST_API_KEY_SAMPLE
 
-    def test_extract_api_key_direct_format(self):
+    def test_extract_api_key_direct_format(self) -> None:
         """Test API key extraction from direct format."""
         authorization = TEST_API_KEY_SAMPLE
         api_key = self.auth.extract_api_key(authorization)
 
         assert api_key == TEST_API_KEY_SAMPLE
 
-    def test_extract_api_key_invalid_format(self):
+    def test_extract_api_key_invalid_format(self) -> None:
         """Test API key extraction with invalid format."""
         authorization = "Invalid format"
         api_key = self.auth.extract_api_key(authorization)
 
         assert api_key is None
 
-    def test_extract_api_key_none(self):
+    def test_extract_api_key_none(self) -> None:
         """Test API key extraction with None input."""
         api_key = self.auth.extract_api_key(None)
 
         assert api_key is None
 
-    def test_validate_api_key_valid(self):
+    def test_validate_api_key_valid(self) -> None:
         """Test API key validation with valid key."""
         valid_key = TEST_API_KEY_1
         result = self.auth.validate_api_key(valid_key)
 
         assert result is True
 
-    def test_validate_api_key_invalid(self):
+    def test_validate_api_key_invalid(self) -> None:
         """Test API key validation with invalid key."""
         invalid_key = TEST_API_KEY_INVALID
         result = self.auth.validate_api_key(invalid_key)
 
         assert result is False
 
-    def test_get_user_id_from_key(self):
+    def test_get_user_id_from_key(self) -> None:
         """Test user ID generation from API key."""
         api_key = TEST_API_KEY_SAMPLE
         user_id = self.auth.get_user_id_from_key(api_key)
@@ -82,7 +82,7 @@ class TestAPIKeyAuth:
         user_id2 = self.auth.get_user_id_from_key(api_key)
         assert user_id == user_id2
 
-    def test_check_rate_limit_within_limits(self):
+    def test_check_rate_limit_within_limits(self) -> None:
         """Test rate limiting when within limits."""
         user_id = "test_user_123"
         result = self.auth.check_rate_limit(user_id, requests_per_minute=60, requests_per_hour=1000)
@@ -91,7 +91,7 @@ class TestAPIKeyAuth:
         assert "remaining_minute" in result
         assert "remaining_hour" in result
 
-    def test_check_rate_limit_minute_exceeded(self):
+    def test_check_rate_limit_minute_exceeded(self) -> None:
         """Test rate limiting when minute limit exceeded."""
         user_id = "test_user_123"
 
@@ -107,7 +107,7 @@ class TestAPIKeyAuth:
         assert "retry_after" in result
 
     @pytest.mark.asyncio
-    async def test_authenticate_request_success(self):
+    async def test_authenticate_request_success(self) -> None:
         """Test successful request authentication."""
         mock_request = Mock(spec=Request)
         authorization = f"Bearer {TEST_API_KEY_1}"
@@ -120,7 +120,7 @@ class TestAPIKeyAuth:
         assert result["api_key"] == TEST_API_KEY_1
 
     @pytest.mark.asyncio
-    async def test_authenticate_request_missing_key(self):
+    async def test_authenticate_request_missing_key(self) -> None:
         """Test authentication with missing API key."""
         mock_request = Mock(spec=Request)
         authorization = None
@@ -132,7 +132,7 @@ class TestAPIKeyAuth:
         assert "missing_api_key" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
-    async def test_authenticate_request_invalid_key(self):
+    async def test_authenticate_request_invalid_key(self) -> None:
         """Test authentication with invalid API key."""
         mock_request = Mock(spec=Request)
         authorization = f"Bearer {TEST_API_KEY_INVALID}"
@@ -147,13 +147,13 @@ class TestAPIKeyAuth:
 class TestRateLimiting:
     """Test rate limiting functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         with patch("app.auth.settings") as mock_settings:
             mock_settings.get_allowed_api_keys.return_value = [TEST_API_KEY_1]
             self.auth = APIKeyAuth()
 
-    def test_rate_limit_cleanup(self):
+    def test_rate_limit_cleanup(self) -> None:
         """Test that old rate limit entries are cleaned up."""
         user_id = "test_user"
 
@@ -179,7 +179,7 @@ class TestRateLimiting:
 class TestAuthIntegration:
     """Integration tests for authentication system."""
 
-    def test_full_auth_flow(self):
+    def test_full_auth_flow(self) -> None:
         """Test complete authentication flow."""
         with patch("app.auth.settings") as mock_settings:
             test_integration_key = "test-integration-key-001"

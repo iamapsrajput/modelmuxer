@@ -31,14 +31,15 @@ poetry install
 poetry shell
 ```
 
-#### Using pip
+#### Using pip (Alternative)
 
 ```bash
 # Create virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Export dependencies from Poetry and install
+poetry export -f requirements.txt --output requirements.txt
 pip install -r requirements.txt
 ```
 

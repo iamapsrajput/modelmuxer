@@ -61,14 +61,14 @@ class ProviderInterface(ABC):
 
     @abstractmethod
     async def chat_completion(
-        self, messages: list[ChatMessage], model: str, **kwargs
+        self, messages: list[ChatMessage], model: str, **kwargs: Any
     ) -> ChatCompletionResponse:
         """Generate a chat completion."""
         pass
 
     @abstractmethod
     async def stream_chat_completion(
-        self, messages: list[ChatMessage], model: str, **kwargs
+        self, messages: list[ChatMessage], model: str, **kwargs: Any
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion."""
         pass

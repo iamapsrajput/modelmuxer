@@ -98,19 +98,19 @@ class EnhancedModelMuxer:
         # Initialize components
         self.providers: dict[str, Any] = {}
         self.routers: dict[str, Any] = {}
-        self.cache = None
-        self.embedding_manager = None
-        self.classifier = None
-        self.metrics_collector = None
-        self.health_checker = None
+        self.cache: MemoryCache | RedisCache | None = None
+        self.embedding_manager: EmbeddingManager | None = None
+        self.classifier: PromptClassifier | None = None
+        self.metrics_collector: MetricsCollector | None = None
+        self.health_checker: HealthChecker | None = None
 
         # Enhanced cost tracking
-        self.cost_tracker = None
+        self.cost_tracker: AdvancedCostTracker | None = None
 
         # Middleware
-        self.auth_middleware = None
-        self.rate_limit_middleware = None
-        self.logging_middleware = None
+        self.auth_middleware: AuthMiddleware | None = None
+        self.rate_limit_middleware: RateLimitMiddleware | None = None
+        self.logging_middleware: LoggingMiddleware | None = None
 
         # Initialize all components
         self._initialize_components()
@@ -155,9 +155,7 @@ class EnhancedModelMuxer:
 
         # Anthropic
         if provider_config.anthropic_api_key:
-            self.providers["anthropic"] = AnthropicProvider(
-                api_key=provider_config.anthropic_api_key
-            )
+            self.providers["anthropic"] = AnthropicProvider(api_key=provider_config.anthropic_api_key)
             logger.info("anthropic_provider_initialized")
 
         # Mistral
@@ -358,14 +356,15 @@ class EnhancedModelMuxer:
         self.health_checker = HealthChecker(self.metrics_collector)
 
         # Set system info
-        self.metrics_collector.set_system_info(
-            {
-                "version": "1.0.0",
-                "providers": ",".join(self.providers.keys()),
-                "routers": ",".join(self.routers.keys()),
-                "cache_backend": self.config.cache.backend if self.config.cache.enabled else "none",
-            }
-        )
+        if self.metrics_collector:
+            self.metrics_collector.set_system_info(
+                {
+                    "version": "1.0.0",
+                    "providers": ",".join(self.providers.keys()),
+                    "routers": ",".join(self.routers.keys()),
+                    "cache_backend": self.config.cache.backend if self.config.cache.enabled else "none",
+                }
+            )
 
         logger.info("monitoring_initialized")
 
@@ -589,9 +588,7 @@ app.add_middleware(
 
 
 # Dependency for authentication
-async def get_current_user(
-    request: Request, authorization: str | None = Header(None)
-) -> dict[str, Any]:
+async def get_current_user(request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
     """Get current authenticated user."""
     if not model_muxer.auth_middleware:
         # Authentication disabled
@@ -618,14 +615,16 @@ async def logging_middleware(request: Request, call_next):
         response = await call_next(request)
 
         # Record request metrics
-        if model_muxer.metrics_collector:
-            duration = time.time() - request_context["start_time"]
+        if model_muxer.metrics_collector and request_context:
+            duration = time.time() - request_context.get("start_time", time.time())
             model_muxer.metrics_collector.record_request(
                 method=request.method,
                 endpoint=request.url.path,
                 status_code=response.status_code,
                 duration=duration,
-                user_id=request_context.get("user_info", {}).get("user_id"),
+                user_id=request_context.get("user_info", {}).get("user_id")
+                if request_context.get("user_info")
+                else None,
             )
 
     except Exception as e:
@@ -651,9 +650,7 @@ async def logging_middleware(request: Request, call_next):
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(
-    request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_current_user)
-):
+async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_current_user)):
     """Enhanced chat completions endpoint with advanced routing."""
     try:
         # Check rate limits
@@ -796,6 +793,9 @@ async def get_cost_analytics(
     """Get detailed cost analytics"""
     user_id = user_info.get("user_id", "anonymous")
 
+    if not model_muxer.cost_tracker:
+        raise HTTPException(status_code=503, detail="Cost tracking not available")
+
     analytics = await model_muxer.cost_tracker.get_cost_analytics(
         user_id=user_id, start_date=start_date, end_date=end_date, group_by=group_by
     )
@@ -806,16 +806,21 @@ async def get_cost_analytics(
 async def get_budget_status(user_info: dict[str, Any] = Depends(get_current_user)):
     """Get current budget status and alerts"""
     user_id = user_info.get("user_id", "anonymous")
+
+    if not model_muxer.cost_tracker:
+        raise HTTPException(status_code=503, detail="Cost tracking not available")
+
     budget_status = await model_muxer.cost_tracker.get_budget_status(user_id)
     return budget_status
 
 
 @app.post("/v1/analytics/budgets")
-async def set_budget(
-    budget_request: BudgetRequest, user_info: dict[str, Any] = Depends(get_current_user)
-):
+async def set_budget(budget_request: BudgetRequest, user_info: dict[str, Any] = Depends(get_current_user)):
     """Set or update user budget"""
     user_id = user_info.get("user_id", "anonymous")
+
+    if not model_muxer.cost_tracker:
+        raise HTTPException(status_code=503, detail="Cost tracking not available")
 
     await model_muxer.cost_tracker.set_budget(
         user_id=user_id,
@@ -841,6 +846,9 @@ async def enhanced_chat_completions(
 
     try:
         # Check budget before processing
+        if not model_muxer.cost_tracker:
+            raise HTTPException(status_code=503, detail="Cost tracking not available")
+
         current_budget_status = await model_muxer.cost_tracker.get_budget_status(user_id)
 
         # Check if any daily budgets are exceeded
@@ -866,12 +874,13 @@ async def enhanced_chat_completions(
             )
 
             # Log cascade request
-            await model_muxer.cost_tracker.log_request_with_cascade(
-                user_id=user_id,
-                session_id=session_id,
-                cascade_metadata=routing_metadata,
-                success=True,
-            )
+            if model_muxer.cost_tracker:
+                await model_muxer.cost_tracker.log_request_with_cascade(
+                    user_id=user_id,
+                    session_id=session_id,
+                    cascade_metadata=routing_metadata,
+                    success=True,
+                )
 
             # Add routing metadata to response
             response["routing_metadata"] = routing_metadata
@@ -903,26 +912,28 @@ async def enhanced_chat_completions(
                 usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), selected_model
             )
 
-            await model_muxer.cost_tracker.log_simple_request(
-                user_id=user_id,
-                session_id=session_id,
-                provider=provider_name,
-                model=selected_model,
-                cost=cost,
-                success=True,
-            )
+            if model_muxer.cost_tracker:
+                await model_muxer.cost_tracker.log_simple_request(
+                    user_id=user_id,
+                    session_id=session_id,
+                    provider=provider_name,
+                    model=selected_model,
+                    cost=cost,
+                    success=True,
+                )
 
         return response
 
     except Exception as e:
         # Log failed request
-        await model_muxer.cost_tracker.log_request_with_cascade(
-            user_id=user_id,
-            session_id=session_id or f"session_{int(datetime.now().timestamp())}",
-            cascade_metadata={"error": str(e)},
-            success=False,
-            error_message=str(e),
-        )
+        if model_muxer.cost_tracker:
+            await model_muxer.cost_tracker.log_request_with_cascade(
+                user_id=user_id,
+                session_id=session_id or f"session_{int(datetime.now().timestamp())}",
+                cascade_metadata={"error": str(e)},
+                success=False,
+                error_message=str(e),
+            )
 
         raise HTTPException(status_code=500, detail=str(e)) from e
 

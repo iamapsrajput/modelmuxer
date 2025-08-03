@@ -32,11 +32,11 @@ except ImportError as e:
 class EnhancedModelMuxerTester:
     """Comprehensive tester for Enhanced ModelMuxer."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.test_results = []
         self.failed_tests = []
 
-    def log_test(self, test_name: str, success: bool, message: str = ""):
+    def log_test(self, test_name: str, success: bool, message: str = "") -> None:
         """Log test result."""
         status = "✅" if success else "❌"
         print(f"{status} {test_name}: {message}")
@@ -46,7 +46,7 @@ class EnhancedModelMuxerTester:
         if not success:
             self.failed_tests.append(test_name)
 
-    async def test_configuration(self):
+    async def test_configuration(self) -> None:
         """Test configuration loading."""
         try:
             config = enhanced_config
@@ -66,7 +66,7 @@ class EnhancedModelMuxerTester:
         except Exception as e:
             self.log_test("Configuration Loading", False, str(e))
 
-    async def test_providers(self):
+    async def test_providers(self) -> None:
         """Test provider initialization."""
         try:
             providers = model_muxer.providers
@@ -94,7 +94,7 @@ class EnhancedModelMuxerTester:
         except Exception as e:
             self.log_test("Provider Initialization", False, str(e))
 
-    async def test_routing(self):
+    async def test_routing(self) -> None:
         """Test routing strategies."""
         try:
             routers = model_muxer.routers
@@ -108,9 +108,9 @@ class EnhancedModelMuxerTester:
 
             # Test routing with sample messages
             test_messages = [
-                ChatMessage(role="user", content="Write a Python function to sort a list"),
-                ChatMessage(role="user", content="What is the capital of France?"),
-                ChatMessage(role="user", content="Explain machine learning in simple terms"),
+                ChatMessage(role="user", content="Write a Python function to sort a list", name=None),
+                ChatMessage(role="user", content="What is the capital of France?", name=None),
+                ChatMessage(role="user", content="Explain machine learning in simple terms", name=None),
             ]
 
             for router_name, router in routers.items():
@@ -129,7 +129,7 @@ class EnhancedModelMuxerTester:
         except Exception as e:
             self.log_test("Routing Initialization", False, str(e))
 
-    async def test_classification(self):
+    async def test_classification(self) -> None:
         """Test ML-based classification."""
         try:
             if not model_muxer.classifier:
@@ -158,7 +158,7 @@ class EnhancedModelMuxerTester:
         except Exception as e:
             self.log_test("Classification", False, str(e))
 
-    async def test_caching(self):
+    async def test_caching(self) -> None:
         """Test caching system."""
         try:
             if not model_muxer.cache:
@@ -198,7 +198,7 @@ class EnhancedModelMuxerTester:
         except Exception as e:
             self.log_test("Caching", False, str(e))
 
-    async def test_monitoring(self):
+    async def test_monitoring(self) -> None:
         """Test monitoring and metrics."""
         try:
             if not model_muxer.metrics_collector:
@@ -236,7 +236,7 @@ class EnhancedModelMuxerTester:
         except Exception as e:
             self.log_test("Monitoring", False, str(e))
 
-    async def test_middleware(self):
+    async def test_middleware(self) -> None:
         """Test middleware components."""
         try:
             # Test authentication middleware
@@ -268,7 +268,7 @@ class EnhancedModelMuxerTester:
         except Exception as e:
             self.log_test("Middleware", False, str(e))
 
-    async def test_integration(self):
+    async def test_integration(self) -> None:
         """Test end-to-end integration."""
         try:
             # Create a test request
@@ -303,7 +303,7 @@ class EnhancedModelMuxerTester:
         except Exception as e:
             self.log_test("Integration", False, str(e))
 
-    async def run_all_tests(self):
+    async def run_all_tests(self) -> None:
         """Run all tests."""
         print("🚀 Starting Enhanced ModelMuxer Tests\n")
 
@@ -330,7 +330,7 @@ class EnhancedModelMuxerTester:
             return True
 
 
-async def main():
+async def main() -> None:
     """Main test function."""
     tester = EnhancedModelMuxerTester()
     success = await tester.run_all_tests()

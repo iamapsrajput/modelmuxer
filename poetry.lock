@@ -6239,6 +6239,18 @@ tests = ["autopep8", "isort", "llnl-hatchet", "numpy", "pytest", "pytest-forked"
 tutorials = ["matplotlib", "pandas", "tabulate"]
 
 [[package]]
+name = "types-psutil"
+version = "7.0.0.20250801"
+description = "Typing stubs for psutil"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_psutil-7.0.0.20250801-py3-none-any.whl", hash = "sha256:751842baf9e0efa31b3a7722a38a3f9afeb5a7132b146a1960cd472db362faa0"},
+    {file = "types_psutil-7.0.0.20250801.tar.gz", hash = "sha256:0230b56234252cc6f59c361dccbaaa08f3088ea3569367abe6900485d388c97d"},
+]
+
+[[package]]
 name = "types-python-dateutil"
 version = "2.9.0.20250708"
 description = "Typing stubs for python-dateutil"
@@ -7049,4 +7061,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "99e46906583347f9e622e905e7a235edf18177ad00cb0b37921750d66014d6af"
+content-hash = "2293c23ea34a7efdb2979d1f4da2468b2c4bd4438cc86d00964c7000681ed7b0"

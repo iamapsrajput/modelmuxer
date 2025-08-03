@@ -25,7 +25,7 @@ logger = structlog.get_logger(__name__)
 class TogetherProvider(LLMProvider):
     """Together AI API provider implementation."""
 
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str | None = None):
         if not api_key:
             raise AuthenticationError("Together AI API key is required")
 
@@ -106,7 +106,7 @@ class TogetherProvider(LLMProvider):
         max_tokens: int | None = None,
         temperature: float | None = None,
         stream: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> ChatCompletionResponse:
         """Generate a chat completion using Together AI API."""
         start_time = time.time()
@@ -213,7 +213,7 @@ class TogetherProvider(LLMProvider):
         model: str = "meta-llama/Llama-3-8b-chat-hf",
         max_tokens: int | None = None,
         temperature: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using Together AI API."""
         # Prepare request payload
@@ -267,7 +267,7 @@ class TogetherProvider(LLMProvider):
     async def health_check(self) -> bool:
         """Check if Together AI API is accessible."""
         try:
-            test_messages = [ChatMessage(role="user", content="Hi")]
+            test_messages = [ChatMessage(role="user", content="Hi", name=None)]
             await self.chat_completion(
                 messages=test_messages, model="meta-llama/Llama-3-8b-chat-hf", max_tokens=1
             )

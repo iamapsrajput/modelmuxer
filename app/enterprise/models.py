@@ -5,6 +5,7 @@
 
 import uuid
 from enum import Enum
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -19,11 +20,13 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.sql import func
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Base class for all database models."""
+    pass
 
 
 class PlanType(str, Enum):
@@ -82,8 +85,8 @@ class Organization(Base):
     description = Column(Text)
 
     # Subscription details
-    plan_type = Column(SQLEnum(PlanType), nullable=False, default=PlanType.FREE)
-    status = Column(SQLEnum(OrganizationStatus), nullable=False, default=OrganizationStatus.ACTIVE)
+    plan_type: Column[Any] = Column(SQLEnum(PlanType), nullable=False, default=PlanType.FREE)
+    status: Column[Any] = Column(SQLEnum(OrganizationStatus), nullable=False, default=OrganizationStatus.ACTIVE)
     trial_ends_at = Column(DateTime)
     subscription_id = Column(String(255))  # External subscription ID
 
@@ -162,7 +165,7 @@ class OrganizationUser(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=False)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
 
-    role = Column(SQLEnum(UserRole), nullable=False, default=UserRole.VIEWER)
+    role: Column[Any] = Column(SQLEnum(UserRole), nullable=False, default=UserRole.VIEWER)
     permissions = Column(JSON, default=list)  # Additional granular permissions
 
     # Status
@@ -292,13 +295,13 @@ class AuditLog(Base):
     user_id = Column(String(36), ForeignKey("users.id"))
 
     # Action details
-    action = Column(SQLEnum(AuditAction), nullable=False)
+    action: Column[Any] = Column(SQLEnum(AuditAction), nullable=False)
     resource_type = Column(String(50))  # e.g., "user", "budget", "provider"
     resource_id = Column(String(36))
 
     # Context
     description = Column(Text)
-    metadata = Column(JSON, default=dict)
+    extra_data = Column(JSON, default=dict)
     ip_address = Column(String(45))
     user_agent = Column(Text)
 

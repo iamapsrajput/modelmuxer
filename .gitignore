@@ -249,6 +249,7 @@ performance_reports/
 # Documentation build
 docs/build/
 site/
+claude.md
 
 # Package files
 *.tar.gz

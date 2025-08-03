@@ -58,23 +58,19 @@ class OptionalSemanticRouter(BaseRouter):
                 logger.info("semantic_router_initialized_ml_mode", model=self.model_name)
             except Exception as e:
                 if not self.use_fallback:
-                    raise ConfigurationError(
-                        f"Failed to initialize sentence transformer: {e}"
-                    ) from e
+                    raise ConfigurationError(f"Failed to initialize sentence transformer: {e}") from e
                 logger.warning("semantic_router_ml_init_failed_using_fallback", error=str(e))
 
         if not self.use_ml_mode:
             if not self.use_fallback:
-                raise ConfigurationError(
-                    "Sentence transformers not available and fallback disabled"
-                )
+                raise ConfigurationError("Sentence transformers not available and fallback disabled")
             logger.info("semantic_router_initialized_fallback_mode")
 
         # Route definitions
-        self.route_embeddings = {}
-        self.route_examples = {}
-        self.route_model_mapping = {}
-        self.route_keywords = {}
+        self.route_embeddings: dict[str, Any] = {}
+        self.route_examples: dict[str, list[str]] = {}
+        self.route_model_mapping: dict[str, tuple[str, str]] = {}
+        self.route_keywords: dict[str, list[str]] = {}
 
         # Load or create route definitions
         self._initialize_routes()
@@ -256,9 +252,7 @@ class OptionalSemanticRouter(BaseRouter):
 
             except Exception as e:
                 logger.error("failed_to_generate_ml_embeddings", route=route_name, error=str(e))
-                raise RoutingError(
-                    f"Failed to generate embeddings for route {route_name}: {e}"
-                ) from e
+                raise RoutingError(f"Failed to generate embeddings for route {route_name}: {e}") from e
 
     def _initialize_keyword_routes(self, route_definitions: dict) -> None:
         """Initialize routes using keyword patterns."""
@@ -423,3 +417,41 @@ class OptionalSemanticRouter(BaseRouter):
         # Fallback to default
         logger.warning("semantic_routing_fallback")
         return "openai", "gpt-3.5-turbo"
+
+    async def _route_request(
+        self,
+        messages: list[ChatMessage],
+        analysis: dict[str, Any],
+        user_id: str | None,
+        constraints: dict[str, Any] | None = None,
+    ) -> tuple[str, str, str, float]:
+        """
+        Route request based on semantic analysis.
+
+        Args:
+            messages: List of chat messages
+            analysis: Analysis results from analyze_prompt
+            user_id: Optional user ID
+
+        Returns:
+            Tuple of (provider, model) for the request
+        """
+        recommended_models = analysis.get("recommended_models", [])
+
+        if recommended_models:
+            # Return the highest confidence model
+            provider, model, confidence = recommended_models[0]
+            logger.info(
+                "semantic_routing_decision",
+                provider=provider,
+                model=model,
+                confidence=confidence,
+                route_category=analysis.get("route_category", "unknown"),
+                method=analysis.get("analysis_method", "unknown"),
+                user_id=user_id,
+            )
+            return provider, model, "semantic", confidence
+
+        # Fallback to default
+        logger.warning("semantic_routing_fallback", user_id=user_id)
+        return "openai", "gpt-3.5-turbo", "fallback", 0.0

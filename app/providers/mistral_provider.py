@@ -18,7 +18,7 @@ from .base import LLMProvider, ProviderError
 class MistralProvider(LLMProvider):
     """Mistral API provider implementation."""
 
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str | None = None):
         if not api_key:
             raise ValueError("Mistral API key is required")
 
@@ -75,7 +75,7 @@ class MistralProvider(LLMProvider):
         max_tokens: int | None = None,
         temperature: float | None = None,
         stream: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> ChatCompletionResponse:
         """Generate a chat completion using Mistral API."""
         start_time = time.time()
@@ -154,7 +154,7 @@ class MistralProvider(LLMProvider):
         model: str,
         max_tokens: int | None = None,
         temperature: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using Mistral API."""
         # Prepare request payload

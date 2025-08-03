@@ -25,13 +25,13 @@ class RouterTester:
         self.headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         self.client = httpx.AsyncClient(timeout=60.0)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> 'RouterTester':
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         await self.client.aclose()
 
-    def create_test_request(self, messages: list[dict[str, str]], **kwargs) -> dict[str, Any]:
+    def create_test_request(self, messages: list[dict[str, str]], **kwargs: Any) -> dict[str, Any]:
         """Create a test request payload."""
         return {
             "messages": messages,
@@ -309,7 +309,7 @@ class RouterTester:
             return False
 
 
-async def main():
+async def main() -> int:
     """Main test function."""
     import argparse
 

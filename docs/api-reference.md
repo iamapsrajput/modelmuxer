@@ -4,12 +4,13 @@ ModelMuxer provides a comprehensive REST API for intelligent LLM routing and man
 
 ## Base URL
 
-```
+```text
 https://api.modelmuxer.com/api/v1
 ```
 
 For local development:
-```
+
+```text
 http://localhost:8000/api/v1
 ```
 
@@ -104,7 +105,7 @@ Stream chat completions with server-sent events.
 
 **Response:** Server-sent events stream
 
-```
+```text
 data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1677652288,"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"role":"assistant","content":"The"},"finish_reason":null}]}
 
 data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1677652288,"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"content":" capital"},"finish_reason":null}]}
@@ -226,15 +227,15 @@ Get usage statistics for the authenticated user.
   "period": "current_month",
   "total_requests": 1250,
   "total_tokens": 125000,
-  "total_cost": 12.50,
+  "total_cost": 12.5,
   "breakdown": {
     "by_provider": {
-      "openai": {"requests": 800, "cost": 8.00},
-      "anthropic": {"requests": 450, "cost": 4.50}
+      "openai": { "requests": 800, "cost": 8.0 },
+      "anthropic": { "requests": 450, "cost": 4.5 }
     },
     "by_model": {
-      "gpt-4o-mini": {"requests": 600, "cost": 3.00},
-      "gpt-4o": {"requests": 200, "cost": 5.00}
+      "gpt-4o-mini": { "requests": 600, "cost": 3.0 },
+      "gpt-4o": { "requests": 200, "cost": 5.0 }
     }
   }
 }
@@ -248,12 +249,12 @@ Get budget status and alerts.
 
 ```json
 {
-  "daily_budget": 10.00,
-  "daily_used": 2.50,
-  "daily_remaining": 7.50,
-  "monthly_budget": 300.00,
-  "monthly_used": 75.00,
-  "monthly_remaining": 225.00,
+  "daily_budget": 10.0,
+  "daily_used": 2.5,
+  "daily_remaining": 7.5,
+  "monthly_budget": 300.0,
+  "monthly_used": 75.0,
+  "monthly_remaining": 225.0,
   "alerts": [
     {
       "type": "warning",
@@ -272,8 +273,8 @@ Set budget limits.
 
 ```json
 {
-  "daily_limit": 15.00,
-  "monthly_limit": 400.00,
+  "daily_limit": 15.0,
+  "monthly_limit": 400.0,
   "alert_thresholds": [0.5, 0.8, 0.95]
 }
 ```
@@ -305,11 +306,11 @@ Detailed health check with component status.
   "status": "healthy",
   "timestamp": "2024-01-15T10:30:00Z",
   "components": {
-    "database": {"status": "healthy", "response_time": "5ms"},
-    "cache": {"status": "healthy", "hit_rate": 0.85},
+    "database": { "status": "healthy", "response_time": "5ms" },
+    "cache": { "status": "healthy", "hit_rate": 0.85 },
     "providers": {
-      "openai": {"status": "healthy", "latency": "250ms"},
-      "anthropic": {"status": "healthy", "latency": "180ms"}
+      "openai": { "status": "healthy", "latency": "250ms" },
+      "anthropic": { "status": "healthy", "latency": "180ms" }
     }
   }
 }
@@ -360,7 +361,7 @@ Default rate limits per user:
 
 Rate limit headers are included in responses:
 
-```
+```text
 X-RateLimit-Limit: 60
 X-RateLimit-Remaining: 59
 X-RateLimit-Reset: 1677652348
@@ -392,13 +393,13 @@ npm install modelmuxer-js
 ```
 
 ```javascript
-import { ModelMuxer } from 'modelmuxer-js';
+import { ModelMuxer } from "modelmuxer-js";
 
-const client = new ModelMuxer({ apiKey: 'your_api_key' });
+const client = new ModelMuxer({ apiKey: "your_api_key" });
 
 const response = await client.chat.completions.create({
-  messages: [{ role: 'user', content: 'Hello!' }],
-  routing_strategy: 'hybrid'
+  messages: [{ role: "user", content: "Hello!" }],
+  routing_strategy: "hybrid",
 });
 ```
 

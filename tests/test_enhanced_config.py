@@ -27,7 +27,7 @@ from app.config.enhanced_config import (
 class TestModelMuxerConfig:
     """Test the main configuration class."""
 
-    def test_default_configuration(self):
+    def test_default_configuration(self) -> None:
         """Test default configuration values."""
         config = ModelMuxerConfig()
 
@@ -39,7 +39,7 @@ class TestModelMuxerConfig:
         assert config.simple_query_threshold == 0.3
         assert config.max_tokens_default == 1000
 
-    def test_environment_variable_override(self):
+    def test_environment_variable_override(self) -> None:
         """Test that environment variables override defaults."""
         with patch.dict(
             os.environ,
@@ -59,7 +59,7 @@ class TestModelMuxerConfig:
             assert config.code_detection_threshold == 0.5
             assert config.max_tokens_default == 2000
 
-    def test_provider_pricing(self):
+    def test_provider_pricing(self) -> None:
         """Test provider pricing information."""
         config = ModelMuxerConfig()
         pricing = config.get_provider_pricing()
@@ -79,7 +79,7 @@ class TestModelMuxerConfig:
 class TestProviderConfig:
     """Test provider configuration."""
 
-    def test_default_provider_config(self):
+    def test_default_provider_config(self) -> None:
         """Test default provider configuration."""
         # Clear environment variables and override model config to prevent .env file loading
         env_vars_to_clear = [
@@ -115,7 +115,7 @@ class TestProviderConfig:
                 # Restore original config
                 ProviderConfig.model_config = original_config
 
-    def test_provider_config_from_env(self):
+    def test_provider_config_from_env(self) -> None:
         """Test provider configuration from environment variables."""
         # Test values - not real API keys
         config = ProviderConfig(
@@ -130,7 +130,7 @@ class TestProviderConfig:
 class TestRoutingConfig:
     """Test routing configuration."""
 
-    def test_default_routing_config(self):
+    def test_default_routing_config(self) -> None:
         """Test default routing configuration."""
         config = RoutingConfig()
 
@@ -140,7 +140,7 @@ class TestRoutingConfig:
         assert config.heuristic_enabled is True
         assert config.cascade_quality_threshold == 0.7
 
-    def test_routing_config_from_env(self):
+    def test_routing_config_from_env(self) -> None:
         """Test routing configuration from environment variables."""
         # Pass values using field names, not environment variable names
         config = RoutingConfig(
@@ -157,7 +157,7 @@ class TestRoutingConfig:
 class TestCacheConfig:
     """Test cache configuration."""
 
-    def test_default_cache_config(self):
+    def test_default_cache_config(self) -> None:
         """Test default cache configuration."""
         # Remove environment variables that might affect defaults
         env_vars_to_remove = ["REDIS_URL"]
@@ -182,7 +182,7 @@ class TestCacheConfig:
                 # Restore original config
                 CacheConfig.model_config = original_config
 
-    def test_cache_config_from_env(self):
+    def test_cache_config_from_env(self) -> None:
         """Test cache configuration from environment variables."""
         config = CacheConfig(
             enabled=False,
@@ -200,7 +200,7 @@ class TestCacheConfig:
 class TestAuthConfig:
     """Test authentication configuration."""
 
-    def test_default_auth_config(self):
+    def test_default_auth_config(self) -> None:
         """Test default authentication configuration."""
         config = AuthConfig()
 
@@ -211,7 +211,7 @@ class TestAuthConfig:
         assert config.jwt_expiry == 3600
         assert config.methods == "api_key"
 
-    def test_auth_config_from_env(self):
+    def test_auth_config_from_env(self) -> None:
         """Test authentication configuration from environment variables."""
         # Test configuration - not real secrets
         config = AuthConfig(
@@ -230,7 +230,7 @@ class TestAuthConfig:
 class TestRateLimitConfig:
     """Test rate limiting configuration."""
 
-    def test_default_rate_limit_config(self):
+    def test_default_rate_limit_config(self) -> None:
         """Test default rate limiting configuration."""
         config = RateLimitConfig()
 
@@ -239,7 +239,7 @@ class TestRateLimitConfig:
         assert config.requests_per_hour == 1000
         assert config.burst_size == 20
 
-    def test_rate_limit_config_from_env(self):
+    def test_rate_limit_config_from_env(self) -> None:
         """Test rate limiting configuration from environment variables."""
         config = RateLimitConfig(
             enabled=False,
@@ -257,7 +257,7 @@ class TestRateLimitConfig:
 class TestMonitoringConfig:
     """Test monitoring configuration."""
 
-    def test_default_monitoring_config(self):
+    def test_default_monitoring_config(self) -> None:
         """Test default monitoring configuration."""
         config = MonitoringConfig()
 
@@ -266,7 +266,7 @@ class TestMonitoringConfig:
         assert config.track_performance is True
         assert config.prometheus_port == 9090
 
-    def test_monitoring_config_from_env(self):
+    def test_monitoring_config_from_env(self) -> None:
         """Test monitoring configuration from environment variables."""
         config = MonitoringConfig(
             enabled=False,
@@ -282,7 +282,7 @@ class TestMonitoringConfig:
 class TestLoggingConfig:
     """Test logging configuration."""
 
-    def test_default_logging_config(self):
+    def test_default_logging_config(self) -> None:
         """Test default logging configuration."""
         config = LoggingConfig()
 
@@ -291,7 +291,7 @@ class TestLoggingConfig:
         assert config.log_requests is True
         assert config.log_responses is True
 
-    def test_logging_config_from_env(self):
+    def test_logging_config_from_env(self) -> None:
         """Test logging configuration from environment variables."""
         config = LoggingConfig(
             level="DEBUG",
@@ -307,7 +307,7 @@ class TestLoggingConfig:
 class TestClassificationConfig:
     """Test classification configuration."""
 
-    def test_default_classification_config(self):
+    def test_default_classification_config(self) -> None:
         """Test default classification configuration."""
         config = ClassificationConfig()
 
@@ -316,7 +316,7 @@ class TestClassificationConfig:
         assert config.embedding_cache_enabled is True
         assert config.confidence_threshold == 0.6
 
-    def test_classification_config_from_env(self):
+    def test_classification_config_from_env(self) -> None:
         """Test classification configuration from environment variables."""
         config = ClassificationConfig(
             enabled=False,
@@ -332,7 +332,7 @@ class TestClassificationConfig:
 class TestConfigurationLoading:
     """Test configuration loading and validation."""
 
-    def test_load_enhanced_config(self):
+    def test_load_enhanced_config(self) -> None:
         """Test loading enhanced configuration."""
         config = load_enhanced_config()
 
@@ -346,7 +346,7 @@ class TestConfigurationLoading:
         assert hasattr(config, "logging")
         assert hasattr(config, "classification")
 
-    def test_config_validation(self):
+    def test_config_validation(self) -> None:
         """Test configuration validation."""
         config = ModelMuxerConfig()
 

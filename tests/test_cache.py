@@ -6,6 +6,7 @@ Tests for the caching system including memory and Redis backends.
 """
 
 import time
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,11 +19,11 @@ from app.models import ChatMessage, ChatResponse
 class TestMemoryCache:
     """Test the memory cache implementation."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.cache = MemoryCache()
 
-    async def test_set_and_get(self):
+    async def test_set_and_get(self) -> None:
         """Test basic set and get operations."""
         key = "test_key"
         value = {"message": "test_value", "number": 42}
@@ -32,12 +33,12 @@ class TestMemoryCache:
 
         assert retrieved == value
 
-    async def test_get_nonexistent_key(self):
+    async def test_get_nonexistent_key(self) -> None:
         """Test getting a non-existent key."""
         result = await self.cache.get("nonexistent_key")
         assert result is None
 
-    async def test_delete(self):
+    async def test_delete(self) -> None:
         """Test deleting a key."""
         key = "test_key"
         value = "test_value"
@@ -48,7 +49,7 @@ class TestMemoryCache:
         await self.cache.delete(key)
         assert await self.cache.get(key) is None
 
-    async def test_exists(self):
+    async def test_exists(self) -> None:
         """Test checking if a key exists."""
         key = "test_key"
         value = "test_value"
@@ -61,7 +62,7 @@ class TestMemoryCache:
         await self.cache.delete(key)
         assert await self.cache.exists(key) is False
 
-    async def test_clear(self):
+    async def test_clear(self) -> None:
         """Test clearing all cache entries."""
         await self.cache.set("key1", "value1")
         await self.cache.set("key2", "value2")
@@ -74,7 +75,7 @@ class TestMemoryCache:
         assert await self.cache.exists("key1") is False
         assert await self.cache.exists("key2") is False
 
-    async def test_ttl_expiration(self):
+    async def test_ttl_expiration(self) -> None:
         """Test TTL (time-to-live) expiration."""
         key = "test_key"
         value = "test_value"
@@ -87,7 +88,7 @@ class TestMemoryCache:
         time.sleep(1.1)
         assert await self.cache.get(key) is None
 
-    async def test_max_size_eviction(self):
+    async def test_max_size_eviction(self) -> None:
         """Test LRU eviction when max size is reached."""
         # Create cache with small max size
         small_cache = MemoryCache(max_size=2)
@@ -103,7 +104,7 @@ class TestMemoryCache:
         assert await small_cache.exists("key2") is True
         assert await small_cache.exists("key3") is True
 
-    async def test_lru_ordering(self):
+    async def test_lru_ordering(self) -> None:
         """Test LRU (Least Recently Used) ordering."""
         small_cache = MemoryCache(max_size=2)
 
@@ -119,7 +120,7 @@ class TestMemoryCache:
         assert await small_cache.exists("key2") is False
         assert await small_cache.exists("key3") is True
 
-    async def test_cache_stats(self):
+    async def test_cache_stats(self) -> None:
         """Test cache statistics."""
         stats = self.cache.get_stats()
 
@@ -147,7 +148,7 @@ class TestMemoryCache:
 class TestRedisCache:
     """Test the Redis cache implementation."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         # Create async mock Redis client
         self.mock_redis = AsyncMock()
@@ -167,14 +168,14 @@ class TestRedisCache:
         # Directly replace the redis client
         self.cache.redis = self.mock_redis
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test fixtures."""
         if hasattr(self, "redis_patcher"):
             self.redis_patcher.stop()
         if hasattr(self, "pool_patcher"):
             self.pool_patcher.stop()
 
-    async def test_set_and_get(self):
+    async def test_set_and_get(self) -> None:
         """Test basic set and get operations."""
         import pickle
 
@@ -194,14 +195,14 @@ class TestRedisCache:
         cache_key = f"modelmuxer:{key}"
         self.mock_redis.get.assert_called_once_with(cache_key)
 
-    async def test_get_nonexistent_key(self):
+    async def test_get_nonexistent_key(self) -> None:
         """Test getting a non-existent key."""
         self.mock_redis.get.return_value = None
 
         result = await self.cache.get("nonexistent_key")
         assert result is None
 
-    async def test_delete(self):
+    async def test_delete(self) -> None:
         """Test deleting a key."""
         key = "test_key"
 
@@ -211,7 +212,7 @@ class TestRedisCache:
         # Redis cache prefixes keys with "modelmuxer:"
         self.mock_redis.delete.assert_called_once_with("modelmuxer:test_key")
 
-    async def test_exists(self):
+    async def test_exists(self) -> None:
         """Test checking if a key exists."""
         key = "test_key"
 
@@ -221,11 +222,11 @@ class TestRedisCache:
         self.mock_redis.exists.return_value = 0
         assert await self.cache.exists(key) is False
 
-    async def test_clear(self):
+    async def test_clear(self) -> None:
         """Test clearing all cache entries."""
 
         # Mock the scan_iter method to return keys
-        async def mock_scan_iter(match=None):
+        async def mock_scan_iter(match: str | None = None) -> Any:
             yield b"modelmuxer:key1"
             yield b"modelmuxer:key2"
 
@@ -237,7 +238,7 @@ class TestRedisCache:
         self.mock_redis.delete.assert_called_once()
         assert result is True
 
-    async def test_ttl_setting(self):
+    async def test_ttl_setting(self) -> None:
         """Test setting TTL on Redis keys."""
         key = "test_key"
         value = "test_value"
@@ -253,7 +254,7 @@ class TestRedisCache:
         assert call_args[0][1] == ttl  # ttl
         # Value is compressed, so we just check it was called
 
-    async def test_connection_error_handling(self):
+    async def test_connection_error_handling(self) -> None:
         """Test handling Redis connection errors."""
         import redis
 
@@ -264,7 +265,7 @@ class TestRedisCache:
         result = await self.cache.get("test_key")
         assert result is None
 
-    async def test_json_serialization_error(self):
+    async def test_json_serialization_error(self) -> None:
         """Test handling JSON serialization errors."""
         key = "test_key"
 
@@ -282,14 +283,14 @@ class TestRedisCache:
 class TestCacheIntegration:
     """Integration tests for cache system."""
 
-    async def test_chat_response_caching(self):
+    async def test_chat_response_caching(self) -> None:
         """Test caching of chat responses."""
         cache = MemoryCache()
 
         # Create test chat messages and response
         messages = [
-            ChatMessage(role="user", content="What is Python?"),
-            ChatMessage(role="assistant", content="Python is a programming language."),
+            ChatMessage(role="user", content="What is Python?", name=None),
+            ChatMessage(role="assistant", content="Python is a programming language.", name=None),
         ]
 
         response = ChatResponse(
@@ -325,13 +326,13 @@ class TestCacheIntegration:
             == "Python is a programming language."
         )
 
-    def test_cache_key_generation(self):
+    def test_cache_key_generation(self) -> None:
         """Test cache key generation for different scenarios."""
         # This test doesn't use cache operations, just key generation logic
 
         # Test that same messages generate same cache key
-        messages1 = [ChatMessage(role="user", content="Hello")]
-        messages2 = [ChatMessage(role="user", content="Hello")]
+        messages1 = [ChatMessage(role="user", content="Hello", name=None)]
+        messages2 = [ChatMessage(role="user", content="Hello", name=None)]
 
         key1 = f"chat:{hash(str(messages1))}"
         key2 = f"chat:{hash(str(messages2))}"
@@ -339,12 +340,12 @@ class TestCacheIntegration:
         assert key1 == key2
 
         # Test that different messages generate different cache keys
-        messages3 = [ChatMessage(role="user", content="Goodbye")]
+        messages3 = [ChatMessage(role="user", content="Goodbye", name=None)]
         key3 = f"chat:{hash(str(messages3))}"
 
         assert key1 != key3
 
-    async def test_cache_invalidation(self):
+    async def test_cache_invalidation(self) -> None:
         """Test cache invalidation scenarios."""
         cache = MemoryCache()
 
@@ -369,7 +370,7 @@ class TestCacheIntegration:
         assert await cache.exists("user:456:profile") is True  # Should remain
 
     @patch("app.cache.redis_cache.redis.Redis")
-    async def test_cache_backend_switching(self, mock_redis_class):
+    async def test_cache_backend_switching(self, mock_redis_class) -> None:
         """Test switching between cache backends."""
         # Test memory cache
         memory_cache = MemoryCache()

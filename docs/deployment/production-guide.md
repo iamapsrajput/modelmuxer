@@ -18,13 +18,15 @@ This guide provides comprehensive instructions for deploying ModelMuxer in a pro
 ## Prerequisites
 
 ### Required Tools
+
 - **Kubernetes cluster** (v1.25+) with at least 3 nodes
 - **Helm** (v3.12+) for package management
 - **kubectl** configured for your cluster
-- **Docker** for image building (if customizing)
+- **Container runtime** (Docker, Podman, or Apple's containerization) for image building (if customizing)
 - **OpenSSL** for certificate generation
 
 ### Required Services
+
 - **PostgreSQL** (v15+) with read replicas
 - **Redis** (v7+) cluster for caching
 - **Load Balancer** (AWS ALB, GCP Load Balancer, or NGINX)
@@ -33,19 +35,20 @@ This guide provides comprehensive instructions for deploying ModelMuxer in a pro
 
 ### Minimum Resource Requirements
 
-| Component | CPU | Memory | Storage | Replicas |
-|-----------|-----|--------|---------|----------|
-| ModelMuxer API | 2 cores | 4GB | - | 3+ |
-| PostgreSQL Primary | 4 cores | 8GB | 100GB SSD | 1 |
-| PostgreSQL Replica | 2 cores | 4GB | 100GB SSD | 2+ |
-| Redis Cluster | 1 core | 2GB | 10GB SSD | 6 |
-| Monitoring Stack | 4 cores | 8GB | 50GB SSD | - |
+| Component          | CPU     | Memory | Storage   | Replicas |
+| ------------------ | ------- | ------ | --------- | -------- |
+| ModelMuxer API     | 2 cores | 4GB    | -         | 3+       |
+| PostgreSQL Primary | 4 cores | 8GB    | 100GB SSD | 1        |
+| PostgreSQL Replica | 2 cores | 4GB    | 100GB SSD | 2+       |
+| Redis Cluster      | 1 core  | 2GB    | 10GB SSD  | 6        |
+| Monitoring Stack   | 4 cores | 8GB    | 50GB SSD  | -        |
 
 ## Infrastructure Requirements
 
 ### Cloud Provider Setup
 
 #### AWS
+
 ```bash
 # Create EKS cluster
 eksctl create cluster \
@@ -76,6 +79,7 @@ EOF
 ```
 
 #### Google Cloud Platform
+
 ```bash
 # Create GKE cluster
 gcloud container clusters create modelmuxer-prod \
@@ -92,6 +96,7 @@ gcloud container clusters create modelmuxer-prod \
 ### Network Configuration
 
 #### Security Groups / Firewall Rules
+
 ```yaml
 # Allow HTTPS traffic (443)
 # Allow HTTP traffic (80) - redirect to HTTPS
@@ -355,17 +360,17 @@ data:
   # Database connection pooling
   DATABASE_POOL_SIZE: "20"
   DATABASE_MAX_OVERFLOW: "30"
-  
+
   # Redis configuration
   REDIS_MAX_CONNECTIONS: "100"
-  
+
   # Cache settings
   CACHE_DEFAULT_TTL: "3600"
   CACHE_MAX_SIZE: "10000"
-  
+
   # Rate limiting
   RATE_LIMIT_ENABLED: "true"
-  
+
   # Monitoring
   METRICS_ENABLED: "true"
   HEALTH_CHECK_ENABLED: "true"
@@ -440,6 +445,7 @@ kubectl get secrets -n modelmuxer-production -o yaml > secrets-backup.yaml
 ### 3. Disaster Recovery Plan
 
 1. **Database Recovery**:
+
    ```bash
    # Restore from backup
    pg_restore -h postgresql-production -U postgres -d modelmuxer \
@@ -447,19 +453,21 @@ kubectl get secrets -n modelmuxer-production -o yaml > secrets-backup.yaml
    ```
 
 2. **Application Recovery**:
+
    ```bash
    # Redeploy application
    kubectl apply -f k8s/
-   
+
    # Verify health
    kubectl get pods -n modelmuxer-production
    ```
 
 3. **Data Validation**:
+
    ```bash
    # Run health checks
    curl -f https://api.modelmuxer.com/health
-   
+
    # Verify database connectivity
    kubectl exec -n modelmuxer-production deployment/modelmuxer -- \
      python -c "from app.database import engine; print(engine.execute('SELECT 1').scalar())"
@@ -470,6 +478,7 @@ kubectl get secrets -n modelmuxer-production -o yaml > secrets-backup.yaml
 ### Common Issues
 
 #### 1. Pod Startup Issues
+
 ```bash
 # Check pod logs
 kubectl logs -n modelmuxer-production deployment/modelmuxer
@@ -482,6 +491,7 @@ kubectl top pods -n modelmuxer-production
 ```
 
 #### 2. Database Connection Issues
+
 ```bash
 # Test database connectivity
 kubectl run db-test --rm -i --tty \
@@ -494,6 +504,7 @@ kubectl logs -n modelmuxer-production postgresql-production-0
 ```
 
 #### 3. Performance Issues
+
 ```bash
 # Check metrics
 kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
@@ -512,10 +523,10 @@ kubectl exec -n modelmuxer-production postgresql-production-0 -- \
 
 ### Support Contacts
 
-- **Technical Support**: support@modelmuxer.com
-- **Emergency**: emergency@modelmuxer.com
-- **Documentation**: https://docs.modelmuxer.com
-- **Status Page**: https://status.modelmuxer.com
+- **Technical Support**: [support@modelmuxer.com](mailto:support@modelmuxer.com)
+- **Emergency**: [emergency@modelmuxer.com](mailto:emergency@modelmuxer.com)
+- **Documentation**: [https://docs.modelmuxer.com](https://docs.modelmuxer.com)
+- **Status Page**: [https://status.modelmuxer.com](https://status.modelmuxer.com)
 
 ---
 

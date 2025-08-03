@@ -24,7 +24,7 @@ logger = structlog.get_logger(__name__)
 class GroqProvider(LLMProvider):
     """Groq API provider implementation."""
 
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str | None = None):
         if not api_key:
             raise AuthenticationError("Groq API key is required")
 
@@ -102,7 +102,7 @@ class GroqProvider(LLMProvider):
         max_tokens: int | None = None,
         temperature: float | None = None,
         stream: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> ChatCompletionResponse:
         """Generate a chat completion using Groq API."""
         start_time = time.time()
@@ -198,7 +198,7 @@ class GroqProvider(LLMProvider):
         model: str = "llama-3.1-8b-instant",
         max_tokens: int | None = None,
         temperature: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream a chat completion using Groq API."""
         # Prepare request payload
@@ -252,7 +252,7 @@ class GroqProvider(LLMProvider):
     async def health_check(self) -> bool:
         """Check if Groq API is accessible."""
         try:
-            test_messages = [ChatMessage(role="user", content="Hi")]
+            test_messages = [ChatMessage(role="user", content="Hi", name=None)]
             await self.chat_completion(
                 messages=test_messages, model="llama-3.1-8b-instant", max_tokens=1
             )
