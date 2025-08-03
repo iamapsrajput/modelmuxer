@@ -304,6 +304,19 @@ jobs:
           comment-on-alert: true
           summary-always: true
 
+      - name: Notify Slack on test completion
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          text: |
+            ${{ job.status == 'success' && '✅ Tests passed successfully' || '❌ Tests failed' }}
+            Commit: ${{ github.sha }}
+            Branch: ${{ github.ref_name }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
