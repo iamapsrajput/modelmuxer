@@ -14,9 +14,7 @@ from pydantic import BaseModel, Field, validator
 class ChatMessage(BaseModel):
     """Individual chat message in a conversation."""
 
-    role: Literal["system", "user", "assistant"] = Field(
-        ..., description="The role of the message author"
-    )
+    role: Literal["system", "user", "assistant"] = Field(..., description="The role of the message author")
     content: str = Field(..., description="The content of the message")
     name: str | None = Field(None, description="Optional name of the message author")
 
@@ -127,7 +125,7 @@ class ErrorResponse(BaseModel):
     @classmethod
     def create(
         cls, message: str, error_type: str = "invalid_request_error", code: str | None = None
-    ):
+    ) -> "ErrorResponse":
         """Create a standardized error response."""
         error_data = {"message": message, "type": error_type}
         if code:
@@ -150,12 +148,10 @@ class BudgetRequest(BaseModel):
     budget_limit: float = Field(..., gt=0, description="Budget limit in USD")
     provider: str | None = Field(None, description="Specific provider (optional)")
     model: str | None = Field(None, description="Specific model (optional)")
-    alert_thresholds: list[float] | None = Field(
-        [50.0, 80.0, 95.0], description="Alert thresholds as percentages"
-    )
+    alert_thresholds: list[float] | None = Field([50.0, 80.0, 95.0], description="Alert thresholds as percentages")
 
     @validator("alert_thresholds")
-    def validate_thresholds(cls, v):
+    def validate_thresholds(cls, v: list[float] | None) -> list[float] | None:
         if v:
             for threshold in v:
                 if not 0 <= threshold <= 100:

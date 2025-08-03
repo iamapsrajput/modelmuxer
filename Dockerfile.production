@@ -9,7 +9,7 @@ ARG TARGETPLATFORM
 ARG BUILDARCH
 ARG TARGETARCH
 
-# Install build dependencies
+# Install build dependencies including Rust for tiktoken
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -17,6 +17,8 @@ RUN apt-get update && apt-get install -y \
     cmake \
     git \
     curl \
+    rustc \
+    cargo \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry for dependency management

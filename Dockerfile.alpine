@@ -1,6 +1,6 @@
 # ModelMuxer Alpine Production Dockerfile - Security-focused build with minimal attack surface
 
-# Stage 1: Build dependencies and compile Python packages  
+# Stage 1: Build dependencies and compile Python packages
 FROM python:3.13-alpine AS builder
 
 # Set build arguments
@@ -9,7 +9,7 @@ ARG TARGETPLATFORM
 ARG BUILDARCH
 ARG TARGETARCH
 
-# Install build dependencies
+# Install build dependencies including Rust for tiktoken
 RUN apk add --no-cache \
     gcc \
     g++ \
@@ -20,7 +20,9 @@ RUN apk add --no-cache \
     musl-dev \
     linux-headers \
     libffi-dev \
-    openssl-dev
+    openssl-dev \
+    rust \
+    cargo
 
 # Install Poetry for dependency management
 RUN pip install --no-cache-dir poetry==1.7.1
