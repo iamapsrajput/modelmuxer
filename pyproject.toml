@@ -228,3 +228,19 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]
+
+[tool.bandit]
+# Bandit security linting configuration
+exclude = [
+    "tests/*",
+    "*/test_*",
+]
+# Skip specific security issues that are acceptable in this context
+skips = [
+    "B301",  # pickle usage in cache and embeddings - controlled environment
+    "B403",  # pickle import - needed for caching performance  
+    "B104",  # hardcoded bind all interfaces - intentional for container deployment
+]
+# Additional exclusions for specific files
+[tool.bandit.assert_used]
+skips = ["**/tests/*", "**/test_*.py"]

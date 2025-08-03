@@ -122,7 +122,7 @@ class TestMemoryCache:
 
     async def test_cache_stats(self) -> None:
         """Test cache statistics."""
-        stats = self.cache.get_stats()
+        stats = await self.cache.get_stats()
 
         assert "hits" in stats
         assert "misses" in stats
@@ -135,13 +135,13 @@ class TestMemoryCache:
 
         # Cache miss
         await self.cache.get("nonexistent")
-        stats = self.cache.get_stats()
+        stats = await self.cache.get_stats()
         assert stats["misses"] == initial_misses + 1
 
         # Cache hit
         await self.cache.set("test", "value")
         await self.cache.get("test")
-        stats = self.cache.get_stats()
+        stats = await self.cache.get_stats()
         assert stats["hits"] == initial_hits + 1
 
 
@@ -321,10 +321,7 @@ class TestCacheIntegration:
         cached_response = await cache.get(cache_key)
         assert cached_response is not None
         assert cached_response["model"] == "gpt-3.5-turbo"
-        assert (
-            cached_response["choices"][0]["message"]["content"]
-            == "Python is a programming language."
-        )
+        assert cached_response["choices"][0]["message"]["content"] == "Python is a programming language."
 
     def test_cache_key_generation(self) -> None:
         """Test cache key generation for different scenarios."""

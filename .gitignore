@@ -325,3 +325,8 @@ sbom.*.json
 compliance_reports/
 audit_reports/
 security_scans/
+
+# Security and test reports
+bandit-report.json
+*.bandit-report
+security-report.*
