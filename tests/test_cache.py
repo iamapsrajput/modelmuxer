@@ -266,18 +266,32 @@ class TestRedisCache:
         assert result is None
 
     async def test_json_serialization_error(self) -> None:
-        """Test handling JSON serialization errors."""
+        """Test handling complex object serialization."""
         key = "test_key"
 
-        # Create an object that can't be JSON serialized
-        class NonSerializable:
-            pass
+        # Create an object that can be serialized by our secure serializer
+        class SerializableObject:
+            def __init__(self):
+                self.data = "test"
 
-        value = NonSerializable()
+        value = SerializableObject()
 
-        # Should handle serialization error gracefully
+        # Mock Redis responses for the secure serializer
+        from app.core.serialization import secure_serializer
+
+        serialized_data = secure_serializer.serialize(value)
+
+        self.mock_redis.setex.return_value = True
+        self.mock_redis.get.return_value = serialized_data
+
+        # Our secure serializer should handle this gracefully
         result = await self.cache.set(key, value)
-        assert result is False
+        assert result is True
+
+        # Should be able to retrieve it
+        retrieved = await self.cache.get(key)
+        assert retrieved is not None
+        assert retrieved["_restored_object"] is True  # Indicates it was restored from JSON
 
 
 class TestCacheIntegration:
@@ -321,10 +335,7 @@ class TestCacheIntegration:
         cached_response = await cache.get(cache_key)
         assert cached_response is not None
         assert cached_response["model"] == "gpt-3.5-turbo"
-        assert (
-            cached_response["choices"][0]["message"]["content"]
-            == "Python is a programming language."
-        )
+        assert cached_response["choices"][0]["message"]["content"] == "Python is a programming language."
 
     def test_cache_key_generation(self) -> None:
         """Test cache key generation for different scenarios."""

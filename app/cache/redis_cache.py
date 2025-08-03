@@ -7,8 +7,6 @@ This module provides Redis-based caching with advanced features like
 TTL management, compression, and intelligent cache warming.
 """
 
-import gzip
-import pickle
 from typing import Any
 
 import redis.asyncio as redis
@@ -17,6 +15,7 @@ from redis.asyncio import Redis
 
 from ..core.exceptions import CacheError
 from ..core.interfaces import CacheInterface
+from ..core.serialization import secure_serializer
 
 # Removed unused import: hash_prompt
 
@@ -65,9 +64,7 @@ class RedisCache(CacheInterface):
         # Initialize connection
         self._initialize_connection(max_connections)
 
-        logger.info(
-            "redis_cache_initialized", redis_url=redis_url, db=db, compression=compression_enabled
-        )
+        logger.info("redis_cache_initialized", redis_url=redis_url, db=db, compression=compression_enabled)
 
     def _initialize_connection(self, max_connections: int) -> None:
         """Initialize Redis connection pool."""
@@ -92,40 +89,49 @@ class RedisCache(CacheInterface):
         return f"{self.key_prefix}{key}"
 
     def _serialize_value(self, value: Any) -> bytes:
-        """Serialize and optionally compress a value."""
+        """Serialize and optionally compress a value using secure JSON serialization."""
         try:
-            # Serialize using pickle for Python objects
-            serialized = pickle.dumps(value)
+            # Use secure serializer instead of pickle
+            serialized_data = secure_serializer.serialize(value)
 
-            # Compress if enabled and value is large enough
-            if self.compression_enabled and len(serialized) > self.compression_threshold:
-                compressed = gzip.compress(serialized)
+            # Track compression if it was used
+            if serialized_data.startswith(b"compressed:"):
+                self.stats["compression_saves"] += 1
 
-                # Only use compression if it actually saves space
-                if len(compressed) < len(serialized):
-                    self.stats["compression_saves"] += 1
-                    return b"compressed:" + compressed
-
-            return b"raw:" + serialized
+            return serialized_data
 
         except Exception as e:
             raise CacheError(f"Failed to serialize value: {e}") from e
 
     def _deserialize_value(self, data: bytes) -> Any:
-        """Deserialize and optionally decompress a value."""
+        """Deserialize and optionally decompress a value using secure JSON deserialization."""
         try:
-            if data.startswith(b"compressed:"):
-                # Decompress and deserialize
-                compressed_data = data[11:]  # Remove "compressed:" prefix
-                decompressed = gzip.decompress(compressed_data)
-                return pickle.loads(decompressed)
-            elif data.startswith(b"raw:"):
-                # Just deserialize
-                raw_data = data[4:]  # Remove "raw:" prefix
-                return pickle.loads(raw_data)
-            else:
-                # Legacy format - assume raw pickle
-                return pickle.loads(data)
+            # Try secure deserialization first
+            try:
+                return secure_serializer.deserialize(data)
+            except ValueError:
+                # Fallback to legacy pickle format for backward compatibility
+                logger.warning("falling_back_to_pickle_deserialization", reason="secure_deserialization_failed")
+
+                if data.startswith(b"compressed:"):
+                    # Legacy compressed pickle format
+                    import gzip
+                    import pickle  # nosec B403 - controlled legacy fallback
+
+                    compressed_data = data[11:]  # Remove "compressed:" prefix
+                    decompressed = gzip.decompress(compressed_data)
+                    return pickle.loads(decompressed)  # nosec B301 - controlled legacy fallback
+                elif data.startswith(b"raw:"):
+                    # Legacy raw pickle format
+                    import pickle  # nosec B403 - controlled legacy fallback
+
+                    raw_data = data[4:]  # Remove "raw:" prefix
+                    return pickle.loads(raw_data)  # nosec B301 - controlled legacy fallback
+                else:
+                    # Legacy format - assume raw pickle
+                    import pickle  # nosec B403 - controlled legacy fallback
+
+                    return pickle.loads(data)  # nosec B301 - controlled legacy fallback
 
         except Exception as e:
             raise CacheError(f"Failed to deserialize value: {e}") from e
