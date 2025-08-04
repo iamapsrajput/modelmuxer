@@ -4,7 +4,7 @@
 
 set -e
 
-echo "🍎 ModelMuxer Apple Container Commands"
+echo "🍎 modelmuxer Apple Container Commands"
 echo "======================================"
 
 # Function to check if Apple Container is available
@@ -26,7 +26,7 @@ check_apple_container() {
 check_macos_version() {
     local version=$(sw_vers -productVersion)
     local major=$(echo $version | cut -d. -f1)
-    
+
     if [[ $major -lt 15 ]]; then
         echo "⚠️  Warning: macOS $version detected. Apple Container requires macOS 15+"
         echo "   Consider using Podman: ./scripts/podman-commands.sh"
@@ -37,7 +37,7 @@ check_macos_version() {
 
 # Function to build the image
 build_image() {
-    echo "🔨 Building ModelMuxer image with Apple Container..."
+    echo "🔨 Building modelmuxer image with Apple Container..."
     container build -t modelmuxer:latest -f Dockerfile.apple .
     echo "✅ Image built successfully"
 }
@@ -45,10 +45,10 @@ build_image() {
 # Function to run with compose
 run_with_compose() {
     echo "🐳 Running with Apple Container Compose..."
-    
+
     # Create volumes
     mkdir -p data logs
-    
+
     if [[ -f "container-compose.yaml" ]]; then
         container compose -f container-compose.yaml up -d
         echo "✅ Container started with compose"
@@ -60,11 +60,11 @@ run_with_compose() {
 
 # Function to run container directly
 run_container() {
-    echo "🚀 Running ModelMuxer container directly..."
-    
+    echo "🚀 Running modelmuxer container directly..."
+
     # Create volumes
     mkdir -p data logs
-    
+
     # Run container with environment variables from .env
     container run -d \
         --name modelmuxer \
@@ -76,7 +76,7 @@ run_container() {
         -v ./logs:/app/logs \
         --replace \
         modelmuxer:latest
-    
+
     echo "✅ Container started successfully"
     echo "🌐 Application available at: http://localhost:8000"
     echo "📊 Health check: http://localhost:8000/health"
@@ -98,11 +98,11 @@ show_logs() {
 
 # Function to test the application
 test_app() {
-    echo "🧪 Testing ModelMuxer application..."
-    
+    echo "🧪 Testing modelmuxer application..."
+
     # Wait for container to start
     sleep 5
-    
+
     # Test health endpoint
     if curl -s http://localhost:8000/health | grep -q "healthy"; then
         echo "✅ Health check passed"
@@ -110,7 +110,7 @@ test_app() {
         echo "❌ Health check failed"
         return 1
     fi
-    
+
     # Test providers endpoint (with auth)
     if curl -s -H "Authorization: Bearer sk-test-key-1" http://localhost:8000/providers | grep -q "providers"; then
         echo "✅ Providers endpoint working"
@@ -118,7 +118,7 @@ test_app() {
         echo "❌ Providers endpoint failed"
         return 1
     fi
-    
+
     echo "🎉 All tests passed!"
 }
 
@@ -176,7 +176,7 @@ case "${1:-help}" in
         echo ""
         echo "Commands:"
         echo "  check    - Check Apple Container availability and macOS version"
-        echo "  build    - Build the ModelMuxer image"
+        echo "  build    - Build the modelmuxer image"
         echo "  run      - Build and run container directly"
         echo "  compose  - Run with Apple Container Compose"
         echo "  logs     - Show container logs"

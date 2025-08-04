@@ -92,8 +92,12 @@ class Database:
 
             # Create indexes for better performance
             await db.execute("CREATE INDEX IF NOT EXISTS idx_requests_user_id ON requests(user_id)")
-            await db.execute("CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at)")
-            await db.execute("CREATE INDEX IF NOT EXISTS idx_daily_usage_user_date ON daily_usage(user_id, date)")
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at)"
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_daily_usage_user_date ON daily_usage(user_id, date)"
+            )
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_monthly_usage_user_month ON monthly_usage(user_id, year, month)"
             )

@@ -4,14 +4,14 @@
 
 set -e
 
-echo "🔍 ModelMuxer Auto-Container Detection"
+echo "🔍 modelmuxer Auto-Container Detection"
 echo "======================================"
 
 # Function to detect the best containerization system
 detect_container_system() {
     local system=""
     local reason=""
-    
+
     # Check for Apple Container (highest priority on macOS 15+)
     if [[ "$OSTYPE" == "darwin"* ]]; then
         local macos_version=$(sw_vers -productVersion | cut -d. -f1)
@@ -35,7 +35,7 @@ detect_container_system() {
             reason="Docker available"
         fi
     fi
-    
+
     if [[ -z "$system" ]]; then
         echo "❌ No containerization system found!"
         echo ""
@@ -50,7 +50,7 @@ detect_container_system() {
         fi
         exit 1
     fi
-    
+
     echo "✅ Detected: $system ($reason)"
     echo "$system"
 }
@@ -59,7 +59,7 @@ detect_container_system() {
 run_container_script() {
     local system=$1
     local command=$2
-    
+
     case "$system" in
         "apple")
             echo "🍎 Using Apple Container..."
@@ -113,9 +113,9 @@ show_info() {
         echo "Architecture: $(uname -m)"
     fi
     echo ""
-    
+
     echo "📦 Available Container Systems:"
-    
+
     # Check Apple Container
     if [[ "$OSTYPE" == "darwin"* ]]; then
         if command -v container &> /dev/null; then
@@ -124,14 +124,14 @@ show_info() {
             echo "❌ Apple Container: Not available"
         fi
     fi
-    
+
     # Check Podman
     if command -v podman &> /dev/null; then
         echo "✅ Podman: $(podman --version)"
     else
         echo "❌ Podman: Not installed"
     fi
-    
+
     # Check Docker
     if command -v docker &> /dev/null; then
         echo "✅ Docker: $(docker --version)"
@@ -159,7 +159,7 @@ case "$command" in
         echo "  3. Docker (fallback)"
         echo ""
         echo "Commands:"
-        echo "  run      - Build and run ModelMuxer container"
+        echo "  run      - Build and run modelmuxer container"
         echo "  stop     - Stop and remove containers"
         echo "  logs     - Show container logs"
         echo "  test     - Test the running application"
