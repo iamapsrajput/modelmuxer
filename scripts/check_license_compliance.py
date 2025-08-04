@@ -95,7 +95,6 @@ class LicenseComplianceChecker:
                 and not self.should_skip(file_path)
                 and file_path.suffix.lower() in self.REQUIRED_HEADERS
             ):
-
                 if not self.check_file_header(file_path):
                     missing_headers.append(str(file_path.relative_to(self.project_root)))
 

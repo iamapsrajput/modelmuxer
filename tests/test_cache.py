@@ -335,7 +335,10 @@ class TestCacheIntegration:
         cached_response = await cache.get(cache_key)
         assert cached_response is not None
         assert cached_response["model"] == "gpt-3.5-turbo"
-        assert cached_response["choices"][0]["message"]["content"] == "Python is a programming language."
+        assert (
+            cached_response["choices"][0]["message"]["content"]
+            == "Python is a programming language."
+        )
 
     def test_cache_key_generation(self) -> None:
         """Test cache key generation for different scenarios."""

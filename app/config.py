@@ -26,7 +26,9 @@ class Settings(BaseSettings):
 
     # Security
     api_key_header: str = Field("Authorization", description="API key header name")
-    allowed_api_keys: str = Field(default="", description="Comma-separated allowed API keys (set via API_KEYS env var)")
+    allowed_api_keys: str = Field(
+        default="", description="Comma-separated allowed API keys (set via API_KEYS env var)"
+    )
 
     # Server Configuration
     # Note: 0.0.0.0 binding is intentional for container deployment
@@ -44,18 +46,38 @@ class Settings(BaseSettings):
     simple_query_max_length: int = Field(100, description="Max length for simple queries")
 
     # Provider Pricing (per million tokens)
-    openai_gpt4o_input_price: float = Field(5.0, description="GPT-4o input price per million tokens")
-    openai_gpt4o_output_price: float = Field(15.0, description="GPT-4o output price per million tokens")
-    openai_gpt35_input_price: float = Field(0.5, description="GPT-3.5-turbo input price per million tokens")
-    openai_gpt35_output_price: float = Field(1.5, description="GPT-3.5-turbo output price per million tokens")
+    openai_gpt4o_input_price: float = Field(
+        5.0, description="GPT-4o input price per million tokens"
+    )
+    openai_gpt4o_output_price: float = Field(
+        15.0, description="GPT-4o output price per million tokens"
+    )
+    openai_gpt35_input_price: float = Field(
+        0.5, description="GPT-3.5-turbo input price per million tokens"
+    )
+    openai_gpt35_output_price: float = Field(
+        1.5, description="GPT-3.5-turbo output price per million tokens"
+    )
 
-    anthropic_sonnet_input_price: float = Field(3.0, description="Claude-3-sonnet input price per million tokens")
-    anthropic_sonnet_output_price: float = Field(15.0, description="Claude-3-sonnet output price per million tokens")
-    anthropic_haiku_input_price: float = Field(0.25, description="Claude-3-haiku input price per million tokens")
-    anthropic_haiku_output_price: float = Field(1.25, description="Claude-3-haiku output price per million tokens")
+    anthropic_sonnet_input_price: float = Field(
+        3.0, description="Claude-3-sonnet input price per million tokens"
+    )
+    anthropic_sonnet_output_price: float = Field(
+        15.0, description="Claude-3-sonnet output price per million tokens"
+    )
+    anthropic_haiku_input_price: float = Field(
+        0.25, description="Claude-3-haiku input price per million tokens"
+    )
+    anthropic_haiku_output_price: float = Field(
+        1.25, description="Claude-3-haiku output price per million tokens"
+    )
 
-    mistral_small_input_price: float = Field(0.2, description="Mistral-small input price per million tokens")
-    mistral_small_output_price: float = Field(0.6, description="Mistral-small output price per million tokens")
+    mistral_small_input_price: float = Field(
+        0.2, description="Mistral-small input price per million tokens"
+    )
+    mistral_small_output_price: float = Field(
+        0.6, description="Mistral-small output price per million tokens"
+    )
 
     class Config:
         env_file = ".env"

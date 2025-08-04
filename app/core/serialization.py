@@ -81,7 +81,11 @@ class SecureSerializer:
             elif obj_type == "object":
                 # For simple objects, we can't fully restore them
                 # Return as a dict with metadata
-                return {"_restored_object": True, "_class": obj["__class__"], **self._restore_from_json(value)}
+                return {
+                    "_restored_object": True,
+                    "_class": obj["__class__"],
+                    **self._restore_from_json(value),
+                }
             elif obj_type == "string_repr":
                 return value
 

@@ -64,7 +64,9 @@ class RedisCache(CacheInterface):
         # Initialize connection
         self._initialize_connection(max_connections)
 
-        logger.info("redis_cache_initialized", redis_url=redis_url, db=db, compression=compression_enabled)
+        logger.info(
+            "redis_cache_initialized", redis_url=redis_url, db=db, compression=compression_enabled
+        )
 
     def _initialize_connection(self, max_connections: int) -> None:
         """Initialize Redis connection pool."""
@@ -111,7 +113,9 @@ class RedisCache(CacheInterface):
                 return secure_serializer.deserialize(data)
             except ValueError:
                 # Fallback to legacy pickle format for backward compatibility
-                logger.warning("falling_back_to_pickle_deserialization", reason="secure_deserialization_failed")
+                logger.warning(
+                    "falling_back_to_pickle_deserialization", reason="secure_deserialization_failed"
+                )
 
                 if data.startswith(b"compressed:"):
                     # Legacy compressed pickle format

@@ -65,7 +65,9 @@ class ProviderConfig(BaseSettings):
             self.together_api_key,
         ]
 
-        configured_providers = [p for p in providers if p and not p.startswith("your-") and not p.endswith("-here")]
+        configured_providers = [
+            p for p in providers if p and not p.startswith("your-") and not p.endswith("-here")
+        ]
 
         if not configured_providers:
             raise ValueError(
