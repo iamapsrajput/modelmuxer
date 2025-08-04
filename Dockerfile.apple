@@ -1,0 +1,72 @@
+# ModelMuxer Apple Container Dockerfile
+# Optimized for Apple's native containerization on macOS 15+ Beta
+
+FROM python:3.11-slim
+
+# Set environment variables optimized for Apple Container
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONPATH=/app
+
+# Apple Container specific labels
+LABEL maintainer="ModelMuxer Team" \
+      version="1.0.0" \
+      description="ModelMuxer LLM Router optimized for Apple Container" \
+      apple.container.optimized="true"
+
+# Install system dependencies with Apple Silicon optimizations
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Install Poetry with specific version for stability
+RUN pip install poetry==1.7.1
+
+# Configure Poetry for container environment
+RUN poetry config virtualenvs.create false \
+    && poetry config cache-dir /tmp/poetry-cache
+
+# Set work directory
+WORKDIR /app
+
+# Copy Poetry files first for better layer caching
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies with Apple Container optimizations
+RUN poetry install --with dev --no-interaction --no-ansi \
+    && rm -rf /tmp/poetry-cache
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs \
+    && chmod 755 /app/data /app/logs
+
+# Create non-root user for security (Apple Container best practice)
+RUN groupadd -r modelmuxer && useradd -r -g modelmuxer modelmuxer \
+    && chown -R modelmuxer:modelmuxer /app
+
+# Switch to non-root user
+USER modelmuxer
+
+# Expose port
+EXPOSE 8000
+
+# Health check optimized for Apple Container
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Apple Container specific metadata
+LABEL apple.container.runtime="python" \
+      apple.container.port="8000" \
+      apple.container.healthcheck="true"
+
+# Run the application with Apple Container optimizations
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -143,7 +143,7 @@ For complete API documentation, see our [OpenAPI Specification](docs/api/openapi
 2. **Install dependencies**
 
    ```bash
-   pip install -r requirements.txt
+   poetry install --with dev,ml
    ```
 
 3. **Configure environment variables**
@@ -187,6 +187,56 @@ ALLOWED_API_KEYS=sk-test-key-1,sk-test-key-2
 DEFAULT_DAILY_BUDGET=10.0
 DEFAULT_MONTHLY_BUDGET=100.0
 ```
+
+## Containerization
+
+ModelMuxer supports multiple containerization platforms with auto-detection:
+
+### **Quick Start (Auto-Detection)**
+
+```bash
+# Automatically detects and uses the best available containerization system
+./scripts/container-auto.sh run
+```
+
+### **Apple Container (macOS 15+ Beta)**
+
+```bash
+# Check system compatibility
+./scripts/apple-container-commands.sh check
+
+# Build and run with Apple Container
+./scripts/apple-container-commands.sh run
+
+# Using Apple Container Compose
+container compose -f container-compose.yaml up -d
+```
+
+### **Podman (Recommended Alternative)**
+
+```bash
+# Install Podman
+brew install podman
+
+# Initialize and start Podman machine
+podman machine init && podman machine start
+
+# Run with Podman
+./scripts/podman-commands.sh run
+```
+
+### **Docker (Cross-Platform)**
+
+```bash
+# Using Docker Compose
+docker-compose up -d
+
+# Or build and run manually
+docker build -t modelmuxer:latest .
+docker run -d --name modelmuxer --env-file .env -p 8000:8000 modelmuxer:latest
+```
+
+For detailed containerization instructions and troubleshooting, see [docs/containerization-guide.md](docs/containerization-guide.md).
 
 ## API Usage
 
@@ -451,7 +501,7 @@ curl -H "Authorization: Bearer sk-test-key-1" \
 1. Fork the repository
 2. Create a virtual environment: `python -m venv venv`
 3. Activate: `source venv/bin/activate` (Linux/Mac) or `venv\Scripts\activate` (Windows)
-4. Install dependencies: `pip install -r requirements.txt`
+4. Install dependencies: `poetry install --with dev,ml`
 5. Run tests: `python test_router.py && python test_requests.py`
 
 ### Adding New Providers

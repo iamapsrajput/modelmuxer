@@ -11,6 +11,7 @@ import time
 import pytest
 
 
+@pytest.mark.performance
 class TestBasicPerformance:
     """Basic performance tests that run in CI."""
 
@@ -56,7 +57,7 @@ class TestBasicPerformance:
 
         # Create many message objects to test validation performance
         for i in range(100):
-            msg = ChatMessage(role="user", content=f"Test message {i}")
+            msg = ChatMessage(role="user", content=f"Test message {i}", name=None)
             assert msg.role == "user"
 
         end_time = time.time()
@@ -65,6 +66,7 @@ class TestBasicPerformance:
         # 100 model validations should be fast
         assert validation_time < 1.0, f"Model validation took too long: {validation_time:.2f}s"
 
+    @pytest.mark.performance
     @pytest.mark.asyncio
     async def test_async_operations_performance(self) -> None:
         """Test basic async operations performance."""

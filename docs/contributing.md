@@ -34,8 +34,8 @@ git remote add upstream https://github.com/iamapsrajput/ModelMuxer.git
 # Install Poetry if you haven't already
 curl -sSL https://install.python-poetry.org | python3 -
 
-# Install dependencies
-poetry install --with dev
+# Install dependencies (including ML dependencies for full development)
+poetry install --with dev,ml
 
 # Activate virtual environment
 poetry shell
@@ -148,6 +148,7 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 ```
 
 **Types:**
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -157,6 +158,7 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 - `chore`: Maintenance tasks
 
 **Examples:**
+
 ```
 feat(router): add semantic routing strategy
 fix(auth): resolve JWT token validation issue
@@ -215,20 +217,24 @@ git push origin feature/your-feature-name
 
 ```markdown
 ## Description
+
 Brief description of changes made.
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
 - [ ] Documentation update
 
 ## Testing
+
 - [ ] Tests pass locally
 - [ ] Added tests for new functionality
 - [ ] Manual testing completed
 
 ## Checklist
+
 - [ ] Code follows project style guidelines
 - [ ] Self-review completed
 - [ ] Documentation updated
@@ -238,11 +244,13 @@ Brief description of changes made.
 ### Review Process
 
 1. **Automated Checks**
+
    - All tests must pass
    - Code coverage must meet threshold
    - Linting checks must pass
 
 2. **Code Review**
+
    - At least one maintainer review required
    - Address all feedback
    - Update PR as needed

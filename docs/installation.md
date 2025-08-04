@@ -38,9 +38,8 @@ poetry shell
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Export dependencies from Poetry and install
-poetry export -f requirements.txt --output requirements.txt
-pip install -r requirements.txt
+# Install dependencies using Poetry
+poetry install --with dev,ml
 ```
 
 ### 3. Environment Configuration

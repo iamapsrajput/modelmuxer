@@ -1,0 +1,63 @@
+# Apple Container Compose Configuration
+# For macOS 15+ Beta with native Apple containerization
+
+version: '1.0'
+
+services:
+  modelmuxer:
+    build:
+      context: .
+      dockerfile: Dockerfile.apple
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Core application settings
+      - TESTING=false
+      - ENVIRONMENT=development
+      - HOST=0.0.0.0
+      - PORT=8000
+      
+      # Database configuration
+      - DATABASE_URL=sqlite:///data/modelmuxer.db
+      
+      # Authentication
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-for-apple-container}
+      - AUTH_ENABLED=${AUTH_ENABLED:-true}
+      
+      # Cache and monitoring
+      - CACHE_TYPE=memory
+      - MONITORING_ENABLED=true
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    
+    # Apple Container specific optimizations
+    resources:
+      memory: 1g
+      cpus: 2
+    
+    # Security context for Apple Container
+    security:
+      privileged: false
+      read_only_root_filesystem: false
+    
+    # Apple Container networking
+    networks:
+      - modelmuxer-network
+
+networks:
+  modelmuxer-network:
+    driver: bridge

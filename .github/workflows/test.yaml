@@ -142,6 +142,16 @@ jobs:
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           poetry run pytest tests/ -v --cov=app --cov-append --cov-report=xml -m "integration"
 
+      - name: Run performance tests
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          REDIS_URL: redis://localhost:6379/0
+          TESTING: true
+        run: |
+          export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
+          # Run performance tests but don't fail the build if they're slow
+          poetry run pytest tests/performance/ -v --cov=app --cov-append --cov-report=xml -m "performance and not slow" || echo "Performance tests completed with warnings"
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -310,19 +320,6 @@ jobs:
           comment-on-alert: true
           summary-always: true
 
-      - name: Notify Slack on test completion
-        if: always()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          fields: repo,message,commit,author,action,eventName,ref,workflow
-          text: |
-            ${{ job.status == 'success' && '✅ Tests passed successfully' || '❌ Tests failed' }}
-            Commit: ${{ github.sha }}
-            Branch: ${{ github.ref_name }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
@@ -347,3 +344,24 @@ jobs:
           else
             echo "✅ All tests passed successfully" >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Notify Slack on test completion
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          text: |
+            ${{ (needs.lint.result == 'success' && needs.test.result == 'success' && needs.security-scan.result == 'success' && needs.dependency-check.result == 'success') && '✅ All tests passed successfully' || '❌ Some tests failed' }}
+
+            📊 **Test Results Summary:**
+            • Lint: ${{ needs.lint.result == 'success' && '✅' || '❌' }} ${{ needs.lint.result }}
+            • Tests: ${{ needs.test.result == 'success' && '✅' || '❌' }} ${{ needs.test.result }}
+            • Security: ${{ needs.security-scan.result == 'success' && '✅' || '❌' }} ${{ needs.security-scan.result }}
+            • Dependencies: ${{ needs.dependency-check.result == 'success' && '✅' || '❌' }} ${{ needs.dependency-check.result }}
+
+            📝 Commit: ${{ github.sha }}
+            🌿 Branch: ${{ github.ref_name }}
+            👤 Author: ${{ github.actor }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

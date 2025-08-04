@@ -46,27 +46,48 @@ async def lifespan(app: FastAPI) -> None:
     await db.init_database()
     print("✅ Database initialized")
 
-    # Initialize providers
-    try:
-        providers["openai"] = OpenAIProvider()
-        print("✅ OpenAI provider initialized")
-    except Exception as e:
-        print(f"⚠️  OpenAI provider failed to initialize: {e}")
+    # Initialize providers with API keys from settings
+    import os
 
-    try:
-        providers["anthropic"] = AnthropicProvider()
-        print("✅ Anthropic provider initialized")
-    except Exception as e:
-        print(f"⚠️  Anthropic provider failed to initialize: {e}")
+    from dotenv import load_dotenv
 
-    try:
-        providers["mistral"] = MistralProvider()
-        print("✅ Mistral provider initialized")
-    except Exception as e:
-        print(f"⚠️  Mistral provider failed to initialize: {e}")
+    # Load environment variables from .env file
+    load_dotenv()
+
+    # OpenAI
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key and not openai_key.startswith("your-") and not openai_key.endswith("-here"):
+        try:
+            providers["openai"] = OpenAIProvider(api_key=openai_key)
+            print("✅ OpenAI provider initialized")
+        except Exception as e:
+            print(f"⚠️  OpenAI provider failed to initialize: {e}")
+
+    # Anthropic
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    if anthropic_key and not anthropic_key.startswith("your-") and not anthropic_key.endswith("-here"):
+        try:
+            providers["anthropic"] = AnthropicProvider(api_key=anthropic_key)
+            print("✅ Anthropic provider initialized")
+        except Exception as e:
+            print(f"⚠️  Anthropic provider failed to initialize: {e}")
+
+    # Mistral
+    mistral_key = os.getenv("MISTRAL_API_KEY")
+    if mistral_key and not mistral_key.startswith("your-") and not mistral_key.endswith("-here"):
+        try:
+            providers["mistral"] = MistralProvider(api_key=mistral_key)
+            print("✅ Mistral provider initialized")
+        except Exception as e:
+            print(f"⚠️  Mistral provider failed to initialize: {e}")
 
     if not providers:
         print("❌ No providers initialized! Check your API keys.")
+        print("💡 Make sure you have valid API keys in your .env file:")
+        print("   - OPENAI_API_KEY=sk-...")
+        print("   - ANTHROPIC_API_KEY=sk-ant-...")
+        print("   - MISTRAL_API_KEY=...")
+        print("   (Keys should not contain placeholder text like 'your-key-here')")
 
     print(f"🎯 Router ready with {len(providers)} providers")
 
@@ -90,9 +111,9 @@ app = FastAPI(
 
 # Add CORS middleware with secure configuration
 # Get allowed origins from environment or use secure defaults
-allowed_origins = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,https://modelmuxer.com"
-).split(",")
+allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,https://modelmuxer.com").split(
+    ","
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -161,17 +182,13 @@ async def validate_request_middleware(request: Request, call_next) -> None:
     return await call_next(request)
 
 
-async def get_authenticated_user(
-    request: Request, authorization: str | None = Header(None)
-) -> dict[str, Any]:
+async def get_authenticated_user(request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
     """Dependency to authenticate requests."""
     return await auth.authenticate_request(request, authorization)
 
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
-async def chat_completions(
-    request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)
-):
+async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)):
     """
     Create a chat completion using the optimal LLM provider.
 
@@ -186,9 +203,7 @@ async def chat_completions(
             message.content = sanitize_user_input(message.content)
 
         # Route the request to the best provider/model
-        provider_name, model_name, routing_reason = router.select_model(
-            messages=request.messages, user_id=user_id
-        )
+        provider_name, model_name, routing_reason = router.select_model(messages=request.messages, user_id=user_id)
 
         # Check if provider is available
         if provider_name not in providers:
@@ -225,9 +240,7 @@ async def chat_completions(
         # Handle streaming vs non-streaming
         if request.stream:
             return StreamingResponse(
-                stream_chat_completion(
-                    provider, request, model_name, routing_reason, user_id, start_time
-                ),
+                stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time),
                 media_type="text/plain",
             )
         else:
@@ -240,8 +253,7 @@ async def chat_completions(
                 **{
                     k: v
                     for k, v in request.dict().items()
-                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
-                    and v is not None
+                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
                 },
             )
 
@@ -323,9 +335,7 @@ async def chat_completions(
         ) from e
 
 
-async def stream_chat_completion(
-    provider, request, model_name, routing_reason, user_id, start_time
-):
+async def stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time):
     """Handle streaming chat completion."""
     try:
         async for chunk in provider.stream_chat_completion(
@@ -336,8 +346,7 @@ async def stream_chat_completion(
             **{
                 k: v
                 for k, v in request.dict().items()
-                if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
-                and v is not None
+                if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
             },
         ):
             yield f"data: {json.dumps(chunk)}\n\n"
@@ -346,12 +355,8 @@ async def stream_chat_completion(
 
         # Log streaming request (with estimated tokens)
         response_time_ms = (time.time() - start_time) * 1000
-        estimated_tokens = cost_tracker.count_tokens(
-            request.messages, provider.provider_name, model_name
-        )
-        estimated_cost = cost_tracker.calculate_cost(
-            provider.provider_name, model_name, estimated_tokens, 100
-        )
+        estimated_tokens = cost_tracker.count_tokens(request.messages, provider.provider_name, model_name)
+        estimated_cost = cost_tracker.calculate_cost(provider.provider_name, model_name, estimated_tokens, 100)
 
         await db.log_request(
             user_id=user_id,

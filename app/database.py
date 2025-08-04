@@ -10,14 +10,16 @@ from typing import Any
 
 import aiosqlite
 
-from .config import settings
-
 
 class Database:
     """Async SQLite database manager for the LLM router."""
 
     def __init__(self, db_path: str = None):
-        self.db_path = db_path or settings.database_url.replace("sqlite:///", "")
+        # Use default SQLite database for local development
+        import os
+
+        database_url = os.getenv("DATABASE_URL", "sqlite:///./modelmuxer.db")
+        self.db_path = db_path or database_url.replace("sqlite:///", "")
 
     async def init_database(self) -> None:
         """Initialize database tables."""
@@ -90,12 +92,8 @@ class Database:
 
             # Create indexes for better performance
             await db.execute("CREATE INDEX IF NOT EXISTS idx_requests_user_id ON requests(user_id)")
-            await db.execute(
-                "CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at)"
-            )
-            await db.execute(
-                "CREATE INDEX IF NOT EXISTS idx_daily_usage_user_date ON daily_usage(user_id, date)"
-            )
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_daily_usage_user_date ON daily_usage(user_id, date)")
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_monthly_usage_user_month ON monthly_usage(user_id, year, month)"
             )
@@ -110,7 +108,7 @@ class Database:
                 INSERT OR IGNORE INTO users (user_id, daily_budget, monthly_budget)
                 VALUES (?, ?, ?)
             """,
-                (user_id, settings.default_daily_budget, settings.default_monthly_budget),
+                (user_id, 100.0, 1000.0),  # Default budgets
             )
             await db.commit()
 

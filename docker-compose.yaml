@@ -1,29 +1,59 @@
 # ModelMuxer (c) 2025 Ajay Rajput
 # Licensed under Business Source License 1.1 – see LICENSE for details.
-version: '3.8'
+# Docker Compose Configuration - Compatible with Docker, Podman, and other OCI runtimes
+# For Apple Container, use container-compose.yaml instead
+
+version: "3.8"
 
 services:
-  llm-router:
-    build: .
+  modelmuxer:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
-      - DEFAULT_MODEL=${DEFAULT_MODEL:-gpt-3.5-turbo}
-      - MAX_TOKENS_DEFAULT=${MAX_TOKENS_DEFAULT:-1000}
-      - TEMPERATURE_DEFAULT=${TEMPERATURE_DEFAULT:-0.7}
-      - DATABASE_URL=sqlite:///data/router_data.db
-      - ALLOWED_API_KEYS=${ALLOWED_API_KEYS:-sk-test-key-1,sk-test-key-2}
+      # Core application settings
+      - TESTING=false
+      - ENVIRONMENT=development
       - HOST=0.0.0.0
       - PORT=8000
       - DEBUG=${DEBUG:-false}
+
+      # Database configuration
+      - DATABASE_URL=sqlite:///data/modelmuxer.db
+
+      # Authentication
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-for-container-testing}
+      - API_KEYS=${API_KEYS:-sk-test-key-1,sk-test-key-2}
+      - AUTH_ENABLED=${AUTH_ENABLED:-true}
+
+      # Provider API keys (from .env file)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY}
+      - COHERE_API_KEY=${COHERE_API_KEY}
+
+      # Routing configuration
+      - DEFAULT_ROUTING_STRATEGY=${DEFAULT_ROUTING_STRATEGY:-heuristic}
+      - HEURISTIC_ROUTING_ENABLED=${HEURISTIC_ROUTING_ENABLED:-true}
+      - SEMANTIC_ROUTING_ENABLED=${SEMANTIC_ROUTING_ENABLED:-false}
+      - CASCADE_ROUTING_ENABLED=${CASCADE_ROUTING_ENABLED:-true}
+
+      # Cache and monitoring
+      - CACHE_TYPE=memory
+      - MONITORING_ENABLED=true
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - ./data:/app/data
+      - ./logs:/app/logs
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
