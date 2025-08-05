@@ -80,7 +80,7 @@ This document contains the licenses for all third-party dependencies used in Mod
 
 ## License Compatibility
 
-All third-party licenses are compatible with the Business Source License 1.1 and 
+All third-party licenses are compatible with the Business Source License 1.1 and
 the future Apache License 2.0 transition.
 
 - **MIT License**: Compatible ✅

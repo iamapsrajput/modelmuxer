@@ -530,4 +530,4 @@ kubectl exec -n modelmuxer-production postgresql-production-0 -- \
 
 ---
 
-For additional support or questions about production deployment, please contact our support team or refer to the comprehensive documentation at https://docs.modelmuxer.com.
+For additional support or questions about production deployment, please contact our support team or refer to the comprehensive documentation at <https://docs.modelmuxer.com>.
