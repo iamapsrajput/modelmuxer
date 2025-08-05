@@ -87,6 +87,27 @@ docker run -d --name modelmuxer -p 8000:8000 modelmuxer:latest
 docker-compose up -d
 ```
 
+### CI/CD Enhancements
+
+The Docker build process includes several production-ready improvements:
+
+#### Multi-Platform Support
+
+- **Production builds**: Support both `linux/amd64` and `linux/arm64` architectures
+- **Development builds**: Single platform (`linux/amd64`) for faster iteration
+
+#### Security & Compliance
+
+- **Vulnerability scanning**: Integrated Trivy security scanning
+- **SBOM generation**: Software Bill of Materials for production builds
+- **Provenance attestation**: Build provenance tracking for supply chain security
+
+#### Performance Optimizations
+
+- **GitHub Actions cache**: Leverages build cache for faster CI/CD
+- **Conditional features**: Attestations only generated for production builds
+- **Smart tagging**: Dynamic tag generation based on branch and event type
+
 ## Feature Comparison
 
 | Feature                 | Apple Container | Docker |

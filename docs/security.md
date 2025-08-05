@@ -7,12 +7,14 @@ ModelMuxer implements multiple layers of security to protect your data, API keys
 ## Authentication and Authorization
 
 ### API Key Management
+
 - Store API keys securely in environment variables
 - Never commit API keys to version control
 - Rotate keys regularly
 - Use different keys for different environments
 
 ### JWT Token Authentication
+
 ```python
 # Configure JWT settings
 JWT_SECRET_KEY = "your-secure-secret-key"
@@ -21,6 +23,7 @@ JWT_EXPIRATION_HOURS = 24
 ```
 
 ### Role-Based Access Control (RBAC)
+
 - Admin: Full system access
 - User: Standard API access with quotas
 - Readonly: Monitoring and analytics only
@@ -28,23 +31,60 @@ JWT_EXPIRATION_HOURS = 24
 ## Data Protection
 
 ### Encryption at Rest
+
 - Database encryption for sensitive data
 - Encrypted configuration files
 - Secure key storage using HashiCorp Vault or AWS KMS
 
 ### Encryption in Transit
+
 - TLS 1.3 for all API communications
 - Certificate pinning for provider connections
 - End-to-end encryption for sensitive requests
 
 ### Data Retention
+
 - Configurable log retention periods
 - Automatic data purging
 - GDPR compliance features
 
+## CI/CD Security Enhancements
+
+### Automated Security Scanning
+
+ModelMuxer includes comprehensive security scanning in the CI/CD pipeline:
+
+#### Secret Detection
+
+- **Gitleaks integration**: Scans for accidentally committed secrets
+- **Smart filtering**: Custom configuration prevents false positives in documentation
+- **Pattern recognition**: Detects API keys, tokens, and credentials across multiple formats
+
+#### Vulnerability Scanning
+
+- **Trivy container scanning**: Identifies vulnerabilities in Docker images
+- **Dependency scanning**: Monitors third-party package vulnerabilities
+- **SARIF reporting**: Standardized security findings format
+
+#### Code Quality Security
+
+- **Bandit static analysis**: Identifies common Python security issues
+- **Type safety**: MyPy type checking prevents runtime security issues
+- **Linting rules**: Ruff configuration includes security-focused rules
+
+### Gitleaks Configuration
+
+The repository includes a comprehensive `.gitleaks.toml` configuration that:
+
+- **Excludes documentation**: Prevents false positives from API examples
+- **Pattern matching**: Recognizes legitimate placeholders and test data
+- **Stop words**: Identifies non-secret indicators like "example", "test", "fake"
+- **Path-based filtering**: Automatically excludes test files and documentation
+
 ## Network Security
 
 ### API Rate Limiting
+
 ```python
 # Rate limiting configuration
 RATE_LIMIT_REQUESTS = 100
@@ -53,6 +93,7 @@ RATE_LIMIT_STORAGE = "redis://localhost:6379"
 ```
 
 ### IP Whitelisting
+
 ```python
 # Allow specific IP ranges
 ALLOWED_IPS = [
@@ -62,6 +103,7 @@ ALLOWED_IPS = [
 ```
 
 ### CORS Configuration
+
 ```python
 # Secure CORS settings
 CORS_ALLOWED_ORIGINS = [
@@ -74,12 +116,14 @@ CORS_ALLOW_CREDENTIALS = True
 ## Input Validation and Sanitization
 
 ### Request Validation
+
 - Pydantic models for all API inputs
 - Schema validation for all parameters
 - SQL injection prevention
 - XSS protection
 
 ### Content Filtering
+
 - Prompt sanitization
 - Malicious content detection
 - PII detection and redaction
@@ -87,11 +131,13 @@ CORS_ALLOW_CREDENTIALS = True
 ## Provider Security
 
 ### API Key Isolation
+
 - Separate credentials per provider
 - Key rotation without service interruption
 - Provider-specific security policies
 
 ### Request Signing
+
 - HMAC signing for critical requests
 - Timestamp validation
 - Replay attack prevention
@@ -99,6 +145,7 @@ CORS_ALLOW_CREDENTIALS = True
 ## Audit and Compliance
 
 ### Audit Logging
+
 ```python
 # Security events logged
 - Authentication attempts
@@ -109,6 +156,7 @@ CORS_ALLOW_CREDENTIALS = True
 ```
 
 ### Compliance Features
+
 - SOC 2 Type II compatible logging
 - GDPR data handling
 - HIPAA compliance options
@@ -117,12 +165,14 @@ CORS_ALLOW_CREDENTIALS = True
 ## Vulnerability Management
 
 ### Security Scanning
+
 - Automated dependency scanning
 - Container image vulnerability scanning
 - Static code analysis (SAST)
 - Dynamic application security testing (DAST)
 
 ### Security Updates
+
 ```bash
 # Regular security updates
 poetry update
@@ -132,6 +182,7 @@ poetry audit
 ## Incident Response
 
 ### Security Incident Handling
+
 1. **Detection**: Automated monitoring and alerting
 2. **Containment**: Immediate threat isolation
 3. **Investigation**: Root cause analysis
@@ -139,6 +190,7 @@ poetry audit
 5. **Lessons Learned**: Process improvement
 
 ### Emergency Procedures
+
 - API key revocation process
 - Service isolation protocols
 - Communication templates
@@ -147,12 +199,14 @@ poetry audit
 ## Development Security
 
 ### Secure Coding Practices
+
 - Input validation on all user inputs
 - Parameterized queries to prevent SQL injection
 - Secure random number generation
 - Proper error handling without information disclosure
 
 ### Security Testing
+
 ```bash
 # Security testing commands
 poetry run bandit -r app/
@@ -161,6 +215,7 @@ poetry run semgrep --config=auto app/
 ```
 
 ### Pre-commit Security Hooks
+
 ```yaml
 # .pre-commit-config.yaml
 repos:
@@ -179,6 +234,7 @@ repos:
 ## Deployment Security
 
 ### Container Security
+
 ```dockerfile
 # Security-hardened Dockerfile
 FROM python:3.11-slim-bullseye
@@ -188,12 +244,14 @@ COPY --chown=modelmuxer:modelmuxer . /app
 ```
 
 ### Environment Security
+
 - Separate environments (dev/staging/prod)
 - Environment-specific configurations
 - Secrets management with external vaults
 - Network segmentation
 
 ### Production Hardening
+
 - Remove debug endpoints in production
 - Disable verbose error messages
 - Implement proper logging without sensitive data
@@ -202,12 +260,14 @@ COPY --chown=modelmuxer:modelmuxer . /app
 ## Monitoring and Detection
 
 ### Security Monitoring
+
 - Failed authentication tracking
 - Unusual access patterns
 - API abuse detection
 - Anomaly detection
 
 ### Alerting
+
 ```python
 # Security alerts
 - Multiple failed login attempts
@@ -219,12 +279,14 @@ COPY --chown=modelmuxer:modelmuxer . /app
 ## Configuration Security
 
 ### Secure Defaults
+
 - Strong password policies
 - Secure communication protocols
 - Minimal permissions principle
 - Regular security updates
 
 ### Environment Variables
+
 ```bash
 # Secure configuration management
 export OPENAI_API_KEY="sk-..."
@@ -245,6 +307,7 @@ export DATABASE_URL="postgresql://..."
 ## Security Checklist
 
 ### Pre-deployment
+
 - [ ] All secrets in environment variables
 - [ ] HTTPS configured with valid certificates
 - [ ] Rate limiting enabled
@@ -254,6 +317,7 @@ export DATABASE_URL="postgresql://..."
 - [ ] Dependencies scanned for vulnerabilities
 
 ### Production
+
 - [ ] Regular security updates
 - [ ] Monitoring and alerting active
 - [ ] Backup and recovery tested
@@ -264,6 +328,7 @@ export DATABASE_URL="postgresql://..."
 ## Contact
 
 For security issues or questions:
+
 - Email: security@modelmuxer.com
 - Security advisory: Report privately via GitHub Security Advisories
 
