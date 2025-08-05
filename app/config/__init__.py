@@ -11,45 +11,49 @@ enhanced configuration with support for all advanced features.
 import importlib.util
 import os
 import sys
+from typing import Any, Callable, Optional, Type
 
 # Load the basic config module directly
 config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.py")
 spec = importlib.util.spec_from_file_location("basic_config", config_path)
-basic_config_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(basic_config_module)
+if spec is not None and spec.loader is not None:
+    basic_config_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(basic_config_module)
+else:
+    raise ImportError("Could not load basic config module")
 Settings = basic_config_module.Settings
 
 # Initialize with basic config by default
 settings = Settings()
 
 # Enhanced config components (will be set if enhanced mode is available)
-enhanced_config = None
-AuthConfig = None
-CacheConfig = None
-ClassificationConfig = None
-LoggingConfig = None
-ModelMuxerConfig = None
-MonitoringConfig = None
-ProviderConfig = None
-RateLimitConfig = None
-RoutingConfig = None
-load_enhanced_config = None
+enhanced_config: Optional[Any] = None
+AuthConfig: Optional[Type[Any]] = None
+CacheConfig: Optional[Type[Any]] = None
+ClassificationConfig: Optional[Type[Any]] = None
+LoggingConfig: Optional[Type[Any]] = None
+ModelMuxerConfig: Optional[Type[Any]] = None
+MonitoringConfig: Optional[Type[Any]] = None
+ProviderConfig: Optional[Type[Any]] = None
+RateLimitConfig: Optional[Type[Any]] = None
+RoutingConfig: Optional[Type[Any]] = None
+load_enhanced_config: Optional[Callable[[], Any]] = None
 
 # Only try to load enhanced config if we're in enhanced mode
 if os.getenv("MODELMUXER_MODE", "basic").lower() in ["enhanced", "production"]:
     try:
-        from .enhanced_config import (
-            AuthConfig,
-            CacheConfig,
-            ClassificationConfig,
-            LoggingConfig,
-            ModelMuxerConfig,
-            MonitoringConfig,
-            ProviderConfig,
-            RateLimitConfig,
-            RoutingConfig,
-            enhanced_config,
-            load_enhanced_config,
+        from .enhanced_config import (  # type: ignore[attr-defined]
+            AuthConfig,  # type: ignore[misc]
+            CacheConfig,  # type: ignore[misc]
+            ClassificationConfig,  # type: ignore[misc]
+            LoggingConfig,  # type: ignore[misc]
+            ModelMuxerConfig,  # type: ignore[misc]
+            MonitoringConfig,  # type: ignore[misc]
+            ProviderConfig,  # type: ignore[misc]
+            RateLimitConfig,  # type: ignore[misc]
+            RoutingConfig,  # type: ignore[misc]
+            enhanced_config,  # type: ignore[misc]
+            load_enhanced_config,  # type: ignore[misc]
         )
 
         # Use enhanced config if it loaded successfully

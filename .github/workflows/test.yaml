@@ -299,8 +299,9 @@ jobs:
 
       - name: Run safety check
         run: |
-          poetry run safety check --output json > safety-report.json || true
-          poetry run safety check
+          # Ignore CVE-2022-42969 (51457) - DISPUTED ReDoS in py package Subversion handling (not applicable to our use case)
+          poetry run safety check --ignore 51457 --output json > safety-report.json || true
+          poetry run safety check --ignore 51457
 
       - name: Run pip-audit
         run: |

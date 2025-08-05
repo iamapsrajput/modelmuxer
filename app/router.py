@@ -210,27 +210,29 @@ class HeuristicRouter:
             matches = re.findall(pattern, full_text, re.IGNORECASE | re.MULTILINE)
             code_matches += len(matches)
 
-        # Programming keyword detection
+        # Programming keyword detection (using word boundaries to avoid false positives)
         programming_matches = 0
         for keyword in self.programming_keywords:
-            if keyword.lower() in full_text_lower:
+            # Use word boundaries to match whole words only
+            pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
+            if re.search(pattern, full_text_lower):
                 programming_matches += 1
 
         # Calculate code confidence
         analysis["code_confidence"] = min(1.0, (code_matches * 0.3 + programming_matches * 0.1))
         analysis["has_code"] = analysis["code_confidence"] >= settings.code_detection_threshold
 
-        # Complexity detection
+        # Complexity detection (using word boundaries to avoid false positives)
         complexity_matches = 0
         for keyword in self.complexity_keywords:
-            if keyword.lower() in full_text_lower:
+            # Use word boundaries to match whole words only
+            pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
+            if re.search(pattern, full_text_lower):
                 complexity_matches += 1
 
         # Calculate complexity confidence
         analysis["complexity_confidence"] = min(1.0, complexity_matches * 0.1)
-        analysis["has_complexity"] = (
-            analysis["complexity_confidence"] >= settings.complexity_threshold
-        )
+        analysis["has_complexity"] = analysis["complexity_confidence"] >= settings.complexity_threshold
 
         # Simple query detection
         simple_matches = 0
@@ -324,9 +326,7 @@ class HeuristicRouter:
             reasons.append(f"Code detected (confidence: {analysis['code_confidence']:.2f})")
 
         if analysis["has_complexity"]:
-            reasons.append(
-                f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})"
-            )
+            reasons.append(f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})")
 
         if analysis["is_simple"]:
             reasons.append(f"Simple query detected (length: {analysis['total_length']} chars)")
@@ -341,9 +341,7 @@ class HeuristicRouter:
         if reasons:
             task_reason += f" ({', '.join(reasons)})"
 
-        model_reason = (
-            f"Selected {provider}/{model} for optimal {analysis['task_type']} performance"
-        )
+        model_reason = f"Selected {provider}/{model} for optimal {analysis['task_type']} performance"
 
         return f"{task_reason}. {model_reason}"
 
