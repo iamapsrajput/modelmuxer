@@ -14,7 +14,7 @@ This module provides both basic and advanced cost tracking capabilities includin
 import json
 import sqlite3
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from enum import Enum
 from typing import Any
 
@@ -144,9 +144,7 @@ class CostTracker:
             return min(max_tokens, 1000)  # Cap at reasonable default
         return settings.max_tokens_default // 2  # Estimate half of max as typical output
 
-    def calculate_cost(
-        self, provider: str, model: str, input_tokens: int, output_tokens: int
-    ) -> float:
+    def calculate_cost(self, provider: str, model: str, input_tokens: int, output_tokens: int) -> float:
         """Calculate cost for a request."""
         if provider not in self.pricing:
             return 0.0
@@ -265,9 +263,7 @@ class AdvancedCostTracker(CostTracker):
     - Comprehensive analytics and reporting
     """
 
-    def __init__(
-        self, db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"
-    ):
+    def __init__(self, db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"):
         super().__init__(enhanced_mode=True)
         self.db_path = db_path
         self.redis_url = redis_url
@@ -498,9 +494,7 @@ class AdvancedCostTracker(CostTracker):
         finally:
             conn.close()
 
-    async def _update_usage_cache(
-        self, user_id: str, cost: float, provider: str, model: str
-    ) -> None:
+    async def _update_usage_cache(self, user_id: str, cost: float, provider: str, model: str) -> None:
         """Update real-time usage cache in Redis."""
         if not self.redis_client:
             return
@@ -527,13 +521,217 @@ class AdvancedCostTracker(CostTracker):
             if logger:
                 logger.warning("usage_cache_update_failed", error=str(e))
 
-    async def _check_budget_alerts(
-        self, user_id: str, cost: float, provider: str, model: str
-    ) -> None:
+    async def _check_budget_alerts(self, user_id: str, cost: float, provider: str, model: str) -> None:
         """Check if budget alerts should be triggered."""
         # Implementation would check against user budgets and send alerts
         # This is a simplified version
         pass
+
+    async def set_budget(
+        self,
+        user_id: str,
+        budget_type: str,
+        budget_limit: float,
+        provider: str | None = None,
+        model: str | None = None,
+        alert_thresholds: list[float] | None = None,
+    ) -> None:
+        """Set budget for a user."""
+        if not ENHANCED_FEATURES_AVAILABLE:
+            return
+
+        if alert_thresholds is None:
+            alert_thresholds = [50.0, 80.0, 95.0]
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO user_budgets (
+                    user_id, budget_type, budget_limit, provider, model, alert_thresholds, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+                (
+                    user_id,
+                    budget_type,
+                    budget_limit,
+                    provider,
+                    model,
+                    json.dumps(alert_thresholds),
+                ),
+            )
+
+            conn.commit()
+
+            if logger:
+                logger.info(
+                    "budget_set",
+                    user_id=user_id,
+                    budget_type=budget_type,
+                    budget_limit=budget_limit,
+                    provider=provider,
+                    model=model,
+                )
+
+        finally:
+            conn.close()
+
+    async def get_budget_status(self, user_id: str, budget_type: str | None = None) -> list[dict[str, Any]]:
+        """Get budget status for a user."""
+        if not ENHANCED_FEATURES_AVAILABLE:
+            return []
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            # Get budgets
+            if budget_type:
+                cursor.execute(
+                    """
+                    SELECT budget_type, budget_limit, provider, model, alert_thresholds
+                    FROM user_budgets
+                    WHERE user_id = ? AND budget_type = ?
+                """,
+                    (user_id, budget_type),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT budget_type, budget_limit, provider, model, alert_thresholds
+                    FROM user_budgets
+                    WHERE user_id = ?
+                """,
+                    (user_id,),
+                )
+
+            budgets = cursor.fetchall()
+            budget_statuses = []
+
+            for budget in budgets:
+                budget_type_val, budget_limit, provider, model, alert_thresholds_json = budget
+                alert_thresholds = json.loads(alert_thresholds_json) if alert_thresholds_json else []
+
+                # Calculate current usage based on budget type
+                current_usage = await self._get_current_usage(user_id, budget_type_val, provider, model)
+
+                usage_percentage = (current_usage / budget_limit * 100) if budget_limit > 0 else 0
+                remaining_budget = max(0, budget_limit - current_usage)
+
+                # Generate alerts
+                alerts = []
+                for threshold in alert_thresholds:
+                    if usage_percentage >= threshold:
+                        alert_type = "critical" if threshold >= 90 else "warning"
+                        alerts.append(
+                            {
+                                "type": alert_type,
+                                "message": f"Budget usage at {usage_percentage:.1f}% (threshold: {threshold}%)",
+                                "threshold": threshold,
+                                "current_usage": usage_percentage,
+                            }
+                        )
+
+                # Calculate period dates
+                period_start, period_end = self._get_budget_period_dates(budget_type_val)
+
+                budget_statuses.append(
+                    {
+                        "budget_type": budget_type_val,
+                        "budget_limit": budget_limit,
+                        "current_usage": current_usage,
+                        "usage_percentage": usage_percentage,
+                        "remaining_budget": remaining_budget,
+                        "provider": provider,
+                        "model": model,
+                        "alerts": alerts,
+                        "period_start": period_start,
+                        "period_end": period_end,
+                    }
+                )
+
+            return budget_statuses
+
+        finally:
+            conn.close()
+
+    async def _get_current_usage(
+        self, user_id: str, budget_type: str, provider: str | None, model: str | None
+    ) -> float:
+        """Get current usage for a budget period."""
+        today = date.today()
+
+        if budget_type == "daily":
+            start_date = today
+            end_date = today
+        elif budget_type == "weekly":
+            # Get start of week (Monday)
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=6)
+        elif budget_type == "monthly":
+            start_date = today.replace(day=1)
+            # Get last day of month
+            if today.month == 12:
+                end_date = date(today.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                end_date = date(today.year, today.month + 1, 1) - timedelta(days=1)
+        elif budget_type == "yearly":
+            start_date = today.replace(month=1, day=1)
+            end_date = today.replace(month=12, day=31)
+        else:
+            return 0.0
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                SELECT COALESCE(SUM(cost), 0)
+                FROM cost_requests
+                WHERE user_id = ? AND DATE(timestamp) BETWEEN ? AND ?
+            """
+            params = [user_id, start_date.isoformat(), end_date.isoformat()]
+
+            if provider:
+                query += " AND provider = ?"
+                params.append(provider)
+
+            if model:
+                query += " AND model = ?"
+                params.append(model)
+
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            return result[0] if result else 0.0
+
+        finally:
+            conn.close()
+
+    def _get_budget_period_dates(self, budget_type: str) -> tuple[str, str]:
+        """Get start and end dates for a budget period."""
+        today = date.today()
+
+        if budget_type == "daily":
+            return today.isoformat(), today.isoformat()
+        elif budget_type == "weekly":
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=6)
+            return start_date.isoformat(), end_date.isoformat()
+        elif budget_type == "monthly":
+            start_date = today.replace(day=1)
+            if today.month == 12:
+                end_date = date(today.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                end_date = date(today.year, today.month + 1, 1) - timedelta(days=1)
+            return start_date.isoformat(), end_date.isoformat()
+        elif budget_type == "yearly":
+            start_date = today.replace(month=1, day=1)
+            end_date = today.replace(month=12, day=31)
+            return start_date.isoformat(), end_date.isoformat()
+        else:
+            return today.isoformat(), today.isoformat()
 
 
 # Global cost tracker instance (basic mode by default)

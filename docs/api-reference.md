@@ -167,6 +167,107 @@ Get usage statistics for the authenticated user.
 }
 ```
 
+#### GET /v1/analytics/costs
+
+Get detailed cost analytics and usage statistics.
+
+**Response:**
+
+```json
+{
+  "user_id": "user123",
+  "period_days": 30,
+  "total_cost": 15.75,
+  "total_requests": 150,
+  "cost_by_provider": {
+    "openai": 10.5,
+    "anthropic": 5.25
+  },
+  "cost_by_model": {
+    "gpt-4o": 8.0,
+    "claude-3-sonnet": 7.75
+  },
+  "daily_breakdown": [
+    {
+      "date": "2024-01-15",
+      "cost": 0.85,
+      "requests": 12
+    }
+  ]
+}
+```
+
+### Budget Management
+
+#### GET /v1/analytics/budgets
+
+Get budget status and alerts for the authenticated user.
+
+**Query Parameters:**
+
+- `budget_type` (optional): Filter by budget type (daily, weekly, monthly, yearly)
+
+**Response:**
+
+```json
+{
+  "message": "Budget status retrieved successfully",
+  "budgets": [
+    {
+      "budget_type": "daily",
+      "budget_limit": 10.0,
+      "current_usage": 2.5,
+      "usage_percentage": 25.0,
+      "remaining_budget": 7.5,
+      "provider": null,
+      "model": null,
+      "alerts": [
+        {
+          "type": "warning",
+          "message": "Budget usage at 25.0% (threshold: 50%)",
+          "threshold": 50.0,
+          "current_usage": 25.0
+        }
+      ],
+      "period_start": "2024-01-15",
+      "period_end": "2024-01-15"
+    }
+  ],
+  "total_budgets": 1
+}
+```
+
+#### POST /v1/analytics/budgets
+
+Set budget limits and alert thresholds for the authenticated user.
+
+**Request:**
+
+```json
+{
+  "budget_type": "daily",
+  "budget_limit": 15.0,
+  "provider": null,
+  "model": null,
+  "alert_thresholds": [50.0, 80.0, 95.0]
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "Budget set successfully",
+  "budget": {
+    "budget_type": "daily",
+    "budget_limit": 15.0,
+    "provider": null,
+    "model": null,
+    "alert_thresholds": [50.0, 80.0, 95.0]
+  }
+}
+```
+
 ### Health & Status
 
 #### GET /health

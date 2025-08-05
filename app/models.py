@@ -14,9 +14,7 @@ from pydantic import BaseModel, Field, validator
 class ChatMessage(BaseModel):
     """Individual chat message in a conversation."""
 
-    role: Literal["system", "user", "assistant"] = Field(
-        ..., description="The role of the message author"
-    )
+    role: Literal["system", "user", "assistant"] = Field(..., description="The role of the message author")
     content: str = Field(..., description="The content of the message")
     name: str | None = Field(None, description="Optional name of the message author")
 
@@ -150,9 +148,7 @@ class BudgetRequest(BaseModel):
     budget_limit: float = Field(..., gt=0, description="Budget limit in USD")
     provider: str | None = Field(None, description="Specific provider (optional)")
     model: str | None = Field(None, description="Specific model (optional)")
-    alert_thresholds: list[float] | None = Field(
-        [50.0, 80.0, 95.0], description="Alert thresholds as percentages"
-    )
+    alert_thresholds: list[float] | None = Field([50.0, 80.0, 95.0], description="Alert thresholds as percentages")
 
     @validator("alert_thresholds")
     def validate_thresholds(cls, v: list[float] | None) -> list[float] | None:
@@ -196,3 +192,35 @@ class EnhancedChatCompletionResponse(BaseModel):
     choices: list[dict[str, Any]]
     usage: dict[str, int]
     routing_metadata: RoutingMetadata | None = None
+
+
+class BudgetAlert(BaseModel):
+    """Budget alert information."""
+
+    type: str = Field(..., description="Alert type (warning, critical)")
+    message: str = Field(..., description="Alert message")
+    threshold: float = Field(..., description="Threshold percentage that triggered alert")
+    current_usage: float = Field(..., description="Current usage percentage")
+
+
+class BudgetStatus(BaseModel):
+    """Budget status response."""
+
+    budget_type: BudgetPeriodEnum
+    budget_limit: float = Field(..., description="Budget limit in USD")
+    current_usage: float = Field(..., description="Current usage in USD")
+    usage_percentage: float = Field(..., description="Usage as percentage of budget")
+    remaining_budget: float = Field(..., description="Remaining budget in USD")
+    provider: str | None = Field(None, description="Specific provider (if applicable)")
+    model: str | None = Field(None, description="Specific model (if applicable)")
+    alerts: list[BudgetAlert] = Field(default_factory=list, description="Active budget alerts")
+    period_start: str = Field(..., description="Budget period start date")
+    period_end: str = Field(..., description="Budget period end date")
+
+
+class BudgetResponse(BaseModel):
+    """Budget management response."""
+
+    message: str = Field(..., description="Response message")
+    budgets: list[BudgetStatus] = Field(default_factory=list, description="Budget statuses")
+    total_budgets: int = Field(..., description="Total number of budgets configured")

@@ -7,12 +7,14 @@ ModelMuxer uses a comprehensive testing strategy to ensure reliability, performa
 ## Testing Framework
 
 ### Test Structure
+
 - **Unit Tests**: Individual component testing
 - **Integration Tests**: API endpoint and database testing
 - **End-to-End Tests**: Full system workflow testing
 - **Performance Tests**: Load and stress testing
 
 ### Testing Tools
+
 - **pytest**: Primary testing framework
 - **pytest-asyncio**: Async test support
 - **pytest-cov**: Coverage reporting
@@ -22,6 +24,7 @@ ModelMuxer uses a comprehensive testing strategy to ensure reliability, performa
 ## Running Tests
 
 ### Basic Test Commands
+
 ```bash
 # Run all tests
 poetry run pytest
@@ -38,6 +41,7 @@ poetry run pytest -m integration
 ```
 
 ### Test Configuration
+
 ```bash
 # Environment variables for testing
 TEST_DATABASE_URL=sqlite:///test.db
@@ -48,18 +52,21 @@ TEST_ANTHROPIC_API_KEY=test-key
 ## Test Categories
 
 ### Unit Tests
+
 - Router logic testing
 - Provider client testing
 - Cost calculation testing
 - Utility function testing
 
 ### Integration Tests
+
 - API endpoint testing
 - Database integration testing
 - Cache integration testing
 - Provider API mocking
 
 ### Performance Tests
+
 - Load testing with realistic traffic
 - Stress testing for breaking points
 - Memory usage profiling
@@ -68,6 +75,7 @@ TEST_ANTHROPIC_API_KEY=test-key
 ## Test Examples
 
 ### Unit Test Example
+
 ```python
 import pytest
 from app.routing.hybrid_router import HybridRouter
@@ -84,6 +92,7 @@ class TestHybridRouter:
 ```
 
 ### Integration Test Example
+
 ```python
 import pytest
 from httpx import AsyncClient
@@ -107,6 +116,7 @@ async def test_chat_completion_endpoint():
 ## Test Data Management
 
 ### Fixtures
+
 ```python
 @pytest.fixture
 def sample_chat_request():
@@ -123,6 +133,7 @@ async def test_client():
 ```
 
 ### Factory Classes
+
 ```python
 import factory
 from app.models import User, Request
@@ -138,6 +149,7 @@ class UserFactory(factory.Factory):
 ## Mocking External Services
 
 ### Provider API Mocking
+
 ```python
 import pytest
 from unittest.mock import patch, AsyncMock
@@ -154,11 +166,13 @@ def mock_openai_client():
 ## Coverage Requirements
 
 ### Coverage Targets
+
 - **Overall**: >85% code coverage
 - **Critical paths**: >95% coverage
 - **New features**: 100% coverage required
 
 ### Coverage Commands
+
 ```bash
 # Generate HTML coverage report
 poetry run pytest --cov=app --cov-report=html
@@ -173,6 +187,7 @@ poetry run pytest --cov=app --cov-fail-under=85
 ## Continuous Integration
 
 ### GitHub Actions Testing
+
 ```yaml
 name: Tests
 on: [push, pull_request]
@@ -188,6 +203,7 @@ jobs:
 ```
 
 ### Pre-commit Testing
+
 ```bash
 # Install pre-commit hooks
 pre-commit install
@@ -199,6 +215,7 @@ pre-commit install
 ## Performance Testing
 
 ### Load Testing Setup
+
 ```python
 # tests/performance/test_load.py
 import pytest
@@ -219,6 +236,7 @@ async def test_concurrent_requests():
 ## Test Best Practices
 
 ### Writing Good Tests
+
 1. **Test one thing at a time**
 2. **Use descriptive test names**
 3. **Keep tests independent**
@@ -226,6 +244,7 @@ async def test_concurrent_requests():
 5. **Mock external dependencies**
 
 ### Test Organization
+
 ```
 tests/
 ├── unit/
@@ -243,11 +262,13 @@ tests/
 ## Debugging Tests
 
 ### Common Issues
+
 - **Async test failures**: Use `pytest-asyncio`
 - **Database conflicts**: Use test database isolation
 - **Flaky tests**: Implement proper cleanup and mocking
 
 ### Debugging Commands
+
 ```bash
 # Run with detailed output
 poetry run pytest -v -s
@@ -262,8 +283,9 @@ poetry run pytest --durations=10
 ## Summary
 
 Created all missing documentation files to fix broken links in CI:
+
 - ✅ **FAQ.md**: Frequently asked questions
-- ✅ **troubleshooting.md**: Common issues and solutions
+- ✅ **docs/troubleshooting.md**: Common issues and solutions
 - ✅ **docs/monitoring.md**: Observability and metrics
 - ✅ **docs/security.md**: Security best practices
 - ✅ **docs/performance.md**: Optimization strategies
