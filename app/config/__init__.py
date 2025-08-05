@@ -11,7 +11,8 @@ enhanced configuration with support for all advanced features.
 import importlib.util
 import os
 import sys
-from typing import Any, Callable, Optional, Type
+from collections.abc import Callable
+from typing import Any, Optional
 
 # Load the basic config module directly
 config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.py")
@@ -27,22 +28,22 @@ Settings = basic_config_module.Settings
 settings = Settings()
 
 # Enhanced config components (will be set if enhanced mode is available)
-enhanced_config: Optional[Any] = None
-AuthConfig: Optional[Type[Any]] = None
-CacheConfig: Optional[Type[Any]] = None
-ClassificationConfig: Optional[Type[Any]] = None
-LoggingConfig: Optional[Type[Any]] = None
-ModelMuxerConfig: Optional[Type[Any]] = None
-MonitoringConfig: Optional[Type[Any]] = None
-ProviderConfig: Optional[Type[Any]] = None
-RateLimitConfig: Optional[Type[Any]] = None
-RoutingConfig: Optional[Type[Any]] = None
-load_enhanced_config: Optional[Callable[[], Any]] = None
+enhanced_config: Any | None = None
+AuthConfig: type[Any] | None = None
+CacheConfig: type[Any] | None = None
+ClassificationConfig: type[Any] | None = None
+LoggingConfig: type[Any] | None = None
+ModelMuxerConfig: type[Any] | None = None
+MonitoringConfig: type[Any] | None = None
+ProviderConfig: type[Any] | None = None
+RateLimitConfig: type[Any] | None = None
+RoutingConfig: type[Any] | None = None
+load_enhanced_config: Callable[[], Any] | None = None
 
 # Only try to load enhanced config if we're in enhanced mode
 if os.getenv("MODELMUXER_MODE", "basic").lower() in ["enhanced", "production"]:
     try:
-        from .enhanced_config import (  # type: ignore[attr-defined]
+        from .enhanced_config import (
             AuthConfig,  # type: ignore[misc]
             CacheConfig,  # type: ignore[misc]
             ClassificationConfig,  # type: ignore[misc]
@@ -53,7 +54,7 @@ if os.getenv("MODELMUXER_MODE", "basic").lower() in ["enhanced", "production"]:
             RateLimitConfig,  # type: ignore[misc]
             RoutingConfig,  # type: ignore[misc]
             enhanced_config,  # type: ignore[misc]
-            load_enhanced_config,  # type: ignore[misc]
+            load_enhanced_config,
         )
 
         # Use enhanced config if it loaded successfully

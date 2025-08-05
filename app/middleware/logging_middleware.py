@@ -256,9 +256,11 @@ class LoggingMiddleware:
                     "error",
                     {
                         "request_id": request_context.get("request_id", "unknown"),
-                        "user_id": request_context.get("user_info", {}).get("user_id")
-                        if request_context.get("user_info")
-                        else None,
+                        "user_id": (
+                            request_context.get("user_info", {}).get("user_id")
+                            if request_context.get("user_info")
+                            else None
+                        ),
                         "endpoint": request_context.get("endpoint", "unknown"),
                         "error_type": type(error).__name__,
                         "error_message": str(error),
@@ -270,9 +272,11 @@ class LoggingMiddleware:
                     "completion",
                     {
                         "request_id": request_context.get("request_id", "unknown"),
-                        "user_id": request_context.get("user_info", {}).get("user_id")
-                        if request_context.get("user_info")
-                        else None,
+                        "user_id": (
+                            request_context.get("user_info", {}).get("user_id")
+                            if request_context.get("user_info")
+                            else None
+                        ),
                         "endpoint": request_context.get("endpoint", "unknown"),
                         "duration_ms": response_data.get("duration_ms", 0),
                         "client_ip": request_context.get("client_ip", "unknown"),

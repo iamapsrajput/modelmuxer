@@ -871,9 +871,11 @@ def main():
         host=config.host if hasattr(config, "host") else "0.0.0.0",
         port=config.port if hasattr(config, "port") else 8000,
         reload=config.debug if hasattr(config, "debug") else False,
-        log_level=config.logging.level.lower()
-        if hasattr(config, "logging") and hasattr(config.logging, "level")
-        else "info",
+        log_level=(
+            config.logging.level.lower()
+            if hasattr(config, "logging") and hasattr(config.logging, "level")
+            else "info"
+        ),
     )
 
 
