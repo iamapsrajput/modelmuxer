@@ -5,6 +5,7 @@ This checklist ensures all critical components are properly configured and teste
 ## Pre-Deployment Checklist
 
 ### 🔐 Security & Compliance
+
 - [ ] **SSL/TLS Certificates**: Valid certificates installed and configured
 - [ ] **Secrets Management**: All secrets stored securely (not in code)
 - [ ] **API Keys**: All provider API keys configured and tested
@@ -17,6 +18,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Audit Logging**: Comprehensive audit logging enabled
 
 ### 🗄️ Database & Storage
+
 - [ ] **PostgreSQL**: Primary database deployed with proper resources
 - [ ] **Read Replicas**: At least 2 read replicas configured
 - [ ] **Connection Pooling**: PgBouncer or similar configured
@@ -27,6 +29,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Monitoring**: Database metrics and alerting configured
 
 ### 🚀 Redis & Caching
+
 - [ ] **Redis Cluster**: High-availability Redis cluster deployed
 - [ ] **Persistence**: Redis persistence configured (AOF + RDB)
 - [ ] **Memory Limits**: Appropriate memory limits set
@@ -35,6 +38,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Backup**: Redis backup strategy implemented
 
 ### ☸️ Kubernetes Configuration
+
 - [ ] **Namespace**: Production namespace created with proper labels
 - [ ] **Resource Limits**: CPU and memory limits configured
 - [ ] **Health Checks**: Liveness, readiness, and startup probes configured
@@ -45,6 +49,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Storage Classes**: Fast SSD storage classes configured
 
 ### 🌐 Networking & Load Balancing
+
 - [ ] **Ingress Controller**: NGINX or similar configured
 - [ ] **Load Balancer**: External load balancer configured
 - [ ] **DNS Configuration**: Domain names properly configured
@@ -54,6 +59,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Firewall Rules**: Proper firewall rules configured
 
 ### 📊 Monitoring & Observability
+
 - [ ] **Prometheus**: Metrics collection configured
 - [ ] **Grafana**: Dashboards imported and configured
 - [ ] **Alertmanager**: Alert rules configured
@@ -64,6 +70,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Performance Monitoring**: APM tools configured
 
 ### 🔄 CI/CD Pipeline
+
 - [ ] **GitHub Actions**: All workflows tested and working
 - [ ] **Container Registry**: Images pushed to production registry
 - [ ] **Image Signing**: Container images signed with Cosign
@@ -75,6 +82,7 @@ This checklist ensures all critical components are properly configured and teste
 ## Deployment Checklist
 
 ### 📋 Pre-Deployment Steps
+
 - [ ] **Code Review**: All code changes reviewed and approved
 - [ ] **Testing**: All tests passing (unit, integration, e2e)
 - [ ] **Security Scan**: Latest security scan passed
@@ -85,6 +93,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Maintenance Window**: Maintenance window scheduled (if needed)
 
 ### 🚀 Deployment Steps
+
 - [ ] **Database Backup**: Fresh database backup created
 - [ ] **Configuration Backup**: Current configuration backed up
 - [ ] **Deploy Infrastructure**: Infrastructure components deployed
@@ -95,6 +104,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Cache Warming**: Cache warmed up if applicable
 
 ### ✅ Post-Deployment Verification
+
 - [ ] **Health Checks**: All health endpoints responding
 - [ ] **Smoke Tests**: Critical functionality tested
 - [ ] **Performance Check**: Response times within acceptable limits
@@ -109,6 +119,7 @@ This checklist ensures all critical components are properly configured and teste
 ## Production Readiness Checklist
 
 ### 🏗️ Infrastructure
+
 - [ ] **High Availability**: Multi-AZ deployment configured
 - [ ] **Auto Scaling**: Horizontal and vertical scaling configured
 - [ ] **Disaster Recovery**: DR procedures documented and tested
@@ -117,6 +128,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Cost Optimization**: Resource costs optimized
 
 ### 🔒 Security
+
 - [ ] **Vulnerability Assessment**: Security assessment completed
 - [ ] **Penetration Testing**: Pen testing completed (if required)
 - [ ] **Compliance**: Regulatory compliance requirements met
@@ -125,6 +137,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Incident Response**: Security incident response plan ready
 
 ### 📈 Performance
+
 - [ ] **Load Testing**: Production load testing completed
 - [ ] **Stress Testing**: System stress testing completed
 - [ ] **Capacity Testing**: Maximum capacity determined
@@ -133,6 +146,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Caching Strategy**: Comprehensive caching strategy implemented
 
 ### 🔧 Operations
+
 - [ ] **Monitoring**: Comprehensive monitoring implemented
 - [ ] **Alerting**: Critical alerts configured
 - [ ] **Logging**: Centralized logging implemented
@@ -143,6 +157,7 @@ This checklist ensures all critical components are properly configured and teste
 ## Go-Live Checklist
 
 ### 🎯 Final Verification
+
 - [ ] **Stakeholder Approval**: All stakeholders have approved go-live
 - [ ] **Team Readiness**: Operations team ready for go-live
 - [ ] **Support Readiness**: Support team ready for user issues
@@ -151,6 +166,7 @@ This checklist ensures all critical components are properly configured and teste
 - [ ] **Success Criteria**: Success criteria defined and measurable
 
 ### 🚦 Go-Live Steps
+
 1. [ ] **DNS Cutover**: Update DNS to point to production
 2. [ ] **Traffic Monitoring**: Monitor traffic patterns
 3. [ ] **Performance Monitoring**: Monitor system performance
@@ -159,6 +175,7 @@ This checklist ensures all critical components are properly configured and teste
 6. [ ] **System Health**: Continuous health monitoring
 
 ### 📊 Post Go-Live (First 24 Hours)
+
 - [ ] **System Stability**: System running stably
 - [ ] **Performance Metrics**: All metrics within expected ranges
 - [ ] **User Experience**: No major user experience issues
@@ -169,6 +186,7 @@ This checklist ensures all critical components are properly configured and teste
 ## Emergency Procedures
 
 ### 🚨 If Issues Occur
+
 1. **Assess Impact**: Determine severity and user impact
 2. **Communicate**: Notify stakeholders and users if needed
 3. **Investigate**: Identify root cause quickly
@@ -178,6 +196,7 @@ This checklist ensures all critical components are properly configured and teste
 7. **Post-Mortem**: Conduct post-mortem analysis
 
 ### 📞 Emergency Contacts
+
 - **Technical Lead**: [Contact Information]
 - **DevOps Engineer**: [Contact Information]
 - **Database Administrator**: [Contact Information]
@@ -185,11 +204,12 @@ This checklist ensures all critical components are properly configured and teste
 - **Product Owner**: [Contact Information]
 
 ### 🔗 Important Links
-- **Monitoring Dashboard**: https://grafana.modelmuxer.com
-- **Log Aggregation**: https://logs.modelmuxer.com
-- **Status Page**: https://status.modelmuxer.com
-- **Documentation**: https://docs.modelmuxer.com
-- **Runbooks**: https://runbooks.modelmuxer.com
+
+- **Monitoring Dashboard**: <https://grafana.modelmuxer.com>
+- **Log Aggregation**: <https://logs.modelmuxer.com>
+- **Status Page**: <https://status.modelmuxer.com>
+- **Documentation**: <https://docs.modelmuxer.com>
+- **Runbooks**: <https://runbooks.modelmuxer.com>
 
 ---
 

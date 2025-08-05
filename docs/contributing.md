@@ -348,7 +348,7 @@ Look for issues labeled `good-first-issue` or `help-wanted`:
 - **GitHub Issues**: Bug reports and feature requests
 - **GitHub Discussions**: General questions and ideas
 - **Discord**: Real-time chat with maintainers
-- **Email**: security@modelmuxer.com for security issues
+- **Email**: <security@modelmuxer.com> for security issues
 
 ### Resources
 

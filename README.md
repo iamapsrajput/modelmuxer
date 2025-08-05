@@ -8,7 +8,9 @@
 [![Production Ready](https://img.shields.io/badge/Production-Ready-green.svg)](docs/deployment.md)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 
-ModelMuxer is a production-ready, enterprise-grade LLM routing platform that intelligently routes requests to the optimal AI model based on cost, quality, and performance requirements. Built for scale, security, and efficiency.
+ModelMuxer is a production-ready, enterprise-grade LLM routing platform that
+intelligently routes requests to the optimal AI model based on cost, quality,
+and performance requirements. Built for scale, security, and efficiency.
 
 ## ✨ Key Features
 
@@ -58,15 +60,15 @@ Visit `http://localhost:8000/docs` for interactive API documentation.
 
 ### Core Endpoints
 
-| Endpoint                        | Method   | Description                                       |
-| ------------------------------- | -------- | ------------------------------------------------- |
-| `/v1/chat/completions`          | POST     | Standard chat completion with intelligent routing |
-| `/v1/chat/completions/enhanced` | POST     | Enhanced completion with cascade routing          |
-| `/v1/analytics/costs`           | GET      | Detailed cost analytics                           |
-| `/v1/analytics/budgets`         | GET/POST | Budget management                                 |
-| `/v1/providers`                 | GET      | Available providers and models                    |
-| `/health`                       | GET      | System health check                               |
-| `/metrics`                      | GET      | Prometheus metrics                                |
+| Endpoint                        | Method   | Description                    |
+| ------------------------------- | -------- | ------------------------------ |
+| `/v1/chat/completions`          | POST     | Standard chat completion       |
+| `/v1/chat/completions/enhanced` | POST     | Enhanced completion            |
+| `/v1/analytics/costs`           | GET      | Detailed cost analytics        |
+| `/v1/analytics/budgets`         | GET/POST | Budget management              |
+| `/v1/providers`                 | GET      | Available providers and models |
+| `/health`                       | GET      | System health check            |
+| `/metrics`                      | GET      | Prometheus metrics             |
 
 ### Example Usage
 
@@ -275,7 +277,10 @@ async def chat_with_router():
             headers={"Authorization": "Bearer sk-test-key-1"},
             json={
                 "messages": [
-                    {"role": "user", "content": "Write a Python function to calculate fibonacci numbers"}
+                    {
+                        "role": "user",
+                        "content": "Write a Python function to calculate fibonacci"
+                    }
                 ],
                 "max_tokens": 500
             }
@@ -528,17 +533,19 @@ ModelMuxer delivers exceptional performance with intelligent routing:
 
 - **📊 Grafana Dashboards**: Pre-built dashboards for cost, performance, and health
 - **🚨 Alerting**: Comprehensive alerting for budgets, errors, and performance
-- **📝 Structured Logging**: JSON logs with correlation IDs and distributed tracing
+- **📝 Structured Logging**: JSON logs with correlation IDs and tracing
 - **🔍 Distributed Tracing**: End-to-end request tracing with OpenTelemetry
 - **📈 Custom Metrics**: Business metrics for cost optimization and quality
 
 ## 📖 Documentation
 
-- **[Production Deployment Guide](docs/deployment/production-guide.md)**: Complete production setup
+- **[Production Deployment Guide](docs/deployment/production-guide.md)**:
+  Complete production setup
 - **[API Documentation](docs/api/openapi.yaml)**: OpenAPI specification
-- **[Security Guide](docs/security/)**: Security configuration and best practices
+- **[Security Guide](docs/security/)**: Security configuration and practices
 - **[Monitoring Guide](docs/monitoring/)**: Observability setup and configuration
-- **[Production Checklist](docs/deployment/production-checklist.md)**: Pre-deployment checklist
+- **[Production Checklist](docs/deployment/production-checklist.md)**:
+  Pre-deployment checklist
 
 ## 📄 License
 
