@@ -362,14 +362,18 @@ jobs:
           TEST_API_KEY_2: test-api-key-002-NOT-REAL
           TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: |
-          # Check if performance tests exist and install dependencies
+          # Check if performance tests exist and run with and without benchmarks
           if [ -d "tests/performance" ]; then
-            # Install additional dependencies for performance tests
-            poetry install --with dev
-            # Run performance tests without benchmark JSON since they don't use pytest-benchmark
-            poetry run pytest tests/performance/ -v -m "performance and not slow" || echo "Performance tests failed, continuing..."
-            # Create a valid empty benchmark JSON file for the benchmark action
-            echo '{"benchmarks": [], "machine_info": {"node": "github-actions", "processor": "x86_64"}, "commit_info": {"id": "'$GITHUB_SHA'", "time": "'$(date -Iseconds)'"}}' > benchmark.json
+            # First run regular performance tests
+            poetry run pytest tests/performance/ -v -m "performance and not slow" || echo "Regular performance tests failed, continuing..."
+            
+            # Then run benchmark tests to generate JSON output
+            poetry run pytest tests/performance/ -v -k "benchmark" --benchmark-json=benchmark.json --benchmark-only || echo "Performance benchmarks failed, continuing..."
+            
+            # If no benchmark.json was created, create a minimal one
+            if [ ! -f "benchmark.json" ]; then
+              echo '{"benchmarks": [], "machine_info": {"node": "github-actions", "processor": "x86_64"}, "commit_info": {"id": "'$GITHUB_SHA'", "time": "'$(date -Iseconds)'"}}' > benchmark.json
+            fi
           else
             echo "Performance tests directory not found, creating empty benchmark file..."
             echo '{"benchmarks": [], "machine_info": {"node": "github-actions", "processor": "x86_64"}, "commit_info": {"id": "'$GITHUB_SHA'", "time": "'$(date -Iseconds)'"}}' > benchmark.json
