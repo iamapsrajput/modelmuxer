@@ -87,21 +87,21 @@ HEURISTIC_ROUTING_ENABLED=true
 #### Development Mode
 
 ```bash
-# Using Poetry
-poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Enhanced version (recommended - includes all features)
+poetry run uvicorn app.main_enhanced:app --reload --host 0.0.0.0 --port 8000
 
-# Using pip
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Basic version (for testing/development)
+poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 #### Production Mode
 
 ```bash
-# Using Poetry
-poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+# Enhanced version (recommended for production)
+poetry run uvicorn app.main_enhanced:app --host 0.0.0.0 --port 8000 --workers 4
 
-# Using pip
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+# Basic version (minimal features)
+poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
 ### 5. Verify Installation

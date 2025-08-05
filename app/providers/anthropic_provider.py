@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from ..config.enhanced_config import enhanced_config as settings
+from ..config import settings
 from ..models import ChatCompletionResponse, ChatMessage
 from .base import LLMProvider, ProviderError
 

@@ -1,0 +1,55 @@
+# ModelMuxer Code Owners
+
+## This file defines who owns different parts of the codebase
+
+## and who should be automatically requested for reviews
+
+## Global owners - these users are owners of everything in the repo
+
+## unless a later match takes precedence
+
+- @iamapsrajput
+
+## Core application code
+
+/app/ @iamapsrajput
+/app/main.py @iamapsrajput
+/app/main_enhanced.py @iamapsrajput
+/app/config/ @iamapsrajput
+/app/providers/ @iamapsrajput
+/app/routing/ @iamapsrajput
+/app/security/ @iamapsrajput
+
+## Test files
+
+/tests/ @iamapsrajput
+
+## Infrastructure and deployment
+
+/infra/ @iamapsrajput
+/.github/ @iamapsrajput
+/docker\* @iamapsrajput
+/k8s/ @iamapsrajput
+/Makefile @iamapsrajput
+/pyproject.toml @iamapsrajput
+/poetry.lock @iamapsrajput
+
+## Documentation
+
+/docs/ @iamapsrajput
+README.md @iamapsrajput
+SECURITY.md @iamapsrajput
+LICENSE @iamapsrajput
+
+## Security and compliance files
+
+/scripts/check_license_compliance.py @iamapsrajput
+/scripts/verify_security_setup.py @iamapsrajput
+/compliance/ @iamapsrajput
+SECURITY.md @iamapsrajput
+
+## Configuration files
+
+/.env.example @iamapsrajput
+/pytest.ini @iamapsrajput
+/.gitignore @iamapsrajput

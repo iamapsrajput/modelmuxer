@@ -1,0 +1,174 @@
+---
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
+
+name: Code Quality Analysis
+
+"on":
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+env:
+  PYTHON_VERSION: "3.11"
+  POETRY_VERSION: "1.7.1"
+
+jobs:
+  code-quality:
+    name: Code Quality Metrics
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: pip install poetry==${{ env.POETRY_VERSION }}
+
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project true
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run complexity analysis (radon)
+        run: |
+          poetry run pip install radon
+          poetry run radon cc app/ --json > complexity-report.json || true
+          poetry run radon mi app/ --json > maintainability-report.json || true
+
+      - name: Run code duplication check (pylint)
+        run: |
+          poetry run pip install pylint
+          poetry run pylint app/ --reports=y --output-format=json \
+            > pylint-report.json || true
+
+      - name: Generate code quality summary
+        run: |
+          echo "# Code Quality Report" > code-quality-summary.md
+          echo "" >> code-quality-summary.md
+          echo "## Complexity Analysis" >> code-quality-summary.md
+          if [ -f complexity-report.json ]; then
+            echo "✅ Complexity analysis completed" >> code-quality-summary.md
+          fi
+          echo "" >> code-quality-summary.md
+          echo "## Maintainability Index" >> code-quality-summary.md
+          if [ -f maintainability-report.json ]; then
+            echo "✅ Maintainability analysis completed" \
+              >> code-quality-summary.md
+          fi
+
+      - name: Upload code quality reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-quality-reports-${{ github.run_number }}
+          path: |
+            complexity-report.json
+            maintainability-report.json
+            pylint-report.json
+            code-quality-summary.md
+          retention-days: 30
+
+  documentation-check:
+    name: Documentation Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: pip install poetry==${{ env.POETRY_VERSION }}
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Check docstring coverage
+        run: |
+          poetry run pip install docstring-coverage
+          poetry run docstring-coverage app/ \
+            --badge=docstring-coverage.svg || true
+
+      - name: Lint markdown files
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            **/*.md
+            !node_modules/**/*.md
+
+      - name: Check for broken links in documentation
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: "yes"
+          use-verbose-mode: "yes"
+          config-file: ".github/markdown-link-check-config.json"
+          folder-path: "docs"
+
+      - name: Upload documentation reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-reports-${{ github.run_number }}
+          path: |
+            docstring-coverage.svg
+          retention-days: 30
+
+  performance-check:
+    name: Performance Baseline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: pip install poetry==${{ env.POETRY_VERSION }}
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run performance benchmarks
+        run: |
+          if [ -d "tests/performance" ]; then
+            poetry run pytest tests/performance/ \
+              --benchmark-json=benchmark-results.json || true
+          else
+            echo "No performance tests found, creating empty benchmark file"
+            echo '{"benchmarks": []}' > benchmark-results.json
+          fi
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          tool: "pytest"
+          output-file-path: benchmark-results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          comment-on-alert: true
+          alert-threshold: "200%"
+          fail-on-alert: false
+
+      - name: Upload performance reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-reports-${{ github.run_number }}
+          path: |
+            benchmark-results.json
+          retention-days: 30

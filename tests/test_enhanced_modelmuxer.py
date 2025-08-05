@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 try:
     from app.config.enhanced_config import enhanced_config
     from app.core.exceptions import ModelMuxerError  # noqa: F401 - Used for testing import
-    from app.main_enhanced import model_muxer
+    from app.main import model_muxer
     from app.models import ChatCompletionRequest, ChatMessage
 
     print("✅ All imports successful")
@@ -152,12 +152,12 @@ class EnhancedModelMuxerTester:
                 try:
                     result = await model_muxer.classifier.classify(prompt)
                     self.log_test(
-                        f"Classification Test {i+1}",
+                        f"Classification Test {i + 1}",
                         True,
                         f"Category: {result['category']} (confidence: {result['confidence']:.2f})",
                     )
                 except Exception as e:
-                    self.log_test(f"Classification Test {i+1}", False, str(e))
+                    self.log_test(f"Classification Test {i + 1}", False, str(e))
 
         except Exception as e:
             self.log_test("Classification", False, str(e))

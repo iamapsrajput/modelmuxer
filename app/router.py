@@ -154,24 +154,34 @@ class HeuristicRouter:
         self.model_preferences = {
             "code": [
                 ("openai", "gpt-4o"),
+                ("anthropic", "claude-3-sonnet-20240229"),
                 ("anthropic", "claude-3-5-sonnet-20241022"),
                 ("openai", "gpt-3.5-turbo"),
+                ("groq", "mixtral-8x7b-32768"),
             ],
             "complex": [
                 ("openai", "gpt-4o"),
+                ("anthropic", "claude-3-sonnet-20240229"),
                 ("anthropic", "claude-3-5-sonnet-20241022"),
                 ("anthropic", "claude-3-haiku-20240307"),
                 ("openai", "gpt-3.5-turbo"),
+                ("groq", "mixtral-8x7b-32768"),
             ],
             "simple": [
+                ("groq", "mixtral-8x7b-32768"),
+                ("openai", "gpt-4o-mini"),
                 ("mistral", "mistral-small"),
+                ("mistral", "mistral-small-latest"),
                 ("anthropic", "claude-3-haiku-20240307"),
                 ("openai", "gpt-3.5-turbo"),
             ],
             "general": [
+                ("groq", "mixtral-8x7b-32768"),
+                ("openai", "gpt-4o-mini"),
+                ("mistral", "mistral-small"),
+                ("mistral", "mistral-small-latest"),
                 ("openai", "gpt-3.5-turbo"),
                 ("anthropic", "claude-3-haiku-20240307"),
-                ("mistral", "mistral-small"),
             ],
         }
 
@@ -276,8 +286,9 @@ class HeuristicRouter:
             for provider, model in preferences:
                 if provider in pricing and model in pricing[provider]:
                     input_cost = pricing[provider][model]["input"]
-                    # Estimate cost for ~100 tokens (typical short query)
-                    estimated_cost = input_cost * 0.1  # 100 tokens = 0.1k tokens
+                    output_cost = pricing[provider][model]["output"]
+                    # Estimate cost for ~100 input + 50 output tokens (typical short query)
+                    estimated_cost = (100 / 1_000_000) * input_cost + (50 / 1_000_000) * output_cost
                     if estimated_cost <= budget_constraint:
                         affordable_preferences.append((provider, model, estimated_cost))
 
@@ -288,13 +299,19 @@ class HeuristicRouter:
             else:
                 # If no models are affordable, fall back to cheapest available
                 if budget_constraint < 0.001:  # Very low budget
-                    preferences = [("mistral", "mistral-small")]
+                    preferences = [
+                        ("groq", "mixtral-8x7b-32768"),
+                        ("openai", "gpt-4o-mini"),
+                        ("mistral", "mistral-small"),
+                        ("mistral", "mistral-small-latest"),
+                    ]
 
         # Select the first available model from preferences
         for provider, model in preferences:
-            # In a real implementation, you'd check if the provider is available
-            # and has valid API keys
-            return provider, model, self._generate_reasoning(analysis, provider, model)
+            # Check if the provider and model are available in current configuration
+            pricing = settings.get_provider_pricing()
+            if provider in pricing and model in pricing[provider]:
+                return provider, model, self._generate_reasoning(analysis, provider, model)
 
         # Fallback
         return "openai", "gpt-3.5-turbo", "Fallback to default model"
