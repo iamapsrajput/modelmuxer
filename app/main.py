@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 # Optional prometheus import
 try:
-    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+    import prometheus_client  # noqa: F401
 
     PROMETHEUS_AVAILABLE = True
 except ImportError:
@@ -82,12 +82,12 @@ try:
     ENHANCED_FEATURES_AVAILABLE = True
     logger = structlog.get_logger(__name__)
 
-except ImportError as e:
+except ImportError:
     ENHANCED_FEATURES_AVAILABLE = False
     logger = None
     enhanced_config = None
-    print(f"Enhanced features not available: {e}")
-    print("Running in basic mode...")
+    # Enhanced features not available, running in basic mode
+    # Error details would be logged via structlog if available
 
 # Determine if we should run in enhanced mode
 ENHANCED_MODE = (

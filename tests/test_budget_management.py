@@ -209,17 +209,22 @@ class TestAdvancedCostTrackerBudgets:
             alert_thresholds=[50.0, 80.0, 95.0],
         )
 
-        # Verify database call - should have been called at least once
+        # Verify database call was made - check that execute was called with budget data
         assert mock_cursor.execute.call_count >= 1
 
         # Find the INSERT OR REPLACE call among all calls
         insert_call_found = False
         for call in mock_cursor.execute.call_args_list:
             call_args = call[0]
-            if "INSERT OR REPLACE INTO user_budgets" in call_args[0]:
-                assert call_args[1][0] == self.test_user_id
-                assert call_args[1][1] == "daily"
-                assert call_args[1][2] == 10.0
+            if len(call_args) >= 2 and "INSERT OR REPLACE INTO user_budgets" in call_args[0]:
+                # Verify the parameters
+                params = call_args[1]
+                assert params[0] == self.test_user_id  # user_id
+                assert params[1] == "daily"  # budget_type
+                assert params[2] == 10.0  # budget_limit
+                assert params[3] == "openai"  # provider
+                assert params[4] == "gpt-4o"  # model
+                assert params[5] == json.dumps([50.0, 80.0, 95.0])  # alert_thresholds
                 insert_call_found = True
                 break
 
