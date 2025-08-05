@@ -42,7 +42,20 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 poetry install --with dev,ml
 ```
 
-### 3. Environment Configuration
+### 3. Deployment Mode Selection
+
+ModelMuxer now supports unified deployment modes through the `MODELMUXER_MODE` environment variable:
+
+- **`basic`** (default): Core routing functionality with minimal dependencies
+- **`enhanced`**: Advanced features including caching, monitoring, and analytics
+- **`production`**: Full enterprise features with security hardening
+
+```bash
+# Set deployment mode (optional, defaults to 'basic')
+export MODELMUXER_MODE=basic  # or 'enhanced' or 'production'
+```
+
+### 4. Environment Configuration
 
 Create a `.env` file in the project root:
 

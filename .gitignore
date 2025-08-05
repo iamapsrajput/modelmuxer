@@ -187,7 +187,8 @@ temp_*
 *.temp
 # Note: test_*.py files should be committed, not ignored
 
-# Augment AI temporary files (Task 4.1 - Development Workflow)
+# Augment AI temporary files and directories (Task 4.1 - Development Workflow)
+.augment/
 *_augment.md
 *_local.md
 *_temp.md

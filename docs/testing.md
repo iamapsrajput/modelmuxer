@@ -49,6 +49,32 @@ TEST_OPENAI_API_KEY=test-key
 TEST_ANTHROPIC_API_KEY=test-key
 ```
 
+## CI/CD Testing Pipeline
+
+### Automated Testing
+
+The CI/CD pipeline includes comprehensive automated testing:
+
+#### Test Matrix
+
+- **Python versions**: 3.11, 3.12
+- **Operating systems**: Ubuntu, macOS, Windows
+- **Deployment modes**: basic, enhanced, production
+
+#### Quality Gates
+
+- **100% test success rate**: All 116+ tests must pass
+- **Code coverage**: Minimum 80% coverage requirement
+- **Performance benchmarks**: Automated performance regression detection
+- **Security scanning**: No high-severity vulnerabilities allowed
+
+#### Test Optimization
+
+- **Parallel execution**: Tests run in parallel for faster feedback
+- **Smart caching**: Dependencies cached between runs
+- **Conditional testing**: Performance tests run only when relevant
+- **Error handling**: Graceful fallbacks for optional dependencies
+
 ## Test Categories
 
 ### Unit Tests
