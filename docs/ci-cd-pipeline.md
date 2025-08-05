@@ -204,6 +204,13 @@ Custom `.gitleaks.toml` configuration provides:
 - **Resource access errors**: Resolved "Resource not accessible by integration" errors
 - **Enhanced error handling**: Improved fallback mechanisms for API failures
 
+#### Security Scanning Artifact Issues
+
+- **Bandit report generation**: Added `--exit-zero` flag to ensure JSON reports are always created
+- **Safety check artifacts**: Implemented fallback JSON generation when vulnerabilities are found
+- **pip-audit report reliability**: Added fallback mechanisms for consistent artifact upload
+- **Report file consistency**: All security tools now guarantee report file generation
+
 ### Debug Strategies
 
 - **Verbose logging**: Enable detailed logging for troubleshooting
