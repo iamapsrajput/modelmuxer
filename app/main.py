@@ -357,9 +357,9 @@ async def lifespan(app: FastAPI) -> None:
         try:
             providers["openai"] = OpenAIProvider(api_key=openai_key)
             # OpenAI provider initialized (logged via structlog if available)
-        except Exception:  # nosec B110
-            # OpenAI provider failed to initialize (logged via structlog if available)
-            pass
+        except Exception as e:  # nosec B110
+            logger.error("OpenAI provider failed to initialize", error=str(e))
+            # OpenAI provider failed to initialize (logged via structlog)
 
     # Anthropic
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
