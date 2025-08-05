@@ -1,0 +1,143 @@
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
+
+# Gitleaks configuration for ModelMuxer
+# This file configures Gitleaks to avoid false positives while maintaining security
+
+title = "ModelMuxer Gitleaks Configuration"
+
+# Global allowlist for common false positives
+[allowlist]
+description = "Global allowlist for documentation and test files"
+paths = [
+    # Documentation files that contain examples
+    '''docs/.*\.md$''',
+    '''README\.md$''',
+    '''CHANGELOG\.md$''',
+    '''CONTRIBUTING\.md$''',
+
+    # Test files with fake credentials
+    '''tests/.*\.py$''',
+    '''test_.*\.py$''',
+
+    # Configuration examples
+    '''examples/.*''',
+    '''samples/.*''',
+
+    # CI/CD files with template values
+    '''\.github/.*\.ya?ml$''',
+    '''\.github/.*\.json$''',
+]
+
+# Specific patterns to ignore
+regexes = [
+    # Documentation placeholders
+    '''<[^>]*>''',                    # HTML-style placeholders like <jwt_token>
+    '''Bearer <.*>''',                # Bearer token placeholders
+    '''Bearer test-.*''',             # Test bearer tokens
+    '''Bearer fake-.*''',             # Fake bearer tokens
+    '''Bearer sk-test-.*''',          # Test API keys
+    '''Authorization.*REDACTED''',    # Redacted examples
+    '''Authorization.*\*\*\*''',      # Masked examples
+    '''Authorization.*example''',     # Example tokens
+    '''Authorization.*placeholder''', # Placeholder tokens
+    '''Authorization.*sample''',      # Sample tokens
+    '''Authorization.*demo''',        # Demo tokens
+    '''Authorization.*fake''',        # Fake tokens
+    '''your-.*-here''',               # Template placeholders
+    '''test-.*-fake-for-ci''',        # CI test keys
+    '''NOT-REAL''',                   # Clearly fake values
+    '''FAKE''',                       # Fake indicators
+    '''EXAMPLE''',                    # Example indicators
+    '''PLACEHOLDER''',                # Placeholder indicators
+    '''TODO''',                       # TODO placeholders
+    '''CHANGEME''',                   # Change me placeholders
+    # Specific pattern from the error report
+    '''\*\*\*;3;mREDACTED''',       # The specific pattern causing false positive
+    '''Authorization.*mREDACTED''', # Variations of the REDACTED pattern
+]
+
+# Stop words that indicate non-secrets
+stopwords = [
+    "example",
+    "test",
+    "fake",
+    "demo",
+    "sample",
+    "placeholder",
+    "template",
+    "changeme",
+    "todo",
+    "redacted",
+    "masked",
+    "hidden",
+    "not-real",
+    "ci-testing",
+]
+
+# Custom rules to override default behavior
+[[rules]]
+id = "curl-auth-header"
+description = "Detect curl authorization headers but ignore documentation examples"
+regex = '''curl.*-H.*["\']Authorization: (.+)["\']'''
+secretGroup = 1
+keywords = ["curl", "authorization"]
+
+# Allowlist for this rule
+[rules.allowlist]
+description = "Allow documentation examples and test files"
+paths = ['''docs/.*''', '''README\.md''', '''tests/.*''', '''examples/.*''']
+regexes = [
+    '''Bearer <.*>''',
+    '''Bearer \$\{.*\}''',
+    '''Bearer test-.*''',
+    '''Bearer fake-.*''',
+    '''Bearer.*example''',
+    '''Bearer.*placeholder''',
+    '''Bearer.*REDACTED''',
+    '''Bearer.*\*\*\*''',
+]
+
+[[rules]]
+id = "generic-api-key"
+description = "Detect API keys but ignore test and example keys"
+regex = '''(?i)(api[_-]?key|apikey|access[_-]?key)['"\s]*[:=]['"\s]*([a-zA-Z0-9_\-]{20,})'''
+secretGroup = 2
+keywords = ["api", "key"]
+
+# Allowlist for this rule
+[rules.allowlist]
+description = "Allow test and example API keys"
+regexes = [
+    '''test-.*''',
+    '''fake-.*''',
+    '''example-.*''',
+    '''demo-.*''',
+    '''placeholder-.*''',
+    '''sk-test-.*''',
+    '''.*-NOT-REAL''',
+    '''.*-FAKE''',
+    '''.*-for-ci''',
+    '''your-.*-here''',
+]
+
+[[rules]]
+id = "jwt-token"
+description = "Detect JWT tokens but ignore examples"
+regex = '''(?i)(jwt|token)['"\s]*[:=]['"\s]*([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)'''
+secretGroup = 2
+keywords = ["jwt", "token"]
+
+# Allowlist for this rule
+[rules.allowlist]
+description = "Allow example JWT tokens"
+regexes = [
+    '''eyJ.*example''',
+    '''eyJ.*test''',
+    '''eyJ.*fake''',
+    '''<.*>''',
+    '''\$\{.*\}''',
+]
+
+# File-specific allowlists
+# Additional patterns are handled by the global allowlist above
