@@ -4,7 +4,7 @@ Thank you for your interest in contributing to ModelMuxer! This guide will help 
 
 ## Code of Conduct
 
-By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md). Please read it before contributing.
+By participating in this project, you agree to maintain professional and respectful behavior in all interactions.
 
 ## Getting Started
 

@@ -8,7 +8,7 @@ This document outlines all the GitHub repository secrets that need to be configu
 
 These are required for integration tests and deployment:
 
-```env
+```
 OPENAI_API_KEY
 ANTHROPIC_API_KEY
 MISTRAL_API_KEY
@@ -22,7 +22,7 @@ COHERE_API_KEY
 
 ### 2. Authentication & Security
 
-````env
+```
 JWT_SECRET_KEY          # JWT signing key (generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))')
 ENCRYPTION_KEY          # General encryption key
 PII_ENCRYPTION_KEY      # PII-specific encryption key
@@ -30,74 +30,74 @@ PII_ENCRYPTION_KEY      # PII-specific encryption key
 
 ### 3. Database Configuration
 
-```env
+```
 DATABASE_URL            # Production database connection string
 DATABASE_USER           # Database username
 DATABASE_PASSWORD       # Database password
-```env
+```
 
 ### 4. Cache Configuration
 
-```env
+```
 REDIS_URL              # Redis connection string
 REDIS_PASSWORD         # Redis password (if required)
-```env
+```
 
 ### 5. Container Registry
 
-```env
+```
 DOCKER_USERNAME        # Docker Hub username
 DOCKER_PASSWORD        # Docker Hub password or access token
 GHCR_TOKEN            # GitHub Container Registry token
-```env
+```
 
 ### 6. Cloud Provider Credentials
 
 #### AWS (if deploying to AWS)
 
-```env
+```
 AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY
 AWS_REGION
-```env
+```
 
 #### Google Cloud (if deploying to GCP)
 
-```env
+```
 GCP_SERVICE_ACCOUNT_KEY    # Base64 encoded service account JSON
 GCP_PROJECT_ID
-```env
+```
 
 #### Azure (if deploying to Azure)
 
-```env
+```
 AZURE_CLIENT_ID
 AZURE_CLIENT_SECRET
 AZURE_TENANT_ID
 AZURE_SUBSCRIPTION_ID
-```env
+```
 
 ### 7. Kubernetes Deployment
 
-```env
+```
 KUBE_CONFIG            # Base64 encoded kubeconfig file
 KUBE_NAMESPACE         # Target namespace
-```env
+```
 
 ### 8. Monitoring & Observability
 
-```env
+```
 PROMETHEUS_AUTH_TOKEN  # Prometheus authentication token
 GRAFANA_API_KEY       # Grafana API key for dashboard management
 SENTRY_DSN            # Sentry error tracking DSN
-```env
+```
 
 ### 9. Notification Services
 
-```env
+```
 SLACK_WEBHOOK_URL     # Slack webhook for deployment notifications
 DISCORD_WEBHOOK_URL   # Discord webhook for notifications
-```env
+```
 
 ## Setting Up GitHub Secrets
 
@@ -126,7 +126,7 @@ gh secret set JWT_SECRET_KEY --body "$(python -c 'import secrets; print(secrets.
 
 # Set from file
 gh secret set KUBE_CONFIG < path/to/kubeconfig.yaml
-```env
+````
 
 ## Environment-Specific Secrets
 
@@ -137,20 +137,20 @@ gh secret set KUBE_CONFIG < path/to/kubeconfig.yaml
 
 ### Staging Environment
 
-```env
+```
 STAGING_DATABASE_URL
 STAGING_REDIS_URL
 STAGING_JWT_SECRET_KEY
-```env
+```
 
 ### Production Environment
 
-```env
+```
 PROD_DATABASE_URL
 PROD_REDIS_URL
 PROD_JWT_SECRET_KEY
 PROD_ENCRYPTION_KEY
-```env
+```
 
 ## Security Best Practices
 
@@ -213,7 +213,7 @@ jobs:
       run: |
         echo "$KUBE_CONFIG" | base64 -d > kubeconfig
         kubectl --kubeconfig=kubeconfig apply -f k8s/
-```env
+```
 
 ## Troubleshooting
 
@@ -253,7 +253,7 @@ for secret in "${REQUIRED_SECRETS[@]}"; do
         echo "✅ Secret $secret is configured"
     fi
 done
-```env
+````
 
 ## Migration from Other CI/CD Systems
 
@@ -294,4 +294,3 @@ For questions or issues with secret configuration, please:
 1. Check this documentation first
 2. Review GitHub Actions logs for specific error messages
 3. Contact the DevOps team or create an issue in the repository
-````

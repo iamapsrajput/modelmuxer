@@ -124,7 +124,7 @@ response = requests.get("http://localhost:8000/v1/analytics/costs",
 )
 ```
 
-For complete API documentation, see our [OpenAPI Specification](docs/api/openapi.yaml).
+For complete API documentation, see our [OpenAPI Specification](docs/openapi/openapi.yaml).
 
 ## Setup Instructions
 
@@ -541,9 +541,9 @@ ModelMuxer delivers exceptional performance with intelligent routing:
 
 - **[Production Deployment Guide](docs/deployment/production-guide.md)**:
   Complete production setup
-- **[API Documentation](docs/api/openapi.yaml)**: OpenAPI specification
-- **[Security Guide](docs/security/)**: Security configuration and practices
-- **[Monitoring Guide](docs/monitoring/)**: Observability setup and configuration
+- **[API Documentation](docs/openapi/openapi.yaml)**: OpenAPI specification
+- **[Security Guide](docs/security.md)**: Security configuration and practices
+- **[Monitoring Guide](docs/monitoring.md)**: Observability setup and configuration
 - **[Production Checklist](docs/deployment/production-checklist.md)**:
   Pre-deployment checklist
 
