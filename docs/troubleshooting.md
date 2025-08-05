@@ -156,4 +156,3 @@ If issues persist:
 ## Contact
 
 - GitHub Issues: [Create an issue](https://github.com/iamapsrajput/modelmuxer/issues)
-- Discussions: [Join the discussion](https://github.com/iamapsrajput/modelmuxer/discussions)

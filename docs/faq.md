@@ -14,9 +14,9 @@ A: Currently supported providers include OpenAI, Anthropic, and Mistral.
 
 A: Visit each provider's website to sign up and generate API keys:
 
-- OpenAI: https://platform.openai.com/api-keys
-- Anthropic: https://console.anthropic.com/ (login required)
-- Mistral: https://console.mistral.ai/ (login required)
+- **OpenAI**: Create an account at [platform.openai.com](https://platform.openai.com/) and navigate to API Keys
+- **Anthropic**: Sign up at [console.anthropic.com](https://docs.anthropic.com/en/api/getting-started) and access your API keys in account settings
+- **Mistral**: Register at [console.mistral.ai](https://docs.mistral.ai/) and generate API keys in your dashboard
 
 ## Configuration
 
