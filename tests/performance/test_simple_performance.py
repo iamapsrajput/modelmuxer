@@ -93,9 +93,11 @@ class TestBasicPerformance:
     @pytest.mark.performance
     def test_benchmark_import_performance(self, benchmark) -> None:
         """Benchmark test for import performance using pytest-benchmark."""
+
         def import_modules():
             from app.config.enhanced_config import enhanced_config  # noqa: F401
             from app.models import ChatMessage  # noqa: F401
+
             return True
 
         # Use benchmark fixture to measure performance
@@ -106,7 +108,7 @@ class TestBasicPerformance:
     def test_benchmark_model_validation(self, benchmark) -> None:
         """Benchmark test for model validation using pytest-benchmark."""
         from app.models import ChatMessage
-        
+
         def create_message():
             return ChatMessage(role="user", content="Test message", name=None)
 

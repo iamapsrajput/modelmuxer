@@ -38,7 +38,7 @@ strategy:
 
 - **116+ unit and integration tests** must pass
 - **Code coverage** reporting with HTML output
-- **Performance benchmarking** with regression detection
+- **Performance benchmarking** with artifact storage and PR comments
 - **Dependency vulnerability scanning**
 
 ## Build Workflow
@@ -46,10 +46,12 @@ strategy:
 ### Multi-Platform Docker Builds
 
 #### Platform Strategy
+
 - **Pull Requests**: Single platform (`linux/amd64`) for faster iteration
 - **Production Builds**: Multi-platform (`linux/amd64`, `linux/arm64`)
 
 #### Build Features
+
 - **Conditional attestations**: SBOM and provenance only for production
 - **GitHub Actions caching**: Optimized build performance
 - **Vulnerability scanning**: Integrated Trivy security scanning
@@ -71,16 +73,19 @@ sbom: ${{ github.event_name != 'pull_request' }}
 ### Comprehensive Security Scanning
 
 #### Secret Detection
+
 - **Gitleaks integration**: Advanced secret scanning with custom configuration
 - **False positive filtering**: Smart exclusions for documentation and test files
 - **Pattern recognition**: Detects various credential formats and API keys
 
 #### Vulnerability Assessment
+
 - **Trivy container scanning**: Multi-layer vulnerability detection
 - **Dependency scanning**: Third-party package vulnerability monitoring
 - **SARIF reporting**: Standardized security findings format
 
 #### Code Quality Security
+
 - **Bandit static analysis**: Python-specific security issue detection
 - **License compliance**: Automated license compatibility checking
 - **Supply chain security**: SBOM generation and provenance tracking
@@ -149,16 +154,25 @@ Custom `.gitleaks.toml` configuration provides:
 ### Common Issues
 
 #### Docker Build Failures
+
 - **Manifest list errors**: Resolved with conditional platform builds
 - **Attestation conflicts**: Fixed with conditional SBOM/provenance generation
 
 #### Security Scan False Positives
+
 - **Gitleaks configuration**: Custom rules prevent documentation false positives
 - **Pattern exclusions**: Smart filtering for legitimate examples
 
 #### Test Failures
+
 - **Environment isolation**: Each test run uses clean environment
 - **Dependency management**: Consistent dependency versions across environments
+
+#### Benchmark Action Issues
+
+- **gh-pages branch missing**: Configured for comment-only mode to avoid branch dependency
+- **Fallback mechanism**: Automatic fallback comment if benchmark action fails
+- **Artifact storage**: Benchmark data always saved as workflow artifacts
 
 ### Debug Strategies
 
@@ -169,16 +183,19 @@ Custom `.gitleaks.toml` configuration provides:
 ## Best Practices
 
 ### Code Quality
+
 - **Automated formatting**: Ruff formatting enforced in CI
 - **Type checking**: MyPy validation for type safety
 - **Security scanning**: Multiple security tools for comprehensive coverage
 
 ### Performance
+
 - **Efficient caching**: Minimize redundant operations
 - **Parallel execution**: Maximize concurrency where possible
 - **Resource optimization**: Efficient use of GitHub Actions minutes
 
 ### Security
+
 - **Secret management**: Secure handling of API keys and credentials
 - **Vulnerability monitoring**: Continuous security posture assessment
 - **Compliance validation**: Automated license and security compliance
@@ -186,6 +203,7 @@ Custom `.gitleaks.toml` configuration provides:
 ## Future Enhancements
 
 ### Planned Improvements
+
 - **Advanced deployment strategies**: Blue-green and canary deployments
 - **Enhanced monitoring**: Integration with external monitoring systems
 - **Performance optimization**: Further build time improvements
