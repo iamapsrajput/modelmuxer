@@ -5,9 +5,9 @@ name: Test Suite
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, dev]
   pull_request:
-    branches: [main, develop]
+    branches: [main, dev]
 
 env:
   PYTHON_VERSION: "3.11"

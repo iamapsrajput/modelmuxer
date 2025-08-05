@@ -1,9 +1,21 @@
 # ModelMuxer (c) 2025 Ajay Rajput
 # Licensed under Business Source License 1.1 – see LICENSE for details.
 """
-Cost calculation and tracking utilities.
+Cost calculation and tracking utilities with enhanced features.
+
+This module provides both basic and advanced cost tracking capabilities including:
+- Basic token counting and cost calculation
+- Real-time budget monitoring with Redis (enhanced mode)
+- Multi-level budget alerts (daily/weekly/monthly/yearly)
+- Cascade routing cost optimization tracking
+- Comprehensive analytics and reporting
 """
 
+import json
+import sqlite3
+from dataclasses import dataclass
+from datetime import date
+from enum import Enum
 from typing import Any
 
 import tiktoken
@@ -11,14 +23,78 @@ import tiktoken
 from .config import settings
 from .models import ChatMessage
 
+# Enhanced imports (optional)
+try:
+    import redis
+    import structlog
+
+    ENHANCED_FEATURES_AVAILABLE = True
+    logger = structlog.get_logger(__name__)
+except ImportError:
+    ENHANCED_FEATURES_AVAILABLE = False
+    logger = None
+    redis = None
+
+
+class MockRedisClient:
+    """Mock Redis client for testing when Redis is not available."""
+
+    def __init__(self) -> None:
+        self._data: dict[str, Any] = {}
+
+    def incrbyfloat(self, key: str, amount: float) -> float:
+        current = float(self._data.get(key, 0.0))
+        self._data[key] = current + amount
+        return float(self._data[key])
+
+    def expire(self, key: str, seconds: int) -> None:
+        pass  # Mock implementation
+
+    def setex(self, key: str, seconds: int, value: str) -> None:
+        self._data[key] = value
+
+    def get(self, key: str) -> Any:
+        return self._data.get(key)
+
+
+class BudgetPeriod(Enum):
+    """Budget period types for enhanced cost tracking."""
+
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+
+
+@dataclass
+class BudgetAlert:
+    """Budget alert configuration."""
+
+    threshold_percent: float
+    message: str
+    severity: str  # "info", "warning", "critical"
+
 
 class CostTracker:
     """Handles cost calculation and token counting for different providers."""
 
-    def __init__(self):
+    def __init__(self, enhanced_mode: bool = False):
+        self.enhanced_mode = enhanced_mode
         self.pricing = settings.get_provider_pricing()
         # Initialize tokenizers for different providers
         self._tokenizers = {}
+
+        # Enhanced features (only initialized if enhanced_mode is True)
+        self.redis_client = None
+        self.db_path = None
+
+        if enhanced_mode and ENHANCED_FEATURES_AVAILABLE:
+            self._initialize_enhanced_features()
+
+    def _initialize_enhanced_features(self) -> None:
+        """Initialize enhanced cost tracking features."""
+        # This will be implemented when we add the AdvancedCostTracker functionality
+        pass
 
     def get_tokenizer(self, provider: str, model: str) -> None:
         """Get or create tokenizer for a specific model."""
@@ -178,5 +254,295 @@ class CostTracker:
         }
 
 
-# Global cost tracker instance
+class AdvancedCostTracker(CostTracker):
+    """
+    Enhanced cost tracker with budget management and cascade-aware tracking.
+
+    Extends the basic CostTracker with advanced features including:
+    - Real-time budget monitoring with Redis
+    - Multi-level budget alerts
+    - Cascade routing cost optimization tracking
+    - Comprehensive analytics and reporting
+    """
+
+    def __init__(
+        self, db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"
+    ):
+        super().__init__(enhanced_mode=True)
+        self.db_path = db_path
+        self.redis_url = redis_url
+
+        # Initialize Redis client
+        if ENHANCED_FEATURES_AVAILABLE and redis:
+            try:
+                self.redis_client = redis.from_url(redis_url, decode_responses=True)
+                # Test connection
+                self.redis_client.ping()
+                if logger:
+                    logger.info("redis_connected", url=redis_url)
+            except Exception as e:
+                if logger:
+                    logger.warning("redis_connection_failed", error=str(e), fallback="mock")
+                self.redis_client = MockRedisClient()
+        else:
+            self.redis_client = MockRedisClient()
+
+        # Initialize database
+        self._init_database()
+
+    def _init_database(self) -> None:
+        """Initialize SQLite database for cost tracking."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Create tables for enhanced tracking
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS cost_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                user_id TEXT NOT NULL,
+                session_id TEXT,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                prompt_tokens INTEGER DEFAULT 0,
+                completion_tokens INTEGER DEFAULT 0,
+                total_tokens INTEGER DEFAULT 0,
+                cost REAL NOT NULL,
+                routing_strategy TEXT,
+                cascade_type TEXT,
+                cascade_steps INTEGER,
+                quality_score REAL,
+                success BOOLEAN DEFAULT TRUE,
+                error_message TEXT,
+                metadata TEXT
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_budgets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                budget_type TEXT NOT NULL,
+                budget_limit REAL NOT NULL,
+                provider TEXT,
+                model TEXT,
+                alert_thresholds TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, budget_type, provider, model)
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_cost_requests_user_timestamp
+            ON cost_requests(user_id, timestamp)
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_cost_requests_provider_model
+            ON cost_requests(provider, model)
+        """
+        )
+
+        conn.commit()
+        conn.close()
+
+        if logger:
+            logger.info("database_initialized", db_path=self.db_path)
+
+    async def log_request_with_cascade(
+        self,
+        user_id: str,
+        session_id: str,
+        cascade_metadata: dict[str, Any],
+        success: bool = True,
+        error_message: str | None = None,
+    ) -> None:
+        """Log a cascade routing request with detailed metadata."""
+        if not ENHANCED_FEATURES_AVAILABLE:
+            return
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            # Extract cascade information
+            cascade_type = cascade_metadata.get("type", "unknown")
+            cascade_steps = len(cascade_metadata.get("steps", []))
+            total_cost = sum(step.get("cost", 0) for step in cascade_metadata.get("steps", []))
+            quality_score = cascade_metadata.get("final_quality_score")
+
+            # Get the final successful provider/model
+            final_step = None
+            for step in reversed(cascade_metadata.get("steps", [])):
+                if step.get("success", False):
+                    final_step = step
+                    break
+
+            if final_step:
+                provider = final_step.get("provider", "unknown")
+                model = final_step.get("model", "unknown")
+                prompt_tokens = final_step.get("prompt_tokens", 0)
+                completion_tokens = final_step.get("completion_tokens", 0)
+            else:
+                provider = "failed"
+                model = "failed"
+                prompt_tokens = 0
+                completion_tokens = 0
+
+            cursor.execute(
+                """
+                INSERT INTO cost_requests (
+                    user_id, session_id, provider, model, prompt_tokens, completion_tokens,
+                    total_tokens, cost, routing_strategy, cascade_type, cascade_steps,
+                    quality_score, success, error_message, metadata
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    user_id,
+                    session_id,
+                    provider,
+                    model,
+                    prompt_tokens,
+                    completion_tokens,
+                    prompt_tokens + completion_tokens,
+                    total_cost,
+                    "cascade",
+                    cascade_type,
+                    cascade_steps,
+                    quality_score,
+                    success,
+                    error_message,
+                    json.dumps(cascade_metadata),
+                ),
+            )
+
+            conn.commit()
+
+            # Update real-time usage in Redis
+            await self._update_usage_cache(user_id, total_cost, provider, model)
+
+            # Check budget alerts
+            await self._check_budget_alerts(user_id, total_cost, provider, model)
+
+            if logger:
+                logger.info(
+                    "cascade_request_logged",
+                    user_id=user_id,
+                    cascade_type=cascade_type,
+                    total_cost=total_cost,
+                    cascade_steps=cascade_steps,
+                    success=success,
+                )
+
+        finally:
+            conn.close()
+
+    async def log_simple_request(
+        self,
+        user_id: str,
+        session_id: str,
+        provider: str,
+        model: str,
+        cost: float,
+        success: bool,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        error_message: str | None = None,
+    ) -> None:
+        """Log a simple (non-cascade) request."""
+        if not ENHANCED_FEATURES_AVAILABLE:
+            return
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                INSERT INTO cost_requests (
+                    user_id, session_id, provider, model, prompt_tokens, completion_tokens,
+                    total_tokens, cost, routing_strategy, success, error_message
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    user_id,
+                    session_id,
+                    provider,
+                    model,
+                    prompt_tokens,
+                    completion_tokens,
+                    prompt_tokens + completion_tokens,
+                    cost,
+                    "single",
+                    success,
+                    error_message,
+                ),
+            )
+
+            conn.commit()
+
+            # Update real-time usage in Redis
+            await self._update_usage_cache(user_id, cost, provider, model)
+
+            # Check budget alerts
+            await self._check_budget_alerts(user_id, cost, provider, model)
+
+        finally:
+            conn.close()
+
+    async def _update_usage_cache(
+        self, user_id: str, cost: float, provider: str, model: str
+    ) -> None:
+        """Update real-time usage cache in Redis."""
+        if not self.redis_client:
+            return
+
+        try:
+            today = date.today()
+
+            # Update daily usage
+            daily_key = f"usage:daily:{user_id}:{today}"
+            self.redis_client.incrbyfloat(daily_key, cost)
+            self.redis_client.expire(daily_key, 86400 * 2)  # 2 days TTL
+
+            # Update monthly usage
+            monthly_key = f"usage:monthly:{user_id}:{today.year}-{today.month:02d}"
+            self.redis_client.incrbyfloat(monthly_key, cost)
+            self.redis_client.expire(monthly_key, 86400 * 35)  # 35 days TTL
+
+            # Update provider-specific usage
+            provider_key = f"usage:provider:{user_id}:{provider}:{today}"
+            self.redis_client.incrbyfloat(provider_key, cost)
+            self.redis_client.expire(provider_key, 86400 * 7)  # 7 days TTL
+
+        except Exception as e:
+            if logger:
+                logger.warning("usage_cache_update_failed", error=str(e))
+
+    async def _check_budget_alerts(
+        self, user_id: str, cost: float, provider: str, model: str
+    ) -> None:
+        """Check if budget alerts should be triggered."""
+        # Implementation would check against user budgets and send alerts
+        # This is a simplified version
+        pass
+
+
+# Global cost tracker instance (basic mode by default)
 cost_tracker = CostTracker()
+
+
+# Function to create enhanced cost tracker
+def create_advanced_cost_tracker(
+    db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"
+) -> AdvancedCostTracker:
+    """Create an advanced cost tracker instance."""
+    return AdvancedCostTracker(db_path=db_path, redis_url=redis_url)

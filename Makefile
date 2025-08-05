@@ -81,7 +81,7 @@ security-scan:
 
 # Run development server
 run:
-	poetry run uvicorn app.main_enhanced:app --reload --host 0.0.0.0 --port 8000
+	poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Build Docker image
 docker-build:

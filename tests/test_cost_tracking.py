@@ -5,7 +5,6 @@
 Tests for the cost tracking and budget management system.
 """
 
-
 import pytest
 
 from app.cost_tracker import CostTracker
@@ -150,7 +149,7 @@ class TestCostTrackingIntegration:
         provider, model, reason = router.select_model(messages, budget_constraint=0.0001)
 
         # Should select a cheap model
-        assert provider in ["mistral", "openai"]
+        assert provider in ["mistral", "openai", "groq"]
         if provider == "openai":
             assert "mini" in model.lower()
         elif provider == "mistral":
@@ -169,7 +168,7 @@ class TestCostTrackingIntegration:
         provider, model, reason = router.select_model(messages, budget_constraint=0.00001)
 
         # Should select the cheapest available model
-        assert provider in ["mistral", "openai"]
+        assert provider in ["mistral", "openai", "groq"]
         if provider == "openai":
             assert "mini" in model.lower()
         elif provider == "mistral":

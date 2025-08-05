@@ -117,7 +117,7 @@ ENV PYTHONPATH=/app \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Run the application with proper signal handling
-CMD ["python", "-m", "uvicorn", "app.main_enhanced:app", \
+CMD ["python", "-m", "uvicorn", "app.main:app", \
     "--host", "0.0.0.0", \
     "--port", "8000", \
     "--workers", "1", \

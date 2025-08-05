@@ -5,7 +5,7 @@ Configuration management using Pydantic Settings.
 """
 
 from pydantic import Field, validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Security
     api_key_header: str = Field("Authorization", description="API key header name")
     allowed_api_keys: str = Field(
-        default="", description="Comma-separated allowed API keys (set via API_KEYS env var)"
+        default="", env="API_KEYS", description="Comma-separated allowed API keys"
     )
 
     # Server Configuration
@@ -47,41 +47,43 @@ class Settings(BaseSettings):
 
     # Provider Pricing (per million tokens)
     openai_gpt4o_input_price: float = Field(
-        5.0, description="GPT-4o input price per million tokens"
+        0.005, description="GPT-4o input price per million tokens"
     )
     openai_gpt4o_output_price: float = Field(
-        15.0, description="GPT-4o output price per million tokens"
+        0.015, description="GPT-4o output price per million tokens"
+    )
+    openai_gpt4o_mini_input_price: float = Field(
+        0.00015, description="GPT-4o-mini input price per million tokens"
+    )
+    openai_gpt4o_mini_output_price: float = Field(
+        0.0006, description="GPT-4o-mini output price per million tokens"
     )
     openai_gpt35_input_price: float = Field(
-        0.5, description="GPT-3.5-turbo input price per million tokens"
+        0.0005, description="GPT-3.5-turbo input price per million tokens"
     )
     openai_gpt35_output_price: float = Field(
-        1.5, description="GPT-3.5-turbo output price per million tokens"
+        0.0015, description="GPT-3.5-turbo output price per million tokens"
     )
 
     anthropic_sonnet_input_price: float = Field(
-        3.0, description="Claude-3-sonnet input price per million tokens"
+        0.003, description="Claude-3-sonnet input price per million tokens"
     )
     anthropic_sonnet_output_price: float = Field(
-        15.0, description="Claude-3-sonnet output price per million tokens"
+        0.015, description="Claude-3-sonnet output price per million tokens"
     )
     anthropic_haiku_input_price: float = Field(
-        0.25, description="Claude-3-haiku input price per million tokens"
+        0.00025, description="Claude-3-haiku input price per million tokens"
     )
     anthropic_haiku_output_price: float = Field(
-        1.25, description="Claude-3-haiku output price per million tokens"
+        0.00125, description="Claude-3-haiku output price per million tokens"
     )
 
     mistral_small_input_price: float = Field(
-        0.2, description="Mistral-small input price per million tokens"
+        0.0002, description="Mistral-small input price per million tokens"
     )
     mistral_small_output_price: float = Field(
-        0.6, description="Mistral-small output price per million tokens"
+        0.0006, description="Mistral-small output price per million tokens"
     )
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
 
     @validator("allowed_api_keys")
     def parse_api_keys(cls, v) -> None:
@@ -103,6 +105,10 @@ class Settings(BaseSettings):
                 "gpt-4o": {
                     "input": self.openai_gpt4o_input_price,
                     "output": self.openai_gpt4o_output_price,
+                },
+                "gpt-4o-mini": {
+                    "input": self.openai_gpt4o_mini_input_price,
+                    "output": self.openai_gpt4o_mini_output_price,
                 },
                 "gpt-3.5-turbo": {
                     "input": self.openai_gpt35_input_price,
@@ -126,6 +132,8 @@ class Settings(BaseSettings):
                 }
             },
         }
+
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
 
 # Global settings instance

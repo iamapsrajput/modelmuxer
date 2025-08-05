@@ -47,7 +47,7 @@ poetry install && poetry shell
 
 # Configure and run
 cp .env.example .env  # Add your API keys
-poetry run uvicorn app.main:app --reload
+MODELMUXER_MODE=enhanced poetry run uvicorn app.main:app --reload
 ```
 
 Visit `http://localhost:8000/docs` for interactive API documentation.
@@ -156,7 +156,13 @@ For complete API documentation, see our [OpenAPI Specification](docs/api/openapi
 4. **Run the server**
 
    ```bash
-   uvicorn app.main:app --reload
+   # Enhanced mode (recommended for production)
+   # Includes: ML routing, advanced cost tracking, monitoring, enterprise features
+   MODELMUXER_MODE=enhanced uvicorn app.main:app --reload
+
+   # Basic mode for development/testing
+   # Includes: Basic routing, simple cost tracking, minimal features
+   MODELMUXER_MODE=basic uvicorn app.main:app --reload
    ```
 
 5. **Test the installation**
@@ -210,19 +216,6 @@ ModelMuxer supports multiple containerization platforms with auto-detection:
 
 # Using Apple Container Compose
 container compose -f container-compose.yaml up -d
-```
-
-### **Podman (Recommended Alternative)**
-
-```bash
-# Install Podman
-brew install podman
-
-# Initialize and start Podman machine
-podman machine init && podman machine start
-
-# Run with Podman
-./scripts/podman-commands.sh run
 ```
 
 ### **Docker (Cross-Platform)**
@@ -600,11 +593,11 @@ Contact [enterprise@modelmuxer.com](mailto:enterprise@modelmuxer.com) for more i
 
 ---
 
-**Built with ❤️ by the ModelMuxer team**
+## Built with ❤️ by the ModelMuxer team
 
 For questions, support, or feedback:
 
-- 📧 Email: support@modelmuxer.com
+- 📧 Email: <support@modelmuxer.com>
 - 💬 Discord: [Join our community](https://discord.gg/modelmuxer)
 - 🐛 Issues: [GitHub Issues](https://github.com/your-org/modelmuxer/issues)
 - 📖 Docs: [docs.modelmuxer.com](https://docs.modelmuxer.com)

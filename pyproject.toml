@@ -102,8 +102,8 @@ opentelemetry-sdk = "^1.20.0"
 opentelemetry-instrumentation-fastapi = "^0.41b0"
 
 [tool.poetry.scripts]
-modelmuxer = "app.main_enhanced:cli"
-modelmuxer-server = "app.main_enhanced:main"
+modelmuxer = "app.main:cli"
+modelmuxer-server = "app.main:main"
 
 [build-system]
 requires = ["poetry-core"]
@@ -165,7 +165,6 @@ exclude = [
     "app/providers/*",
     "app/config/enhanced_config.py",
     "app/classification/*",
-    "app/main_enhanced.py",
     "app/main.py",
     "app/router.py",
     "app/database.py",
@@ -187,13 +186,7 @@ ignore_missing_imports = true
 
 # Temporarily allow untyped defs in complex modules during migration
 [[tool.mypy.overrides]]
-module = [
-    "app.routing.*",
-    "app.cache.*",
-    "app.providers.*",
-    "app.cost_tracker_enhanced",
-    "tests.*",
-]
+module = ["app.routing.*", "app.cache.*", "app.providers.*", "tests.*"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 warn_return_any = false
