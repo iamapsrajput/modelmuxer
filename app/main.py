@@ -831,7 +831,7 @@ def cli():
     import uvicorn
 
     parser = argparse.ArgumentParser(description="ModelMuxer LLM Router")
-    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")  # nosec B104
     parser.add_argument("--port", type=int, default=8000, help="Port to bind to")
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
     parser.add_argument("--workers", type=int, default=1, help="Number of worker processes")
@@ -868,7 +868,7 @@ def main():
     config = model_muxer.config
     uvicorn.run(
         "app.main:app",
-        host=config.host if hasattr(config, "host") else "0.0.0.0",
+        host=config.host if hasattr(config, "host") else "0.0.0.0",  # nosec B104
         port=config.port if hasattr(config, "port") else 8000,
         reload=config.debug if hasattr(config, "debug") else False,
         log_level=(

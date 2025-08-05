@@ -205,7 +205,7 @@ from locust import HttpUser, task, between
 
 class ModelMuxerUser(HttpUser):
     wait_time = between(1, 3)
-    
+
     @task
     def chat_completion(self):
         self.client.post("/api/v1/chat/completions", json={

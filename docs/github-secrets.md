@@ -16,17 +16,17 @@ GOOGLE_API_KEY
 GROQ_API_KEY
 TOGETHER_API_KEY
 COHERE_API_KEY
-```env
+```
 
 **Note**: At least one provider API key must be configured for tests to pass.
 
 ### 2. Authentication & Security
 
-```env
+````env
 JWT_SECRET_KEY          # JWT signing key (generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))')
 ENCRYPTION_KEY          # General encryption key
 PII_ENCRYPTION_KEY      # PII-specific encryption key
-```env
+```
 
 ### 3. Database Configuration
 
@@ -193,10 +193,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Configure environment
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -206,7 +206,7 @@ jobs:
         REDIS_URL: ${{ secrets.PROD_REDIS_URL }}
       run: |
         echo "Environment configured"
-        
+
     - name: Deploy to Kubernetes
       env:
         KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
@@ -294,3 +294,4 @@ For questions or issues with secret configuration, please:
 1. Check this documentation first
 2. Review GitHub Actions logs for specific error messages
 3. Contact the DevOps team or create an issue in the repository
+````

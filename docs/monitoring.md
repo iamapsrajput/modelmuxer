@@ -9,6 +9,7 @@ ModelMuxer provides comprehensive monitoring capabilities to track performance, 
 ### Built-in Metrics
 
 ModelMuxer automatically collects:
+
 - Request count and rate
 - Response times and latency percentiles
 - Error rates by provider and model
@@ -40,26 +41,17 @@ metrics.response_time.observe(0.5, {"endpoint": "/chat/completions"})
 ## Health Checks
 
 ### Basic Health Check
+
 ```
 GET /health
 ```
 
 Returns service status and version information.
 
-### Detailed Health Check
-```
-GET /health/detailed
-```
-
-Returns component-level health status including:
-- Database connectivity
-- Provider API availability
-- Cache system status
-- Memory and CPU usage
-
 ## Logging
 
 ### Log Levels
+
 - `DEBUG`: Detailed debugging information
 - `INFO`: General operational messages
 - `WARNING`: Important events that may need attention
@@ -67,6 +59,7 @@ Returns component-level health status including:
 - `CRITICAL`: Critical system failures
 
 ### Log Configuration
+
 ```bash
 # Environment variables
 LOG_LEVEL=INFO
@@ -75,25 +68,28 @@ LOG_FILE=/var/log/modelmuxer/app.log
 ```
 
 ### Structured Logging
+
 ```python
 import structlog
 
 logger = structlog.get_logger()
-logger.info("Request processed", 
-           user_id="user123", 
-           model="gpt-4", 
+logger.info("Request processed",
+           user_id="user123",
+           model="gpt-4",
            tokens=150)
 ```
 
 ## Alerting
 
 ### Threshold-based Alerts
+
 - High error rates (>5%)
 - Slow response times (>2s p95)
 - Budget exceeded warnings
 - Provider API failures
 
 ### Integration Options
+
 - Email notifications
 - Slack webhooks
 - PagerDuty integration
@@ -102,13 +98,16 @@ logger.info("Request processed",
 ## Dashboards
 
 ### Grafana Integration
+
 Import the provided dashboard templates:
+
 - System overview
 - Provider performance
 - Cost analysis
 - User activity
 
 ### Key Performance Indicators (KPIs)
+
 - Requests per second
 - Average response time
 - Error rate percentage
@@ -118,17 +117,20 @@ Import the provided dashboard templates:
 ## Performance Monitoring
 
 ### Response Time Tracking
+
 - P50, P95, P99 latency percentiles
 - Provider-specific response times
 - Geographic latency distribution
 
 ### Resource Utilization
+
 - CPU usage
 - Memory consumption
 - Network I/O
 - Disk space
 
 ### Capacity Planning
+
 - Traffic growth trends
 - Resource utilization forecasts
 - Scaling recommendations
@@ -136,11 +138,13 @@ Import the provided dashboard templates:
 ## Cost Monitoring
 
 ### Usage Tracking
+
 - Token consumption by user/organization
 - Cost breakdown by provider and model
 - Budget utilization alerts
 
 ### Cost Optimization
+
 - Identify expensive queries
 - Monitor routing efficiency
 - Track cost savings from intelligent routing
@@ -148,12 +152,14 @@ Import the provided dashboard templates:
 ## Security Monitoring
 
 ### Audit Logging
+
 - Authentication events
 - API key usage
 - Configuration changes
 - Suspicious activity patterns
 
 ### Security Metrics
+
 - Failed authentication attempts
 - Rate limiting triggers
 - Unusual access patterns
@@ -161,12 +167,15 @@ Import the provided dashboard templates:
 ## Troubleshooting
 
 ### Common Monitoring Issues
+
 1. **Missing metrics**: Check Prometheus configuration
 2. **High memory usage**: Review log retention settings
 3. **Alert fatigue**: Adjust threshold values
 
 ### Debug Mode
+
 Enable detailed logging for troubleshooting:
+
 ```bash
 DEBUG=true poetry run uvicorn app.main:app
 ```
@@ -182,6 +191,7 @@ DEBUG=true poetry run uvicorn app.main:app
 ## Integration Examples
 
 ### Datadog
+
 ```python
 from datadog import initialize, statsd
 
@@ -190,6 +200,7 @@ statsd.increment('modelmuxer.requests', tags=['provider:openai'])
 ```
 
 ### New Relic
+
 ```python
 import newrelic.agent
 

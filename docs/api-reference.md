@@ -139,80 +139,6 @@ List available models across all providers.
 }
 ```
 
-#### GET /models/{provider}
-
-List models for a specific provider.
-
-#### GET /models/{provider}/{model}
-
-Get details for a specific model.
-
-### Routing
-
-#### POST /routing/analyze
-
-Analyze a prompt and get routing recommendations.
-
-**Request:**
-
-```json
-{
-  "messages": [
-    {
-      "role": "user",
-      "content": "Write a Python function to sort a list"
-    }
-  ],
-  "budget_constraint": 0.01
-}
-```
-
-**Response:**
-
-```json
-{
-  "analysis": {
-    "task_type": "code",
-    "complexity": "medium",
-    "estimated_tokens": 150,
-    "code_confidence": 0.85,
-    "complexity_confidence": 0.6
-  },
-  "recommendations": [
-    {
-      "provider": "openai",
-      "model": "gpt-4o",
-      "confidence": 0.9,
-      "estimated_cost": 0.0075,
-      "reason": "Optimal for code generation tasks"
-    },
-    {
-      "provider": "anthropic",
-      "model": "claude-3-5-sonnet-20241022",
-      "confidence": 0.85,
-      "estimated_cost": 0.0045,
-      "reason": "Good balance of quality and cost"
-    }
-  ]
-}
-```
-
-#### PUT /routing/strategy
-
-Update the default routing strategy.
-
-**Request:**
-
-```json
-{
-  "strategy": "cascade",
-  "parameters": {
-    "quality_threshold": 0.8,
-    "max_budget": 0.05
-  }
-}
-```
-
 ### Cost Tracking
 
 #### GET /usage
@@ -241,44 +167,6 @@ Get usage statistics for the authenticated user.
 }
 ```
 
-#### GET /usage/budget
-
-Get budget status and alerts.
-
-**Response:**
-
-```json
-{
-  "daily_budget": 10.0,
-  "daily_used": 2.5,
-  "daily_remaining": 7.5,
-  "monthly_budget": 300.0,
-  "monthly_used": 75.0,
-  "monthly_remaining": 225.0,
-  "alerts": [
-    {
-      "type": "warning",
-      "message": "25% of daily budget used",
-      "threshold": 0.25
-    }
-  ]
-}
-```
-
-#### POST /usage/budget
-
-Set budget limits.
-
-**Request:**
-
-```json
-{
-  "daily_limit": 15.0,
-  "monthly_limit": 400.0,
-  "alert_thresholds": [0.5, 0.8, 0.95]
-}
-```
-
 ### Health & Status
 
 #### GET /health
@@ -292,27 +180,6 @@ Basic health check.
   "status": "healthy",
   "timestamp": "2024-01-15T10:30:00Z",
   "version": "1.0.0"
-}
-```
-
-#### GET /health/detailed
-
-Detailed health check with component status.
-
-**Response:**
-
-```json
-{
-  "status": "healthy",
-  "timestamp": "2024-01-15T10:30:00Z",
-  "components": {
-    "database": { "status": "healthy", "response_time": "5ms" },
-    "cache": { "status": "healthy", "hit_rate": 0.85 },
-    "providers": {
-      "openai": { "status": "healthy", "latency": "250ms" },
-      "anthropic": { "status": "healthy", "latency": "180ms" }
-    }
-  }
 }
 ```
 
