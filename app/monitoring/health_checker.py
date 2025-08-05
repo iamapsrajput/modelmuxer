@@ -138,7 +138,9 @@ class HealthChecker:
             self._health_cache["system"] = status
         except Exception as e:
             status = HealthStatus(
-                status="unhealthy", message=f"System health check failed: {str(e)}", details={"error": str(e)}
+                status="unhealthy",
+                message=f"System health check failed: {str(e)}",
+                details={"error": str(e)},
             )
             self._health_cache["system"] = status
 
@@ -220,7 +222,9 @@ class HealthChecker:
             self._health_cache["resources"] = health_status
         except Exception as e:
             health_status = HealthStatus(
-                status="degraded", message=f"Resource health check failed: {str(e)}", details={"error": str(e)}
+                status="degraded",
+                message=f"Resource health check failed: {str(e)}",
+                details={"error": str(e)},
             )
             self._health_cache["resources"] = health_status
 

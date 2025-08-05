@@ -279,7 +279,9 @@ class ModelMuxer:
             elif hasattr(self.config, "cache"):
                 redis_url = f"redis://{self.config.cache.redis_host}:{self.config.cache.redis_port}/{self.config.cache.redis_db}"
 
-            self.advanced_cost_tracker = create_advanced_cost_tracker(db_path="cost_tracker.db", redis_url=redis_url)
+            self.advanced_cost_tracker = create_advanced_cost_tracker(
+                db_path="cost_tracker.db", redis_url=redis_url
+            )
             self.cost_tracker = self.advanced_cost_tracker  # For backward compatibility
             if logger:
                 logger.info("enhanced_cost_tracker_initialized")
@@ -297,7 +299,8 @@ class ModelMuxer:
         try:
             self.metrics_collector = MetricsCollector(
                 enabled=self.config.monitoring.metrics_enabled,
-                prometheus_enabled=PROMETHEUS_AVAILABLE and self.config.monitoring.prometheus_enabled,
+                prometheus_enabled=PROMETHEUS_AVAILABLE
+                and self.config.monitoring.prometheus_enabled,
             )
 
             self.health_checker = HealthChecker(
@@ -320,10 +323,16 @@ class ModelMuxer:
             if hasattr(self.config.middleware, "auth") and self.config.middleware.auth.enabled:
                 self.auth_middleware = AuthMiddleware(self.config.middleware.auth)
 
-            if hasattr(self.config.middleware, "rate_limit") and self.config.middleware.rate_limit.enabled:
+            if (
+                hasattr(self.config.middleware, "rate_limit")
+                and self.config.middleware.rate_limit.enabled
+            ):
                 self.rate_limit_middleware = RateLimitMiddleware(self.config.middleware.rate_limit)
 
-            if hasattr(self.config.middleware, "logging") and self.config.middleware.logging.enabled:
+            if (
+                hasattr(self.config.middleware, "logging")
+                and self.config.middleware.logging.enabled
+            ):
                 self.logging_middleware = LoggingMiddleware(self.config.middleware.logging)
 
             if logger:
@@ -366,7 +375,11 @@ async def lifespan(app: FastAPI) -> None:
 
     # Anthropic
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-    if anthropic_key and not anthropic_key.startswith("your-") and not anthropic_key.endswith("-here"):
+    if (
+        anthropic_key
+        and not anthropic_key.startswith("your-")
+        and not anthropic_key.endswith("-here")
+    ):
         try:
             providers["anthropic"] = AnthropicProvider(api_key=anthropic_key)
             print("✅ Anthropic provider initialized")
@@ -412,9 +425,9 @@ app = FastAPI(
 
 # Add CORS middleware with secure configuration
 # Get allowed origins from environment or use secure defaults
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,https://modelmuxer.com").split(
-    ","
-)
+allowed_origins = os.getenv(
+    "CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,https://modelmuxer.com"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -483,13 +496,17 @@ async def validate_request_middleware(request: Request, call_next) -> None:
     return await call_next(request)
 
 
-async def get_authenticated_user(request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
+async def get_authenticated_user(
+    request: Request, authorization: str | None = Header(None)
+) -> dict[str, Any]:
     """Dependency to authenticate requests."""
     return await auth.authenticate_request(request, authorization)
 
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
-async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)):
+async def chat_completions(
+    request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)
+):
     """
     Create a chat completion using the optimal LLM provider.
 
@@ -504,7 +521,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
             message.content = sanitize_user_input(message.content)
 
         # Route the request to the best provider/model
-        provider_name, model_name, routing_reason = router.select_model(messages=request.messages, user_id=user_id)
+        provider_name, model_name, routing_reason = router.select_model(
+            messages=request.messages, user_id=user_id
+        )
 
         # Check if provider is available
         if provider_name not in providers:
@@ -541,7 +560,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
         # Handle streaming vs non-streaming
         if request.stream:
             return StreamingResponse(
-                stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time),
+                stream_chat_completion(
+                    provider, request, model_name, routing_reason, user_id, start_time
+                ),
                 media_type="text/plain",
             )
         else:
@@ -554,7 +575,8 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
                 **{
                     k: v
                     for k, v in request.dict().items()
-                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
+                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
+                    and v is not None
                 },
             )
 
@@ -636,7 +658,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
         ) from e
 
 
-async def stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time):
+async def stream_chat_completion(
+    provider, request, model_name, routing_reason, user_id, start_time
+):
     """Handle streaming chat completion."""
     try:
         async for chunk in provider.stream_chat_completion(
@@ -647,7 +671,8 @@ async def stream_chat_completion(provider, request, model_name, routing_reason, 
             **{
                 k: v
                 for k, v in request.dict().items()
-                if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
+                if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
+                and v is not None
             },
         ):
             yield f"data: {json.dumps(chunk)}\n\n"
@@ -656,8 +681,12 @@ async def stream_chat_completion(provider, request, model_name, routing_reason, 
 
         # Log streaming request (with estimated tokens)
         response_time_ms = (time.time() - start_time) * 1000
-        estimated_tokens = cost_tracker.count_tokens(request.messages, provider.provider_name, model_name)
-        estimated_cost = cost_tracker.calculate_cost(provider.provider_name, model_name, estimated_tokens, 100)
+        estimated_tokens = cost_tracker.count_tokens(
+            request.messages, provider.provider_name, model_name
+        )
+        estimated_cost = cost_tracker.calculate_cost(
+            provider.provider_name, model_name, estimated_tokens, 100
+        )
 
         await db.log_request(
             user_id=user_id,
@@ -807,7 +836,9 @@ async def get_budget_status(
     try:
         # Get budget status from advanced cost tracker
         if hasattr(model_muxer, "advanced_cost_tracker") and model_muxer.advanced_cost_tracker:
-            budget_statuses = await model_muxer.advanced_cost_tracker.get_budget_status(user_id, budget_type)
+            budget_statuses = await model_muxer.advanced_cost_tracker.get_budget_status(
+                user_id, budget_type
+            )
 
             # Convert to response format
             response_budgets = []
@@ -884,7 +915,9 @@ async def set_budget(
             raise HTTPException(status_code=400, detail="budget_type and budget_limit are required")
 
         if budget_type not in ["daily", "weekly", "monthly", "yearly"]:
-            raise HTTPException(status_code=400, detail="budget_type must be one of: daily, weekly, monthly, yearly")
+            raise HTTPException(
+                status_code=400, detail="budget_type must be one of: daily, weekly, monthly, yearly"
+            )
 
         if not isinstance(budget_limit, int | float) or budget_limit <= 0:
             raise HTTPException(status_code=400, detail="budget_limit must be a positive number")
@@ -995,7 +1028,9 @@ def main():
         port=config.port if hasattr(config, "port") else 8000,
         reload=config.debug if hasattr(config, "debug") else False,
         log_level=(
-            config.logging.level.lower() if hasattr(config, "logging") and hasattr(config.logging, "level") else "info"
+            config.logging.level.lower()
+            if hasattr(config, "logging") and hasattr(config.logging, "level")
+            else "info"
         ),
     )
 
