@@ -77,6 +77,11 @@ class LoggingMiddleware:
             audit_logging=self.enable_audit_log,
         )
 
+    def _extract_user_id(self, request_context: dict[str, Any]) -> str | None:
+        """Extract user_id from request context safely."""
+        user_info = request_context.get("user_info")
+        return user_info.get("user_id") if user_info else None
+
     async def log_request(
         self, request: Request, user_info: dict[str, Any] | None = None
     ) -> dict[str, Any]:
@@ -256,11 +261,7 @@ class LoggingMiddleware:
                     "error",
                     {
                         "request_id": request_context.get("request_id", "unknown"),
-                        "user_id": (
-                            request_context.get("user_info", {}).get("user_id")
-                            if request_context.get("user_info")
-                            else None
-                        ),
+                        "user_id": self._extract_user_id(request_context),
                         "endpoint": request_context.get("endpoint", "unknown"),
                         "error_type": type(error).__name__,
                         "error_message": str(error),
@@ -272,11 +273,7 @@ class LoggingMiddleware:
                     "completion",
                     {
                         "request_id": request_context.get("request_id", "unknown"),
-                        "user_id": (
-                            request_context.get("user_info", {}).get("user_id")
-                            if request_context.get("user_info")
-                            else None
-                        ),
+                        "user_id": self._extract_user_id(request_context),
                         "endpoint": request_context.get("endpoint", "unknown"),
                         "duration_ms": response_data.get("duration_ms", 0),
                         "client_ip": request_context.get("client_ip", "unknown"),

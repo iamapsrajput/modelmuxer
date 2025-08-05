@@ -65,6 +65,7 @@ except ImportError:
             pass
 
     # Assign dummy classes when Prometheus is not available
+    # Using type ignore for compatibility with prometheus_client types
     PrometheusCounter = DummyCounter  # type: ignore[misc,assignment]
     Gauge = DummyGauge  # type: ignore[misc,assignment]
     Histogram = DummyHistogram  # type: ignore[misc,assignment]

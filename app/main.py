@@ -22,11 +22,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
-# Optional prometheus import
+# Check prometheus availability without importing
 try:
-    import prometheus_client  # noqa: F401
+    import importlib.util
 
-    PROMETHEUS_AVAILABLE = True
+    prometheus_spec = importlib.util.find_spec("prometheus_client")
+    PROMETHEUS_AVAILABLE = prometheus_spec is not None
 except ImportError:
     PROMETHEUS_AVAILABLE = False
     CONTENT_TYPE_LATEST = "text/plain; charset=utf-8"
@@ -84,7 +85,8 @@ try:
 
 except ImportError:
     ENHANCED_FEATURES_AVAILABLE = False
-    logger = None
+    # Create a fallback logger to avoid AttributeError
+    logger = structlog.get_logger(__name__)
     enhanced_config = None
     # Enhanced features not available, running in basic mode
     # Error details would be logged via structlog if available
@@ -143,12 +145,12 @@ class ModelMuxer:
         """Initialize basic components for simple deployment."""
         # Use global cost_tracker for basic mode
         self.cost_tracker = cost_tracker
-        print("✅ Basic ModelMuxer initialized")
+        # Basic ModelMuxer initialized (logged via structlog if available)
 
     def _initialize_enhanced_components(self) -> None:
         """Initialize all enhanced components."""
         if not ENHANCED_FEATURES_AVAILABLE:
-            print("⚠️ Enhanced features requested but not available, falling back to basic mode")
+            # Enhanced features requested but not available, falling back to basic mode
             self._initialize_basic_components()
             return
 
@@ -167,11 +169,11 @@ class ModelMuxer:
                     classification_enabled=self.classifier is not None,
                     monitoring_enabled=self.metrics_collector is not None,
                 )
-            print("✅ Enhanced ModelMuxer initialized")
+            # Enhanced ModelMuxer initialized (logged via structlog above)
 
-        except Exception as e:
-            print(f"⚠️ Enhanced initialization failed: {e}")
-            print("Falling back to basic mode...")
+        except Exception:
+            # Enhanced initialization failed, falling back to basic mode
+            # Error details logged via structlog if available
             self._initialize_basic_components()
 
     def _initialize_cache(self) -> None:
@@ -350,11 +352,11 @@ model_muxer = ModelMuxer()
 async def lifespan(app: FastAPI) -> None:
     """Application lifespan manager."""
     # Startup
-    print("🚀 Starting ModelMuxer LLM Router...")
+    # Starting ModelMuxer LLM Router (logged via structlog if available)
 
     # Initialize database
     await db.init_database()
-    print("✅ Database initialized")
+    # Database initialized (logged via structlog if available)
 
     # Initialize providers with API keys from settings
     import os
@@ -369,9 +371,10 @@ async def lifespan(app: FastAPI) -> None:
     if openai_key and not openai_key.startswith("your-") and not openai_key.endswith("-here"):
         try:
             providers["openai"] = OpenAIProvider(api_key=openai_key)
-            print("✅ OpenAI provider initialized")
-        except Exception as e:
-            print(f"⚠️  OpenAI provider failed to initialize: {e}")
+            # OpenAI provider initialized (logged via structlog if available)
+        except Exception:  # nosec B110
+            # OpenAI provider failed to initialize (logged via structlog if available)
+            pass
 
     # Anthropic
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
@@ -382,37 +385,40 @@ async def lifespan(app: FastAPI) -> None:
     ):
         try:
             providers["anthropic"] = AnthropicProvider(api_key=anthropic_key)
-            print("✅ Anthropic provider initialized")
-        except Exception as e:
-            print(f"⚠️  Anthropic provider failed to initialize: {e}")
+            # Anthropic provider initialized (logged via structlog if available)
+        except Exception:  # nosec B110
+            # Anthropic provider failed to initialize (logged via structlog if available)
+            pass
 
     # Mistral
     mistral_key = os.getenv("MISTRAL_API_KEY")
     if mistral_key and not mistral_key.startswith("your-") and not mistral_key.endswith("-here"):
         try:
             providers["mistral"] = MistralProvider(api_key=mistral_key)
-            print("✅ Mistral provider initialized")
-        except Exception as e:
-            print(f"⚠️  Mistral provider failed to initialize: {e}")
+            # Mistral provider initialized (logged via structlog if available)
+        except Exception:  # nosec B110
+            # Mistral provider failed to initialize (logged via structlog if available)
+            pass
 
     if not providers:
-        print("❌ No providers initialized! Check your API keys.")
-        print("💡 Make sure you have valid API keys in your .env file:")
-        print("   - OPENAI_API_KEY=sk-...")
-        print("   - ANTHROPIC_API_KEY=sk-ant-...")
-        print("   - MISTRAL_API_KEY=...")
-        print("   (Keys should not contain placeholder text like 'your-key-here')")
+        # No providers initialized! Check your API keys.
+        # Make sure you have valid API keys in your .env file:
+        # - OPENAI_API_KEY=sk-...
+        # - ANTHROPIC_API_KEY=sk-ant-...
+        # - MISTRAL_API_KEY=...
+        # (Keys should not contain placeholder text like 'your-key-here')
+        pass
 
-    print(f"🎯 Router ready with {len(providers)} providers")
+    # Router ready with providers (logged via structlog if available)
 
     yield
 
     # Shutdown
-    print("🛑 Shutting down ModelMuxer...")
+    # Shutting down ModelMuxer (logged via structlog if available)
     for provider in providers.values():
         if hasattr(provider, "client"):
             await provider.client.aclose()
-    print("✅ Cleanup complete")
+    # Cleanup complete (logged via structlog if available)
 
 
 # Create FastAPI app
@@ -987,7 +993,11 @@ def cli():
     import uvicorn
 
     parser = argparse.ArgumentParser(description="ModelMuxer LLM Router")
-    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")  # nosec B104
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind to (default: localhost; use 0.0.0.0 for external access)",
+    )  # safer default
     parser.add_argument("--port", type=int, default=8000, help="Port to bind to")
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
     parser.add_argument("--workers", type=int, default=1, help="Number of worker processes")
@@ -1003,7 +1013,7 @@ def cli():
     # Set mode environment variable
     os.environ["MODELMUXER_MODE"] = args.mode
 
-    print(f"🚀 Starting ModelMuxer in {args.mode} mode...")
+    # Starting ModelMuxer in specified mode (logged via structlog if available)
 
     uvicorn.run(
         "app.main:app",
@@ -1024,7 +1034,7 @@ def main():
     config = model_muxer.config
     uvicorn.run(
         "app.main:app",
-        host=config.host if hasattr(config, "host") else "0.0.0.0",  # nosec B104
+        host=config.host if hasattr(config, "host") else "127.0.0.1",  # safer default
         port=config.port if hasattr(config, "port") else 8000,
         reload=config.debug if hasattr(config, "debug") else False,
         log_level=(

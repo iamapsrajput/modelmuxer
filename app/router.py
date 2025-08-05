@@ -88,6 +88,12 @@ class HeuristicRouter:
             "json",
         ]
 
+        # Pre-compile regex patterns for efficiency
+        self._compiled_keyword_patterns = [
+            re.compile(r"\b" + re.escape(keyword.lower()) + r"\b", re.IGNORECASE)
+            for keyword in self.programming_keywords
+        ]
+
         # Complexity indicators
         self.complexity_keywords = [
             "analyze",
@@ -212,13 +218,6 @@ class HeuristicRouter:
 
         # Programming keyword detection (using word boundaries to avoid false positives)
         programming_matches = 0
-        # Pre-compile regex patterns for efficiency
-        if not hasattr(self, "_compiled_keyword_patterns"):
-            self._compiled_keyword_patterns = [
-                re.compile(r"\b" + re.escape(keyword.lower()) + r"\b", re.IGNORECASE)
-                for keyword in self.programming_keywords
-            ]
-
         for pattern in self._compiled_keyword_patterns:
             if pattern.search(full_text_lower):
                 programming_matches += 1
