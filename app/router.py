@@ -232,7 +232,9 @@ class HeuristicRouter:
 
         # Calculate complexity confidence
         analysis["complexity_confidence"] = min(1.0, complexity_matches * 0.1)
-        analysis["has_complexity"] = analysis["complexity_confidence"] >= settings.complexity_threshold
+        analysis["has_complexity"] = (
+            analysis["complexity_confidence"] >= settings.complexity_threshold
+        )
 
         # Simple query detection
         simple_matches = 0
@@ -326,7 +328,9 @@ class HeuristicRouter:
             reasons.append(f"Code detected (confidence: {analysis['code_confidence']:.2f})")
 
         if analysis["has_complexity"]:
-            reasons.append(f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})")
+            reasons.append(
+                f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})"
+            )
 
         if analysis["is_simple"]:
             reasons.append(f"Simple query detected (length: {analysis['total_length']} chars)")
@@ -341,7 +345,9 @@ class HeuristicRouter:
         if reasons:
             task_reason += f" ({', '.join(reasons)})"
 
-        model_reason = f"Selected {provider}/{model} for optimal {analysis['task_type']} performance"
+        model_reason = (
+            f"Selected {provider}/{model} for optimal {analysis['task_type']} performance"
+        )
 
         return f"{task_reason}. {model_reason}"
 
