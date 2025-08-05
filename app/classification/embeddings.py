@@ -184,9 +184,7 @@ class EmbeddingManager:
                             import pickle  # nosec B403 - controlled legacy fallback
 
                             with open(cache_path, "rb") as f:
-                                embedding = pickle.load(
-                                    f
-                                )  # nosec B301 - controlled legacy fallback
+                                embedding = pickle.load(f)  # nosec B301 - controlled legacy fallback
 
                         cached_embeddings[i] = embedding
                         self.memory_cache[cache_key] = embedding
