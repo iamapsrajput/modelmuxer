@@ -38,7 +38,7 @@ strategy:
 
 - **116+ unit and integration tests** must pass
 - **Code coverage** reporting with HTML output
-- **Performance benchmarking** with artifact storage and PR comments
+- **Performance benchmarking** with custom PR comments and artifact storage
 - **Dependency vulnerability scanning**
 
 ## Build Workflow
@@ -86,6 +86,7 @@ sbom: ${{ github.event_name != 'pull_request' }}
 
 #### Code Quality Security
 
+- **Semgrep static analysis**: Advanced security pattern detection with SARIF reporting
 - **Bandit static analysis**: Python-specific security issue detection
 - **License compliance**: Automated license compatibility checking
 - **Supply chain security**: SBOM generation and provenance tracking
@@ -162,6 +163,7 @@ Custom `.gitleaks.toml` configuration provides:
 
 - **Gitleaks configuration**: Custom rules prevent documentation false positives
 - **Pattern exclusions**: Smart filtering for legitimate examples
+- **Semgrep nosec handling**: Respects `# nosec` comments for intentional security exceptions
 
 #### Test Failures
 
@@ -170,9 +172,16 @@ Custom `.gitleaks.toml` configuration provides:
 
 #### Benchmark Action Issues
 
-- **gh-pages branch missing**: Configured for comment-only mode to avoid branch dependency
-- **Fallback mechanism**: Automatic fallback comment if benchmark action fails
-- **Artifact storage**: Benchmark data always saved as workflow artifacts
+- **gh-pages branch dependency**: Replaced benchmark action with custom GitHub Script solution
+- **Direct comment generation**: Custom script parses benchmark.json and creates detailed PR comments
+- **No external dependencies**: Eliminates all GitHub Pages and branch-related issues
+- **Robust error handling**: Built-in fallback for parsing errors or missing data
+
+#### Semgrep Configuration Issues
+
+- **Deprecated generateSarif parameter**: Updated to use modern semgrep/semgrep-action@v1
+- **SARIF output handling**: Automatic SARIF generation without deprecated parameters
+- **Enhanced error handling**: Improved result processing and summary reporting
 
 ### Debug Strategies
 
