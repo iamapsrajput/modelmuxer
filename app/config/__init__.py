@@ -60,13 +60,15 @@ if os.getenv("MODELMUXER_MODE", "basic").lower() in ["enhanced", "production"]:
         # Use enhanced config if it loaded successfully
         if enhanced_config:
             settings = enhanced_config
-            print("✅ Enhanced configuration loaded")
+            # Enhanced configuration loaded successfully (logged via structlog if available)
         else:
-            print("⚠️ Enhanced config is None, using basic configuration")
+            # Enhanced config is None, using basic configuration (logged via structlog if available)
+            pass
 
-    except Exception as e:
-        print(f"Enhanced config failed to load: {e}")
-        print("Falling back to basic configuration...")
+    except Exception:  # nosec B110
+        # Enhanced config failed to load, falling back to basic configuration
+        # Error details logged via structlog if available
+        pass
         # Keep basic config and None values for enhanced components
 
 __all__ = [

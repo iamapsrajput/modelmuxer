@@ -93,6 +93,7 @@ class HealthChecker:
             try:
                 await self._health_task
             except asyncio.CancelledError:
+                # Task was cancelled during shutdown, this is expected
                 pass
         logger.info("health_checker_stopped")
 

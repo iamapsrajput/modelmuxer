@@ -269,23 +269,26 @@ class AdvancedCostTracker(CostTracker):
         self, db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"
     ):
         super().__init__(enhanced_mode=True)
-        self.db_path = db_path
+        # Set database path (parent class initializes this as None)
+        if self.db_path is None:
+            self.db_path = db_path
         self.redis_url = redis_url
 
-        # Initialize Redis client
-        if ENHANCED_FEATURES_AVAILABLE and redis:
-            try:
-                self.redis_client = redis.from_url(redis_url, decode_responses=True)
-                # Test connection
-                self.redis_client.ping()
-                if logger:
-                    logger.info("redis_connected", url=redis_url)
-            except Exception as e:
-                if logger:
-                    logger.warning("redis_connection_failed", error=str(e), fallback="mock")
+        # Initialize Redis client (parent class initializes this as None)
+        if self.redis_client is None:
+            if ENHANCED_FEATURES_AVAILABLE and redis:
+                try:
+                    self.redis_client = redis.from_url(redis_url, decode_responses=True)
+                    # Test connection
+                    self.redis_client.ping()
+                    if logger:
+                        logger.info("redis_connected", url=redis_url)
+                except Exception as e:
+                    if logger:
+                        logger.warning("redis_connection_failed", error=str(e), fallback="mock")
+                    self.redis_client = MockRedisClient()
+            else:
                 self.redis_client = MockRedisClient()
-        else:
-            self.redis_client = MockRedisClient()
 
         # Initialize database
         self._init_database()

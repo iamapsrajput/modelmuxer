@@ -212,10 +212,15 @@ class HeuristicRouter:
 
         # Programming keyword detection (using word boundaries to avoid false positives)
         programming_matches = 0
-        for keyword in self.programming_keywords:
-            # Use word boundaries to match whole words only
-            pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
-            if re.search(pattern, full_text_lower):
+        # Pre-compile regex patterns for efficiency
+        if not hasattr(self, "_compiled_keyword_patterns"):
+            self._compiled_keyword_patterns = [
+                re.compile(r"\b" + re.escape(keyword.lower()) + r"\b", re.IGNORECASE)
+                for keyword in self.programming_keywords
+            ]
+
+        for pattern in self._compiled_keyword_patterns:
+            if pattern.search(full_text_lower):
                 programming_matches += 1
 
         # Calculate code confidence
