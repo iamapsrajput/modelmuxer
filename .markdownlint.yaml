@@ -1,3 +1,5 @@
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
 # Markdownlint configuration for ModelMuxer documentation
 # This file configures which markdown rules to enforce
 
@@ -25,9 +27,9 @@ MD033: false
 MD034: false
 
 # Disable problematic rules for technical documentation
-MD041: false  # First line in file should be a top level heading
-MD040: false  # Fenced code blocks should have a language specified
-MD031: false  # Fenced code blocks should be surrounded by blank lines
-MD051: false  # Link fragments should be valid
-MD022: false  # Headings should be surrounded by blank lines
-MD032: false  # Lists should be surrounded by blank lines
+MD041: false # First line in file should be a top level heading
+MD040: false # Fenced code blocks should have a language specified
+MD031: false # Fenced code blocks should be surrounded by blank lines
+MD051: false # Link fragments should be valid
+MD022: false # Headings should be surrounded by blank lines
+MD032: false # Lists should be surrounded by blank lines

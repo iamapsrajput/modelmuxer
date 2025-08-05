@@ -1,0 +1,20 @@
+{
+  "compliance_status": "FAIL",
+  "timestamp": "2025-08-02",
+  "project_root": "/Users/rajput/Work/GitHub/modelmuxer",
+  "errors": [
+    "Files missing license headers: 2",
+    "  - .markdownlint.yaml",
+    "  - htmlcov/coverage_html_cb_6fb7b396.js"
+  ],
+  "warnings": [
+    "pyproject.toml license field should be 'Business Source License 1.1'"
+  ],
+  "summary": {
+    "total_errors": 3,
+    "total_warnings": 1,
+    "required_files_check": "PASS",
+    "header_check": "FAIL",
+    "content_check": "PASS"
+  }
+}

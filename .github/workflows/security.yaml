@@ -104,17 +104,22 @@ jobs:
       - name: Comment Security Summary on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             const fs = require('fs');
             if (fs.existsSync('security-summary.md')) {
               const summary = fs.readFileSync('security-summary.md', 'utf8');
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: `## 🔒 Security Scan Results\n\n${summary}`
-              });
+              try {
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: `## 🔒 Security Scan Results\n\n${summary}`
+                });
+              } catch (error) {
+                console.log('Failed to create comment:', error.message);
+              }
             }
 
   codeql-analysis:
@@ -187,8 +192,7 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC
-          deny-licenses: GPL-2.0, GPL-3.0
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
 
   security-scorecard:
     name: OSSF Scorecard

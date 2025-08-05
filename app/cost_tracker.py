@@ -269,18 +269,22 @@ class AdvancedCostTracker(CostTracker):
         self, db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"
     ):
         super().__init__(enhanced_mode=True)
-        # Set database path (parent class initializes this as None)
-        if self.db_path is None:
+
+        # Configure database path if not already set by parent
+        if not hasattr(self, "db_path") or self.db_path is None:
             self.db_path = db_path
+
+        # Store redis URL for enhanced features
         self.redis_url = redis_url
 
-        # Initialize Redis client (parent class initializes this as None)
-        if self.redis_client is None:
+        # Configure Redis client if not already set by parent
+        if not hasattr(self, "redis_client") or self.redis_client is None:
             if ENHANCED_FEATURES_AVAILABLE and redis:
                 try:
-                    self.redis_client = redis.from_url(redis_url, decode_responses=True)
+                    redis_client = redis.from_url(redis_url, decode_responses=True)
                     # Test connection
-                    self.redis_client.ping()
+                    redis_client.ping()
+                    self.redis_client = redis_client
                     if logger:
                         logger.info("redis_connected", url=redis_url)
                 except Exception as e:

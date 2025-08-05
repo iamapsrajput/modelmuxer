@@ -385,6 +385,7 @@ jobs:
           output-file-path: benchmark.json
           comment-on-alert: true
           summary-always: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   test-summary:
     name: Test Summary
