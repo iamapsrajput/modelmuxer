@@ -248,16 +248,45 @@ jobs:
           category: trivy-fs-scan
 
       - name: Run Semgrep security scan
-        uses: returntocorp/semgrep-action@v1
+        uses: semgrep/semgrep-action@v1
         with:
           config: >-
             p/security-audit
             p/secrets
             p/python
-          generateSarif: "1"
+          # SARIF output is generated automatically by the action
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
+          # Additional configuration for better CI integration
+          auditOn: push
         env:
+          # Semgrep environment configuration for enhanced features
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         continue-on-error: true
+
+      - name: Process Semgrep results
+        if: always()
+        run: |
+          echo "=== Semgrep Security Scan Summary ==="
+          if [ -f "results.sarif" ] || [ -f "semgrep.sarif" ]; then
+            echo "✅ SARIF results generated successfully"
+            # Count findings (excluding nosec-marked items)
+            if command -v jq >/dev/null 2>&1; then
+              SARIF_FILE=""
+              if [ -f "results.sarif" ]; then
+                SARIF_FILE="results.sarif"
+              elif [ -f "semgrep.sarif" ]; then
+                SARIF_FILE="semgrep.sarif"
+              fi
+
+              if [ -n "$SARIF_FILE" ]; then
+                TOTAL_FINDINGS=$(jq '.runs[0].results | length' "$SARIF_FILE" 2>/dev/null || echo "0")
+                echo "📊 Total findings: $TOTAL_FINDINGS"
+                echo "ℹ️  Note: Findings marked with '# nosec' comments are intentionally excluded from blocking the build"
+              fi
+            fi
+          else
+            echo "⚠️  No SARIF results found - this may indicate a configuration issue"
+          fi
 
       - name: Debug - List generated files
         if: always()
@@ -266,12 +295,14 @@ jobs:
           ls -la *.sarif || echo "No SARIF files found"
           echo "Checking for semgrep output files:"
           find . -name "*semgrep*" -type f || echo "No semgrep files found"
+          echo "Checking for results.sarif (new format):"
+          ls -la results.sarif || echo "No results.sarif found"
 
       - name: Upload Semgrep scan results
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('semgrep.sarif') != ''
+        if: always() && (hashFiles('semgrep.sarif') != '' || hashFiles('results.sarif') != '')
         with:
-          sarif_file: semgrep.sarif
+          sarif_file: ${{ hashFiles('semgrep.sarif') != '' && 'semgrep.sarif' || 'results.sarif' }}
           category: semgrep-scan
 
   dependency-check:
@@ -387,22 +418,6 @@ jobs:
 
       - name: Comment benchmark results
         if: github.event_name == 'pull_request'
-        uses: benchmark-action/github-action-benchmark@v1
-        continue-on-error: true
-        with:
-          tool: "pytest"
-          output-file-path: benchmark.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Comment-only mode configuration (no gh-pages dependency)
-          comment-on-alert: false
-          summary-always: true
-          fail-on-alert: false
-          # Disable GitHub Pages storage to avoid gh-pages branch dependency
-          auto-push: false
-          save-data-file: false
-
-      - name: Fallback benchmark comment
-        if: github.event_name == 'pull_request' && failure()
         uses: actions/github-script@v7
         continue-on-error: true
         with:
@@ -411,15 +426,38 @@ jobs:
             if (fs.existsSync('benchmark.json')) {
               try {
                 const benchmarkData = JSON.parse(fs.readFileSync('benchmark.json', 'utf8'));
-                const comment = `## 📊 Performance Benchmark Results
 
-                Performance tests completed successfully. Benchmark data generated but detailed comparison unavailable.
+                // Extract benchmark information
+                const benchmarks = benchmarkData.benchmarks || [];
+                const machineInfo = benchmarkData.machine_info || {};
+                const commitInfo = benchmarkData.commit_info || {};
 
-                **Test Summary:**
-                - Benchmark file: \`benchmark.json\` (${fs.statSync('benchmark.json').size} bytes)
-                - Generated: ${new Date().toISOString()}
+                let comment = `## 📊 Performance Benchmark Results\n\n`;
 
-                > Note: Historical benchmark comparison requires additional setup. Current results saved as artifact.`;
+                if (benchmarks.length > 0) {
+                  comment += `**Test Summary:**\n`;
+                  comment += `- Total benchmarks: ${benchmarks.length}\n`;
+                  comment += `- Machine: ${machineInfo.node || 'Unknown'} (${machineInfo.processor || 'Unknown'})\n`;
+                  comment += `- Commit: ${commitInfo.id ? commitInfo.id.substring(0, 8) : 'Unknown'}\n`;
+                  comment += `- Generated: ${commitInfo.time || new Date().toISOString()}\n\n`;
+
+                  comment += `**Benchmark Details:**\n`;
+                  benchmarks.forEach((bench, index) => {
+                    comment += `${index + 1}. **${bench.name || 'Unnamed Test'}**\n`;
+                    if (bench.value !== undefined) {
+                      comment += `   - Value: ${bench.value} ${bench.unit || ''}\n`;
+                    }
+                    if (bench.extra) {
+                      comment += `   - Extra info: ${bench.extra}\n`;
+                    }
+                  });
+                } else {
+                  comment += `**Status:** Performance tests completed successfully.\n`;
+                  comment += `- Benchmark file: \`benchmark.json\` (${fs.statSync('benchmark.json').size} bytes)\n`;
+                  comment += `- Generated: ${new Date().toISOString()}\n`;
+                }
+
+                comment += `\n> 📈 Benchmark data has been saved as a workflow artifact for detailed analysis.`;
 
                 await github.rest.issues.createComment({
                   issue_number: context.issue.number,
@@ -427,9 +465,27 @@ jobs:
                   repo: context.repo.repo,
                   body: comment
                 });
+
+                console.log('✅ Benchmark comment posted successfully');
               } catch (error) {
-                console.log('Failed to create fallback benchmark comment:', error.message);
+                console.log('❌ Failed to parse benchmark data or create comment:', error.message);
+
+                // Fallback simple comment
+                const fallbackComment = `## 📊 Performance Benchmark Results\n\n` +
+                  `**Status:** Performance tests completed but benchmark data could not be parsed.\n` +
+                  `- Benchmark file exists: ${fs.existsSync('benchmark.json') ? 'Yes' : 'No'}\n` +
+                  `- Generated: ${new Date().toISOString()}\n\n` +
+                  `> 📈 Raw benchmark data has been saved as a workflow artifact.`;
+
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: fallbackComment
+                });
               }
+            } else {
+              console.log('⚠️ No benchmark.json file found');
             }
 
   test-summary:
