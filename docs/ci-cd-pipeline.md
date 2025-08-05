@@ -108,6 +108,20 @@ Custom `.gitleaks.toml` configuration provides:
 - **Dependency licensing**: Validates third-party package licenses
 - **Compliance reporting**: Generates compliance status reports
 
+## Workflow Permissions
+
+### Job-Level Permissions
+
+- **Performance Testing**: `contents: read`, `pull-requests: write`, `issues: write` for benchmark commenting
+- **Security Scanning**: `contents: read`, `security-events: write` for SARIF uploads
+- **Build Jobs**: `contents: read`, `packages: write` for container registry access
+
+### Permission Best Practices
+
+- **Minimal permissions**: Each job only gets the permissions it needs
+- **Explicit declarations**: All permissions explicitly declared for transparency
+- **Security-first approach**: No blanket permissions that could compromise security
+
 ## Performance Optimizations
 
 ### Caching Strategy
@@ -180,8 +194,15 @@ Custom `.gitleaks.toml` configuration provides:
 #### Semgrep Configuration Issues
 
 - **Deprecated generateSarif parameter**: Updated to use modern semgrep/semgrep-action@v1
+- **Unsupported auditOn parameter**: Removed invalid parameter to eliminate configuration warnings
 - **SARIF output handling**: Automatic SARIF generation without deprecated parameters
 - **Enhanced error handling**: Improved result processing and summary reporting
+
+#### GitHub Script Permissions Issues
+
+- **PR commenting permissions**: Added `pull-requests: write` and `issues: write` permissions
+- **Resource access errors**: Resolved "Resource not accessible by integration" errors
+- **Enhanced error handling**: Improved fallback mechanisms for API failures
 
 ### Debug Strategies
 

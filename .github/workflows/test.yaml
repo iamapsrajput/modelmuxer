@@ -256,8 +256,6 @@ jobs:
             p/python
           # SARIF output is generated automatically by the action
           publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
-          # Additional configuration for better CI integration
-          auditOn: push
         env:
           # Semgrep environment configuration for enhanced features
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
@@ -354,6 +352,10 @@ jobs:
     name: Performance Testing
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -469,20 +471,28 @@ jobs:
                 console.log('✅ Benchmark comment posted successfully');
               } catch (error) {
                 console.log('❌ Failed to parse benchmark data or create comment:', error.message);
+                console.log('Error details:', error);
 
-                // Fallback simple comment
-                const fallbackComment = `## 📊 Performance Benchmark Results\n\n` +
-                  `**Status:** Performance tests completed but benchmark data could not be parsed.\n` +
-                  `- Benchmark file exists: ${fs.existsSync('benchmark.json') ? 'Yes' : 'No'}\n` +
-                  `- Generated: ${new Date().toISOString()}\n\n` +
-                  `> 📈 Raw benchmark data has been saved as a workflow artifact.`;
+                try {
+                  // Fallback simple comment
+                  const fallbackComment = `## 📊 Performance Benchmark Results\n\n` +
+                    `**Status:** Performance tests completed but benchmark data could not be parsed.\n` +
+                    `- Benchmark file exists: ${fs.existsSync('benchmark.json') ? 'Yes' : 'No'}\n` +
+                    `- Generated: ${new Date().toISOString()}\n\n` +
+                    `> 📈 Raw benchmark data has been saved as a workflow artifact.`;
 
-                await github.rest.issues.createComment({
-                  issue_number: context.issue.number,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: fallbackComment
-                });
+                  await github.rest.issues.createComment({
+                    issue_number: context.issue.number,
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    body: fallbackComment
+                  });
+
+                  console.log('✅ Fallback benchmark comment posted successfully');
+                } catch (fallbackError) {
+                  console.log('❌ Failed to post fallback comment:', fallbackError.message);
+                  console.log('This may indicate insufficient permissions or API issues');
+                }
               }
             } else {
               console.log('⚠️ No benchmark.json file found');
