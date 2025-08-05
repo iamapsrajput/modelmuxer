@@ -270,8 +270,8 @@ redis-cli ping
 
 ### Getting Help
 
-- Check the [FAQ](../faq.md)
-- Review the [troubleshooting guide](../troubleshooting.md)
+- Check the [FAQ](faq.md)
+- Review the [troubleshooting guide](troubleshooting.md)
 - Open an issue on [GitHub](https://github.com/iamapsrajput/ModelMuxer/issues)
 - Join our [Discord community](https://discord.gg/modelmuxer)
 

@@ -126,6 +126,7 @@ class ModelMuxer:
         self.metrics_collector: Any = None
         self.health_checker: Any = None
         self.cost_tracker: Any = None
+        self.advanced_cost_tracker: Any = None
 
         # Middleware (enhanced mode only)
         self.auth_middleware: Any = None
@@ -179,24 +180,33 @@ class ModelMuxer:
             return
 
         try:
-            if self.config.cache.type == "redis":
+            if self.config.cache.backend == "redis":
+                # Parse Redis URL for connection details
+                import urllib.parse
+
+                parsed = urllib.parse.urlparse(self.config.cache.redis_url)
+
                 self.cache = RedisCache(
-                    host=self.config.cache.redis_host,
-                    port=self.config.cache.redis_port,
+                    host=parsed.hostname or "localhost",
+                    port=parsed.port or 6379,
                     db=self.config.cache.redis_db,
-                    password=getattr(self.config.cache, "redis_password", None),
-                    ttl=self.config.cache.ttl,
+                    password=parsed.password,
+                    default_ttl=self.config.cache.default_ttl,
                 )
             else:
-                self.cache = MemoryCache(ttl=self.config.cache.ttl)
+                self.cache = MemoryCache(
+                    max_size=self.config.cache.memory_max_size,
+                    max_memory_mb=self.config.cache.memory_max_memory_mb,
+                    default_ttl=self.config.cache.default_ttl,
+                )
 
             if logger:
-                logger.info("cache_initialized", cache_type=self.config.cache.type)
+                logger.info("cache_initialized", cache_type=self.config.cache.backend)
         except Exception as e:
             if logger:
                 logger.warning("cache_init_failed", error=str(e))
-            # Fallback to memory cache
-            self.cache = MemoryCache(ttl=300)
+            # Fallback to memory cache with basic settings
+            self.cache = MemoryCache(max_size=1000, default_ttl=300)
 
     def _initialize_classification(self) -> None:
         """Initialize ML classification system."""
@@ -269,9 +279,8 @@ class ModelMuxer:
             elif hasattr(self.config, "cache"):
                 redis_url = f"redis://{self.config.cache.redis_host}:{self.config.cache.redis_port}/{self.config.cache.redis_db}"
 
-            self.cost_tracker = create_advanced_cost_tracker(
-                db_path="cost_tracker.db", redis_url=redis_url
-            )
+            self.advanced_cost_tracker = create_advanced_cost_tracker(db_path="cost_tracker.db", redis_url=redis_url)
+            self.cost_tracker = self.advanced_cost_tracker  # For backward compatibility
             if logger:
                 logger.info("enhanced_cost_tracker_initialized")
         except Exception as e:
@@ -288,8 +297,7 @@ class ModelMuxer:
         try:
             self.metrics_collector = MetricsCollector(
                 enabled=self.config.monitoring.metrics_enabled,
-                prometheus_enabled=PROMETHEUS_AVAILABLE
-                and self.config.monitoring.prometheus_enabled,
+                prometheus_enabled=PROMETHEUS_AVAILABLE and self.config.monitoring.prometheus_enabled,
             )
 
             self.health_checker = HealthChecker(
@@ -312,16 +320,10 @@ class ModelMuxer:
             if hasattr(self.config.middleware, "auth") and self.config.middleware.auth.enabled:
                 self.auth_middleware = AuthMiddleware(self.config.middleware.auth)
 
-            if (
-                hasattr(self.config.middleware, "rate_limit")
-                and self.config.middleware.rate_limit.enabled
-            ):
+            if hasattr(self.config.middleware, "rate_limit") and self.config.middleware.rate_limit.enabled:
                 self.rate_limit_middleware = RateLimitMiddleware(self.config.middleware.rate_limit)
 
-            if (
-                hasattr(self.config.middleware, "logging")
-                and self.config.middleware.logging.enabled
-            ):
+            if hasattr(self.config.middleware, "logging") and self.config.middleware.logging.enabled:
                 self.logging_middleware = LoggingMiddleware(self.config.middleware.logging)
 
             if logger:
@@ -364,11 +366,7 @@ async def lifespan(app: FastAPI) -> None:
 
     # Anthropic
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-    if (
-        anthropic_key
-        and not anthropic_key.startswith("your-")
-        and not anthropic_key.endswith("-here")
-    ):
+    if anthropic_key and not anthropic_key.startswith("your-") and not anthropic_key.endswith("-here"):
         try:
             providers["anthropic"] = AnthropicProvider(api_key=anthropic_key)
             print("✅ Anthropic provider initialized")
@@ -414,9 +412,9 @@ app = FastAPI(
 
 # Add CORS middleware with secure configuration
 # Get allowed origins from environment or use secure defaults
-allowed_origins = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,https://modelmuxer.com"
-).split(",")
+allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,https://modelmuxer.com").split(
+    ","
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -485,17 +483,13 @@ async def validate_request_middleware(request: Request, call_next) -> None:
     return await call_next(request)
 
 
-async def get_authenticated_user(
-    request: Request, authorization: str | None = Header(None)
-) -> dict[str, Any]:
+async def get_authenticated_user(request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
     """Dependency to authenticate requests."""
     return await auth.authenticate_request(request, authorization)
 
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
-async def chat_completions(
-    request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)
-):
+async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)):
     """
     Create a chat completion using the optimal LLM provider.
 
@@ -510,9 +504,7 @@ async def chat_completions(
             message.content = sanitize_user_input(message.content)
 
         # Route the request to the best provider/model
-        provider_name, model_name, routing_reason = router.select_model(
-            messages=request.messages, user_id=user_id
-        )
+        provider_name, model_name, routing_reason = router.select_model(messages=request.messages, user_id=user_id)
 
         # Check if provider is available
         if provider_name not in providers:
@@ -549,9 +541,7 @@ async def chat_completions(
         # Handle streaming vs non-streaming
         if request.stream:
             return StreamingResponse(
-                stream_chat_completion(
-                    provider, request, model_name, routing_reason, user_id, start_time
-                ),
+                stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time),
                 media_type="text/plain",
             )
         else:
@@ -564,8 +554,7 @@ async def chat_completions(
                 **{
                     k: v
                     for k, v in request.dict().items()
-                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
-                    and v is not None
+                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
                 },
             )
 
@@ -647,9 +636,7 @@ async def chat_completions(
         ) from e
 
 
-async def stream_chat_completion(
-    provider, request, model_name, routing_reason, user_id, start_time
-):
+async def stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time):
     """Handle streaming chat completion."""
     try:
         async for chunk in provider.stream_chat_completion(
@@ -660,8 +647,7 @@ async def stream_chat_completion(
             **{
                 k: v
                 for k, v in request.dict().items()
-                if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
-                and v is not None
+                if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
             },
         ):
             yield f"data: {json.dumps(chunk)}\n\n"
@@ -670,12 +656,8 @@ async def stream_chat_completion(
 
         # Log streaming request (with estimated tokens)
         response_time_ms = (time.time() - start_time) * 1000
-        estimated_tokens = cost_tracker.count_tokens(
-            request.messages, provider.provider_name, model_name
-        )
-        estimated_cost = cost_tracker.calculate_cost(
-            provider.provider_name, model_name, estimated_tokens, 100
-        )
+        estimated_tokens = cost_tracker.count_tokens(request.messages, provider.provider_name, model_name)
+        estimated_cost = cost_tracker.calculate_cost(provider.provider_name, model_name, estimated_tokens, 100)
 
         await db.log_request(
             user_id=user_id,
@@ -801,6 +783,147 @@ async def get_cost_analytics(
     }
 
 
+@app.get("/v1/analytics/budgets")
+async def get_budget_status(
+    user_info: dict[str, Any] = Depends(get_authenticated_user),
+    budget_type: str | None = None,
+):
+    """Get budget status and alerts for the user."""
+    user_id = user_info["user_id"]
+
+    # Budget management requires enhanced mode
+    if not model_muxer.enhanced_mode:
+        return JSONResponse(
+            status_code=501,
+            content={
+                "error": {
+                    "message": "Budget management requires enhanced mode",
+                    "type": "feature_not_available",
+                    "code": "enhanced_mode_required",
+                }
+            },
+        )
+
+    try:
+        # Get budget status from advanced cost tracker
+        if hasattr(model_muxer, "advanced_cost_tracker") and model_muxer.advanced_cost_tracker:
+            budget_statuses = await model_muxer.advanced_cost_tracker.get_budget_status(user_id, budget_type)
+
+            # Convert to response format
+            response_budgets = []
+            for status in budget_statuses:
+                alerts = [
+                    {
+                        "type": alert["type"],
+                        "message": alert["message"],
+                        "threshold": alert["threshold"],
+                        "current_usage": alert["current_usage"],
+                    }
+                    for alert in status["alerts"]
+                ]
+
+                response_budgets.append(
+                    {
+                        "budget_type": status["budget_type"],
+                        "budget_limit": status["budget_limit"],
+                        "current_usage": status["current_usage"],
+                        "usage_percentage": status["usage_percentage"],
+                        "remaining_budget": status["remaining_budget"],
+                        "provider": status["provider"],
+                        "model": status["model"],
+                        "alerts": alerts,
+                        "period_start": status["period_start"],
+                        "period_end": status["period_end"],
+                    }
+                )
+
+            return {
+                "message": "Budget status retrieved successfully",
+                "budgets": response_budgets,
+                "total_budgets": len(response_budgets),
+            }
+        else:
+            return {
+                "message": "Budget tracking not initialized",
+                "budgets": [],
+                "total_budgets": 0,
+            }
+
+    except Exception as e:
+        logger.error("budget_status_error", error=str(e), user_id=user_id)
+        raise HTTPException(status_code=500, detail="Failed to retrieve budget status") from e
+
+
+@app.post("/v1/analytics/budgets")
+async def set_budget(
+    request: dict[str, Any],
+    user_info: dict[str, Any] = Depends(get_authenticated_user),
+):
+    """Set budget limits and alert thresholds for the user."""
+    user_id = user_info["user_id"]
+
+    # Budget management requires enhanced mode
+    if not model_muxer.enhanced_mode:
+        return JSONResponse(
+            status_code=501,
+            content={
+                "error": {
+                    "message": "Budget management requires enhanced mode",
+                    "type": "feature_not_available",
+                    "code": "enhanced_mode_required",
+                }
+            },
+        )
+
+    try:
+        # Validate request
+        budget_type = request.get("budget_type")
+        budget_limit = request.get("budget_limit")
+
+        if not budget_type or budget_limit is None:
+            raise HTTPException(status_code=400, detail="budget_type and budget_limit are required")
+
+        if budget_type not in ["daily", "weekly", "monthly", "yearly"]:
+            raise HTTPException(status_code=400, detail="budget_type must be one of: daily, weekly, monthly, yearly")
+
+        if not isinstance(budget_limit, int | float) or budget_limit <= 0:
+            raise HTTPException(status_code=400, detail="budget_limit must be a positive number")
+
+        provider = request.get("provider")
+        model = request.get("model")
+        alert_thresholds = request.get("alert_thresholds", [50.0, 80.0, 95.0])
+
+        # Set budget using advanced cost tracker
+        if hasattr(model_muxer, "advanced_cost_tracker") and model_muxer.advanced_cost_tracker:
+            await model_muxer.advanced_cost_tracker.set_budget(
+                user_id=user_id,
+                budget_type=budget_type,
+                budget_limit=float(budget_limit),
+                provider=provider,
+                model=model,
+                alert_thresholds=alert_thresholds,
+            )
+
+            return {
+                "message": "Budget set successfully",
+                "budget": {
+                    "budget_type": budget_type,
+                    "budget_limit": budget_limit,
+                    "provider": provider,
+                    "model": model,
+                    "alert_thresholds": alert_thresholds,
+                },
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Budget tracking not initialized")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("set_budget_error", error=str(e), user_id=user_id)
+        raise HTTPException(status_code=500, detail="Failed to set budget") from e
+
+
 @app.post("/v1/chat/completions/enhanced")
 async def enhanced_chat_completions(
     request: ChatCompletionRequest,
@@ -872,9 +995,7 @@ def main():
         port=config.port if hasattr(config, "port") else 8000,
         reload=config.debug if hasattr(config, "debug") else False,
         log_level=(
-            config.logging.level.lower()
-            if hasattr(config, "logging") and hasattr(config.logging, "level")
-            else "info"
+            config.logging.level.lower() if hasattr(config, "logging") and hasattr(config.logging, "level") else "info"
         ),
     )
 
