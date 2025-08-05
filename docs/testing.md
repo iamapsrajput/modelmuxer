@@ -130,7 +130,7 @@ from app.models import User, Request
 class UserFactory(factory.Factory):
     class Meta:
         model = User
-    
+
     id = factory.Sequence(lambda n: f"user_{n}")
     email = factory.LazyAttribute(lambda obj: f"{obj.id}@example.com")
 ```
@@ -209,7 +209,7 @@ from httpx import AsyncClient
 async def test_concurrent_requests():
     async def make_request(client):
         return await client.post("/api/v1/chat/completions", json=test_data)
-    
+
     async with AsyncClient(app=app) as client:
         tasks = [make_request(client) for _ in range(100)]
         responses = await asyncio.gather(*tasks)
@@ -263,7 +263,7 @@ poetry run pytest --durations=10
 
 Created all missing documentation files to fix broken links in CI:
 - ✅ **FAQ.md**: Frequently asked questions
-- ✅ **troubleshooting.md**: Common issues and solutions  
+- ✅ **troubleshooting.md**: Common issues and solutions
 - ✅ **docs/monitoring.md**: Observability and metrics
 - ✅ **docs/security.md**: Security best practices
 - ✅ **docs/performance.md**: Optimization strategies

@@ -35,30 +35,16 @@ COHERE_API_KEY=...
 ### Routing Configuration
 
 ```env
-# Routing Strategy
-DEFAULT_ROUTING_STRATEGY=hybrid  # hybrid, cascade, semantic, heuristic
+# Application Mode
+MODELMUXER_MODE=basic           # basic, enhanced, production
 
-# Strategy Toggles
-CASCADE_ROUTING_ENABLED=true
-SEMANTIC_ROUTING_ENABLED=true
-HEURISTIC_ROUTING_ENABLED=true
+# Heuristic Routing Thresholds
+CODE_DETECTION_THRESHOLD=0.2    # Threshold for code detection
+COMPLEXITY_THRESHOLD=0.2        # Threshold for complexity detection
+SIMPLE_QUERY_THRESHOLD=0.3      # Threshold for simple query detection
+SIMPLE_QUERY_MAX_LENGTH=100     # Max length for simple queries
 
-# Cascade Routing
-CASCADE_QUALITY_THRESHOLD=0.7
-CASCADE_CONFIDENCE_THRESHOLD=0.7
-CASCADE_MAX_BUDGET=0.1
 
-# Heuristic Routing
-CODE_DETECTION_THRESHOLD=0.2
-COMPLEXITY_THRESHOLD=0.2
-SIMPLE_QUERY_THRESHOLD=0.3
-SIMPLE_QUERY_MAX_LENGTH=100
-
-# Semantic Routing
-CLASSIFICATION_ENABLED=true
-CLASSIFICATION_MODEL=all-MiniLM-L6-v2
-SIMILARITY_THRESHOLD=0.7
-CACHE_EMBEDDINGS=true
 ```
 
 ### Authentication & Security
@@ -163,7 +149,7 @@ providers:
       - gpt-4o
       - gpt-4o-mini
       - gpt-3.5-turbo
-  
+
   anthropic:
     api_key: "${ANTHROPIC_API_KEY}"
     timeout: 30
@@ -180,13 +166,13 @@ routing:
       quality_threshold: 0.7
       confidence_threshold: 0.7
       max_budget: 0.1
-    
+
     semantic:
       enabled: true
       model: "all-MiniLM-L6-v2"
       similarity_threshold: 0.7
       cache_embeddings: true
-    
+
     heuristic:
       enabled: true
       code_detection_threshold: 0.2
@@ -241,7 +227,7 @@ models:
       pricing:
         input: 0.005
         output: 0.015
-    
+
     gpt-4o-mini:
       max_tokens: 16384
       temperature: 0.7
@@ -263,13 +249,13 @@ routing_preferences:
       model: "gpt-4o"
     - provider: "anthropic"
       model: "claude-3-5-sonnet-20241022"
-  
+
   simple:
     - provider: "openai"
       model: "gpt-4o-mini"
     - provider: "anthropic"
       model: "claude-3-haiku-20240307"
-  
+
   complex:
     - provider: "openai"
       model: "gpt-4o"

@@ -60,15 +60,15 @@ Visit `http://localhost:8000/docs` for interactive API documentation.
 
 ### Core Endpoints
 
-| Endpoint                        | Method   | Description                    |
-| ------------------------------- | -------- | ------------------------------ |
-| `/v1/chat/completions`          | POST     | Standard chat completion       |
-| `/v1/chat/completions/enhanced` | POST     | Enhanced completion            |
-| `/v1/analytics/costs`           | GET      | Detailed cost analytics        |
-| `/v1/analytics/budgets`         | GET/POST | Budget management              |
-| `/v1/providers`                 | GET      | Available providers and models |
-| `/health`                       | GET      | System health check            |
-| `/metrics`                      | GET      | Prometheus metrics             |
+| Endpoint                        | Method | Description                    |
+| ------------------------------- | ------ | ------------------------------ |
+| `/v1/chat/completions`          | POST   | Standard chat completion       |
+| `/v1/chat/completions/enhanced` | POST   | Enhanced completion            |
+| `/v1/analytics/costs`           | GET    | Detailed cost analytics        |
+| `/v1/providers`                 | GET    | Available providers and models |
+| `/v1/models`                    | GET    | List all available models      |
+| `/health`                       | GET    | System health check            |
+| `/metrics`                      | GET    | Prometheus metrics             |
 
 ### Example Usage
 

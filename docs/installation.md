@@ -87,21 +87,21 @@ HEURISTIC_ROUTING_ENABLED=true
 #### Development Mode
 
 ```bash
-# Enhanced version (recommended - includes all features)
-poetry run uvicorn app.main_enhanced:app --reload --host 0.0.0.0 --port 8000
+# Enhanced mode (recommended - includes all features when dependencies available)
+MODELMUXER_MODE=enhanced poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Basic version (for testing/development)
-poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Basic mode (for testing/development)
+MODELMUXER_MODE=basic poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 #### Production Mode
 
 ```bash
-# Enhanced version (recommended for production)
-poetry run uvicorn app.main_enhanced:app --host 0.0.0.0 --port 8000 --workers 4
+# Production mode (recommended for production - enhanced features with fallback)
+MODELMUXER_MODE=production poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 
-# Basic version (minimal features)
-poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+# Basic mode (minimal features)
+MODELMUXER_MODE=basic poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
 ### 5. Verify Installation
