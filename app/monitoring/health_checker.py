@@ -94,7 +94,10 @@ class HealthChecker:
                 await self._health_task
             except asyncio.CancelledError:
                 # Task was cancelled during shutdown, this is expected
-                pass
+                logger.debug("health_check_task_cancelled_during_shutdown")
+            except Exception as e:
+                # Log any unexpected errors during task cancellation
+                logger.error("health_check_task_cancellation_error", error=str(e))
         logger.info("health_checker_stopped")
 
     async def _health_check_loop(self) -> None:
