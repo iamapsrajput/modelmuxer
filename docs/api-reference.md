@@ -282,4 +282,3 @@ The complete OpenAPI specification is available at:
 
 - [Configuration Guide](configuration.md)
 - [Deployment Guide](deployment.md)
-- [SDK Documentation](sdks.md)

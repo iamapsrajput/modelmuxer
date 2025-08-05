@@ -1,66 +1,106 @@
-# Architecture Overview
+# ModelMuxer Architecture
+
+## Overview
+
+ModelMuxer is an enterprise-grade LLM routing platform designed for production scale with intelligent request routing, cost optimization, and comprehensive monitoring.
 
 ## System Architecture
 
-ModelMuxer is designed as a high-performance, scalable LLM routing engine with the following key components:
+```text
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Client Apps   │    │   Load Balancer │    │   API Gateway   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────┐
+                    │   ModelMuxer    │
+                    │   FastAPI App   │
+                    └─────────────────┘
+                                 │
+         ┌───────────────────────┼───────────────────────┐
+         │                       │                       │
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Routing       │    │   Providers     │    │   Monitoring    │
+│   Engine        │    │   (OpenAI,      │    │   & Metrics     │
+│                 │    │   Anthropic,    │    │                 │
+│                 │    │   Mistral, etc) │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────┐
+                    │   Data Layer    │
+                    │   (SQLite/      │
+                    │   PostgreSQL +  │
+                    │   Redis Cache)  │
+                    └─────────────────┘
+```
 
-### Core Components
+## Core Components
 
-- **Router Engine**: Intelligent model selection and routing
-- **Provider Clients**: Unified interface to LLM providers (OpenAI, Anthropic, Mistral)
-- **Cost Tracker**: Real-time usage and budget monitoring
-- **Cache Layer**: Response and routing decision caching
-- **Analytics Engine**: Performance metrics and insights
+### 1. Application Layers
 
-### Request Flow
+#### **Unified Application (`app/main.py`) - CONSOLIDATED**
 
-1. **Request Validation**: Input sanitization and authentication
-2. **Routing Decision**: AI-powered model selection based on query analysis
-3. **Provider Call**: Optimized API calls to selected LLM provider
-4. **Response Processing**: Unified response format and cost calculation
-5. **Caching & Analytics**: Store results and update usage metrics
+- **Unified application** with both basic and advanced features
+- Automatic mode detection based on environment and available dependencies
+- Advanced routing with ML-based classification (when enabled)
+- Comprehensive monitoring and metrics (when enabled)
+- Enterprise features and security (when enabled)
+- Enhanced cost tracking with budget management (when enabled)
+- **Used in**: All deployments - automatically adapts to environment
+- **Suitable for**: Development, testing, and production deployments
 
-## Technology Stack
+### 2. Routing Engine (`app/routing/`)
 
-### Backend
+#### **Base Router (`base_router.py`)**
 
-- **FastAPI**: High-performance async web framework
-- **Pydantic**: Data validation and serialization
-- **SQLAlchemy**: Database ORM with async support
-- **Redis**: Caching and session management
-- **PostgreSQL**: Primary data storage
+- Abstract base class for all routing strategies
+- Defines common interface and utilities
 
-### AI/ML Components
+#### **Heuristic Router (`heuristic_router.py`)**
 
-- **Transformers**: Text classification and analysis
-- **scikit-learn**: Machine learning models for routing
-- **NLTK/spaCy**: Natural language processing
-- **Custom embeddings**: Query similarity and caching
+- Rule-based routing using prompt analysis
+- Fast, deterministic routing decisions
+- No ML dependencies required
 
-### Infrastructure
+#### **Semantic Router (`semantic_router.py`)**
 
-- **Docker**: Containerization
-- **Kubernetes**: Orchestration and scaling
-- **Prometheus**: Metrics collection
-- **Grafana**: Monitoring dashboards
+- ML-powered routing using sentence transformers
+- Context-aware model selection
+- Requires ML dependencies
 
-## Routing Strategy
+#### **Cascade Router (`cascade_router.py`)**
 
-### Heuristic Routing (Current Implementation)
+- Multi-tier routing with fallback strategies
+- Cost optimization through provider cascading
+- Intelligent retry logic
 
-Intelligent routing based on prompt analysis:
+#### **Hybrid Router (`hybrid_router.py`)**
 
-- **Code Detection**: Identifies programming-related queries using pattern matching
-- **Complexity Analysis**: Evaluates query complexity using keyword analysis
-- **Cost Optimization**: Selects models based on budget constraints and task requirements
-- **Provider Selection**: Routes to optimal provider/model combination
+- Combines multiple routing strategies
+- Adaptive routing based on request characteristics
+- Production-recommended approach
 
-The router analyzes incoming prompts and classifies them as:
+### 3. Provider Integration (`app/providers/`)
 
-- **Code**: Programming, debugging, or technical implementation tasks
-- **Complex**: Analysis, research, or multi-step reasoning tasks
-- **Simple**: Basic questions or straightforward requests
-- **General**: Default category for unclassified queries
+#### **Supported Providers**
+
+- **OpenAI**: GPT-3.5, GPT-4, GPT-4o models
+- **Anthropic**: Claude 3 family (Haiku, Sonnet, Opus)
+- **Mistral**: Mistral 7B, Mixtral models
+- **Google**: Gemini models
+- **Groq**: High-speed inference
+- **Together AI**: Open source models
+- **Cohere**: Command and Embed models
+
+#### **Provider Features**
+
+- Unified API interface
+- Automatic retry and error handling
+- Rate limiting and quota management
+- Cost tracking and optimization
 
 ## Data Flow
 
