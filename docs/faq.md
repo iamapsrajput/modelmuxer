@@ -15,8 +15,8 @@ A: Currently supported providers include OpenAI, Anthropic, and Mistral.
 A: Visit each provider's website to sign up and generate API keys:
 
 - OpenAI: https://platform.openai.com/api-keys
-- Anthropic: https://console.anthropic.com/settings/keys
-- Mistral: https://console.mistral.ai/api-keys/
+- Anthropic: https://console.anthropic.com/ (login required)
+- Mistral: https://console.mistral.ai/ (login required)
 
 ## Configuration
 
@@ -47,5 +47,5 @@ For technical issues, see the [Troubleshooting Guide](troubleshooting.md).
 If you have questions not covered here:
 
 - Check the [documentation](../README.md)
-- Open an issue on GitHub
-- Join our community discussions
+- Open an issue on [GitHub Issues](https://github.com/iamapsrajput/ModelMuxer/issues)
+- Contact the maintainers via email
