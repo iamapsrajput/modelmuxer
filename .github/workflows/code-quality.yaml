@@ -98,9 +98,9 @@ jobs:
 
       - name: Check docstring coverage
         run: |
-          poetry run pip install docstring-coverage
-          poetry run docstring-coverage app/ \
-            --badge=docstring-coverage.svg || true
+          poetry run interrogate app/ \
+            --generate-badge docstring-coverage.svg \
+            --badge-format svg || true
 
       - name: Lint markdown files
         uses: DavidAnson/markdownlint-cli2-action@v16

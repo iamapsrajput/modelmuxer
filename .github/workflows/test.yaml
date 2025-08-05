@@ -43,6 +43,19 @@ jobs:
           poetry run ruff format --check app/ tests/
 
       - name: Run mypy (type checking)
+        env:
+          TESTING: true
+          MODELMUXER_MODE: basic
+          # Test API keys for type checking
+          OPENAI_API_KEY: test-openai-key-fake-for-ci
+          ANTHROPIC_API_KEY: test-anthropic-key-fake-for-ci
+          MISTRAL_API_KEY: test-mistral-key-fake-for-ci
+          GROQ_API_KEY: test-groq-key-fake-for-ci
+          JWT_SECRET_KEY: test-jwt-secret-for-ci-testing-only-not-production
+          API_KEYS: test-api-key-001-NOT-REAL,test-api-key-002-NOT-REAL
+          TEST_API_KEY_1: test-api-key-001-NOT-REAL
+          TEST_API_KEY_2: test-api-key-002-NOT-REAL
+          TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: poetry run mypy app/
 
       - name: Run bandit (security linting)
@@ -129,6 +142,19 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
+          MODELMUXER_MODE: basic
+          # Test API keys - clearly marked as fake for CI
+          OPENAI_API_KEY: test-openai-key-fake-for-ci
+          ANTHROPIC_API_KEY: test-anthropic-key-fake-for-ci
+          MISTRAL_API_KEY: test-mistral-key-fake-for-ci
+          GROQ_API_KEY: test-groq-key-fake-for-ci
+          # JWT secret for enhanced config testing
+          JWT_SECRET_KEY: test-jwt-secret-for-ci-testing-only-not-production
+          # API keys for authentication testing
+          API_KEYS: test-api-key-001-NOT-REAL,test-api-key-002-NOT-REAL
+          TEST_API_KEY_1: test-api-key-001-NOT-REAL
+          TEST_API_KEY_2: test-api-key-002-NOT-REAL
+          TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: |
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           poetry run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html -m "not integration"
@@ -138,6 +164,19 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
+          MODELMUXER_MODE: basic
+          # Test API keys - clearly marked as fake for CI
+          OPENAI_API_KEY: test-openai-key-fake-for-ci
+          ANTHROPIC_API_KEY: test-anthropic-key-fake-for-ci
+          MISTRAL_API_KEY: test-mistral-key-fake-for-ci
+          GROQ_API_KEY: test-groq-key-fake-for-ci
+          # JWT secret for enhanced config testing
+          JWT_SECRET_KEY: test-jwt-secret-for-ci-testing-only-not-production
+          # API keys for authentication testing
+          API_KEYS: test-api-key-001-NOT-REAL,test-api-key-002-NOT-REAL
+          TEST_API_KEY_1: test-api-key-001-NOT-REAL
+          TEST_API_KEY_2: test-api-key-002-NOT-REAL
+          TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: |
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           poetry run pytest tests/ -v --cov=app --cov-append --cov-report=xml -m "integration"
@@ -147,6 +186,19 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
+          MODELMUXER_MODE: basic
+          # Test API keys - clearly marked as fake for CI
+          OPENAI_API_KEY: test-openai-key-fake-for-ci
+          ANTHROPIC_API_KEY: test-anthropic-key-fake-for-ci
+          MISTRAL_API_KEY: test-mistral-key-fake-for-ci
+          GROQ_API_KEY: test-groq-key-fake-for-ci
+          # JWT secret for enhanced config testing
+          JWT_SECRET_KEY: test-jwt-secret-for-ci-testing-only-not-production
+          # API keys for authentication testing
+          API_KEYS: test-api-key-001-NOT-REAL,test-api-key-002-NOT-REAL
+          TEST_API_KEY_1: test-api-key-001-NOT-REAL
+          TEST_API_KEY_2: test-api-key-002-NOT-REAL
+          TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: |
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           # Run performance tests but don't fail the build if they're slow
@@ -295,6 +347,19 @@ jobs:
           poetry install --with ml || echo "ML dependencies failed to install, continuing with core tests"
 
       - name: Run performance tests
+        env:
+          TESTING: true
+          MODELMUXER_MODE: basic
+          # Test API keys for performance tests
+          OPENAI_API_KEY: test-openai-key-fake-for-ci
+          ANTHROPIC_API_KEY: test-anthropic-key-fake-for-ci
+          MISTRAL_API_KEY: test-mistral-key-fake-for-ci
+          GROQ_API_KEY: test-groq-key-fake-for-ci
+          JWT_SECRET_KEY: test-jwt-secret-for-ci-testing-only-not-production
+          API_KEYS: test-api-key-001-NOT-REAL,test-api-key-002-NOT-REAL
+          TEST_API_KEY_1: test-api-key-001-NOT-REAL
+          TEST_API_KEY_2: test-api-key-002-NOT-REAL
+          TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: |
           # Check if performance tests exist and install dependencies
           if [ -d "tests/performance" ]; then
