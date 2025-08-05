@@ -82,11 +82,11 @@ class CostTracker:
         self.enhanced_mode = enhanced_mode
         self.pricing = settings.get_provider_pricing()
         # Initialize tokenizers for different providers
-        self._tokenizers = {}
+        self._tokenizers: dict[str, Any] = {}
 
         # Enhanced features (only initialized if enhanced_mode is True)
-        self.redis_client = None
-        self.db_path = None
+        self.redis_client: Any = None
+        self.db_path: str | None = None
 
         if enhanced_mode and ENHANCED_FEATURES_AVAILABLE:
             self._initialize_enhanced_features()
@@ -144,9 +144,7 @@ class CostTracker:
             return min(max_tokens, 1000)  # Cap at reasonable default
         return settings.max_tokens_default // 2  # Estimate half of max as typical output
 
-    def calculate_cost(
-        self, provider: str, model: str, input_tokens: int, output_tokens: int
-    ) -> float:
+    def calculate_cost(self, provider: str, model: str, input_tokens: int, output_tokens: int) -> float:
         """Calculate cost for a request."""
         if provider not in self.pricing:
             return 0.0
@@ -265,32 +263,28 @@ class AdvancedCostTracker(CostTracker):
     - Comprehensive analytics and reporting
     """
 
-    def __init__(
-        self, db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"
-    ):
+    def __init__(self, db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"):
         super().__init__(enhanced_mode=True)
 
-        # Configure database path if not already set by parent
-        if not hasattr(self, "db_path") or self.db_path is None:
-            self.db_path = db_path
+        # Set database path for enhanced features
+        self.db_path = db_path
 
         # Store redis URL for enhanced features
         self.redis_url = redis_url
 
-        # Configure Redis client if not already set by parent
-        if not hasattr(self, "redis_client") or self.redis_client is None:
-            if ENHANCED_FEATURES_AVAILABLE and redis:
-                try:
-                    redis_client = redis.from_url(redis_url, decode_responses=True)
-                    # Test connection
-                    redis_client.ping()
-                    self.redis_client = redis_client
-                    if logger:
-                        logger.info("redis_connected", url=redis_url)
-                except Exception as e:
-                    if logger:
-                        logger.warning("redis_connection_failed", error=str(e), fallback="mock")
-                    self.redis_client = MockRedisClient()
+        # Configure Redis client for enhanced features
+        if ENHANCED_FEATURES_AVAILABLE and redis:
+            try:
+                redis_client = redis.from_url(redis_url, decode_responses=True)
+                # Test connection
+                redis_client.ping()
+                self.redis_client = redis_client
+                if logger:
+                    logger.info("redis_connected", url=redis_url)
+            except Exception as e:
+                if logger:
+                    logger.warning("redis_connection_failed", error=str(e), fallback="mock")
+                self.redis_client = MockRedisClient()
             else:
                 self.redis_client = MockRedisClient()
 
@@ -505,9 +499,7 @@ class AdvancedCostTracker(CostTracker):
         finally:
             conn.close()
 
-    async def _update_usage_cache(
-        self, user_id: str, cost: float, provider: str, model: str
-    ) -> None:
+    async def _update_usage_cache(self, user_id: str, cost: float, provider: str, model: str) -> None:
         """Update real-time usage cache in Redis."""
         if not self.redis_client:
             return
@@ -534,9 +526,7 @@ class AdvancedCostTracker(CostTracker):
             if logger:
                 logger.warning("usage_cache_update_failed", error=str(e))
 
-    async def _check_budget_alerts(
-        self, user_id: str, cost: float, provider: str, model: str
-    ) -> None:
+    async def _check_budget_alerts(self, user_id: str, cost: float, provider: str, model: str) -> None:
         """Check if budget alerts should be triggered."""
         # Implementation would check against user budgets and send alerts
         # This is a simplified version
@@ -593,9 +583,7 @@ class AdvancedCostTracker(CostTracker):
         finally:
             conn.close()
 
-    async def get_budget_status(
-        self, user_id: str, budget_type: str | None = None
-    ) -> list[dict[str, Any]]:
+    async def get_budget_status(self, user_id: str, budget_type: str | None = None) -> list[dict[str, Any]]:
         """Get budget status for a user."""
         if not ENHANCED_FEATURES_AVAILABLE:
             return []
@@ -629,14 +617,10 @@ class AdvancedCostTracker(CostTracker):
 
             for budget in budgets:
                 budget_type_val, budget_limit, provider, model, alert_thresholds_json = budget
-                alert_thresholds = (
-                    json.loads(alert_thresholds_json) if alert_thresholds_json else []
-                )
+                alert_thresholds = json.loads(alert_thresholds_json) if alert_thresholds_json else []
 
                 # Calculate current usage based on budget type
-                current_usage = await self._get_current_usage(
-                    user_id, budget_type_val, provider, model
-                )
+                current_usage = await self._get_current_usage(user_id, budget_type_val, provider, model)
 
                 usage_percentage = (current_usage / budget_limit * 100) if budget_limit > 0 else 0
                 remaining_budget = max(0, budget_limit - current_usage)

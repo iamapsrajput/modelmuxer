@@ -5,6 +5,7 @@ Heuristic routing logic for selecting the best LLM provider and model.
 """
 
 import re
+from typing import Any
 
 from .config import settings
 from .models import ChatMessage
@@ -191,7 +192,17 @@ class HeuristicRouter:
             ],
         }
 
-    def analyze_prompt(self, messages: list[ChatMessage]) -> dict[str, any]:
+        # Pre-compile regex patterns for efficiency after all attributes are defined
+        self._compiled_code_patterns = [
+            re.compile(pattern, re.IGNORECASE | re.MULTILINE) for pattern in self.code_patterns
+        ]
+
+        self._compiled_complexity_patterns = [
+            re.compile(r"\b" + re.escape(keyword.lower()) + r"\b", re.IGNORECASE)
+            for keyword in self.complexity_keywords
+        ]
+
+    def analyze_prompt(self, messages: list[ChatMessage]) -> dict[str, Any]:
         """Analyze prompt characteristics to determine routing strategy."""
         # Combine all message content for analysis
         full_text = " ".join([msg.content for msg in messages if msg.content])
@@ -212,8 +223,8 @@ class HeuristicRouter:
 
         # Code detection
         code_matches = 0
-        for pattern in self.code_patterns:
-            matches = re.findall(pattern, full_text, re.IGNORECASE | re.MULTILINE)
+        for pattern in self._compiled_code_patterns:
+            matches = pattern.findall(full_text)
             code_matches += len(matches)
 
         # Programming keyword detection (using word boundaries to avoid false positives)
@@ -227,18 +238,15 @@ class HeuristicRouter:
         analysis["has_code"] = analysis["code_confidence"] >= settings.code_detection_threshold
 
         # Complexity detection (using word boundaries to avoid false positives)
+        # Complexity analysis
         complexity_matches = 0
-        for keyword in self.complexity_keywords:
-            # Use word boundaries to match whole words only
-            pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
-            if re.search(pattern, full_text_lower):
+        for pattern in self._compiled_complexity_patterns:
+            if pattern.search(full_text_lower):
                 complexity_matches += 1
 
         # Calculate complexity confidence
         analysis["complexity_confidence"] = min(1.0, complexity_matches * 0.1)
-        analysis["has_complexity"] = (
-            analysis["complexity_confidence"] >= settings.complexity_threshold
-        )
+        analysis["has_complexity"] = analysis["complexity_confidence"] >= settings.complexity_threshold
 
         # Simple query detection
         simple_matches = 0
@@ -332,9 +340,7 @@ class HeuristicRouter:
             reasons.append(f"Code detected (confidence: {analysis['code_confidence']:.2f})")
 
         if analysis["has_complexity"]:
-            reasons.append(
-                f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})"
-            )
+            reasons.append(f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})")
 
         if analysis["is_simple"]:
             reasons.append(f"Simple query detected (length: {analysis['total_length']} chars)")
@@ -349,13 +355,11 @@ class HeuristicRouter:
         if reasons:
             task_reason += f" ({', '.join(reasons)})"
 
-        model_reason = (
-            f"Selected {provider}/{model} for optimal {analysis['task_type']} performance"
-        )
+        model_reason = f"Selected {provider}/{model} for optimal {analysis['task_type']} performance"
 
         return f"{task_reason}. {model_reason}"
 
-    def get_routing_stats(self) -> dict[str, any]:
+    def get_routing_stats(self) -> dict[str, Any]:
         """Get statistics about routing decisions (for monitoring)."""
         # In a real implementation, this would query the database
         # for routing statistics
