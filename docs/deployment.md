@@ -10,7 +10,7 @@ This guide covers deploying ModelMuxer in various environments from development 
 
 ```bash
 # Clone and setup
-git clone https://github.com/iamapsrajput/ModelMuxer.git
+git clone https://github.com/iamapsrajput/modelmuxer.git
 cd ModelMuxer
 
 # Configure environment

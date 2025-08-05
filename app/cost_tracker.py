@@ -144,7 +144,9 @@ class CostTracker:
             return min(max_tokens, 1000)  # Cap at reasonable default
         return settings.max_tokens_default // 2  # Estimate half of max as typical output
 
-    def calculate_cost(self, provider: str, model: str, input_tokens: int, output_tokens: int) -> float:
+    def calculate_cost(
+        self, provider: str, model: str, input_tokens: int, output_tokens: int
+    ) -> float:
         """Calculate cost for a request."""
         if provider not in self.pricing:
             return 0.0
@@ -263,7 +265,9 @@ class AdvancedCostTracker(CostTracker):
     - Comprehensive analytics and reporting
     """
 
-    def __init__(self, db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"):
+    def __init__(
+        self, db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"
+    ):
         super().__init__(enhanced_mode=True)
         self.db_path = db_path
         self.redis_url = redis_url
@@ -494,7 +498,9 @@ class AdvancedCostTracker(CostTracker):
         finally:
             conn.close()
 
-    async def _update_usage_cache(self, user_id: str, cost: float, provider: str, model: str) -> None:
+    async def _update_usage_cache(
+        self, user_id: str, cost: float, provider: str, model: str
+    ) -> None:
         """Update real-time usage cache in Redis."""
         if not self.redis_client:
             return
@@ -521,7 +527,9 @@ class AdvancedCostTracker(CostTracker):
             if logger:
                 logger.warning("usage_cache_update_failed", error=str(e))
 
-    async def _check_budget_alerts(self, user_id: str, cost: float, provider: str, model: str) -> None:
+    async def _check_budget_alerts(
+        self, user_id: str, cost: float, provider: str, model: str
+    ) -> None:
         """Check if budget alerts should be triggered."""
         # Implementation would check against user budgets and send alerts
         # This is a simplified version
@@ -578,7 +586,9 @@ class AdvancedCostTracker(CostTracker):
         finally:
             conn.close()
 
-    async def get_budget_status(self, user_id: str, budget_type: str | None = None) -> list[dict[str, Any]]:
+    async def get_budget_status(
+        self, user_id: str, budget_type: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get budget status for a user."""
         if not ENHANCED_FEATURES_AVAILABLE:
             return []
@@ -612,10 +622,14 @@ class AdvancedCostTracker(CostTracker):
 
             for budget in budgets:
                 budget_type_val, budget_limit, provider, model, alert_thresholds_json = budget
-                alert_thresholds = json.loads(alert_thresholds_json) if alert_thresholds_json else []
+                alert_thresholds = (
+                    json.loads(alert_thresholds_json) if alert_thresholds_json else []
+                )
 
                 # Calculate current usage based on budget type
-                current_usage = await self._get_current_usage(user_id, budget_type_val, provider, model)
+                current_usage = await self._get_current_usage(
+                    user_id, budget_type_val, provider, model
+                )
 
                 usage_percentage = (current_usage / budget_limit * 100) if budget_limit > 0 else 0
                 remaining_budget = max(0, budget_limit - current_usage)

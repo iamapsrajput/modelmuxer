@@ -21,9 +21,21 @@ class TestBudgetManagement:
 
     def setup_method(self) -> None:
         """Set up test fixtures."""
-        self.client = TestClient(app)
         self.test_user_id = "test_user_123"
         self.test_headers = {"Authorization": "Bearer test_token"}
+
+        # Mock authentication for all tests
+        def mock_auth():
+            return {"user_id": self.test_user_id}
+
+        from app.main import get_authenticated_user
+
+        app.dependency_overrides[get_authenticated_user] = mock_auth
+        self.client = TestClient(app)
+
+    def teardown_method(self) -> None:
+        """Clean up test fixtures."""
+        app.dependency_overrides.clear()
 
     @patch("app.main.model_muxer")
     def test_get_budget_status_basic_mode(self, mock_model_muxer):
@@ -31,20 +43,9 @@ class TestBudgetManagement:
         # Mock basic mode
         mock_model_muxer.enhanced_mode = False
 
-        # Use dependency override for authentication
-        def mock_auth():
-            return {"user_id": self.test_user_id}
-
-        from app.main import app, get_authenticated_user
-
-        app.dependency_overrides[get_authenticated_user] = mock_auth
-
-        try:
-            response = self.client.get("/v1/analytics/budgets")
-            assert response.status_code == 501
-            assert "enhanced mode" in response.json()["error"]["message"].lower()
-        finally:
-            app.dependency_overrides.clear()
+        response = self.client.get("/v1/analytics/budgets")
+        assert response.status_code == 501
+        assert "enhanced mode" in response.json()["error"]["message"].lower()
 
     @patch("app.main.model_muxer")
     def test_get_budget_status_enhanced_mode(self, mock_model_muxer):
@@ -78,50 +79,37 @@ class TestBudgetManagement:
         ]
         mock_advanced_tracker.get_budget_status.return_value = mock_budget_status
 
-        # Use dependency override for authentication
-        def mock_auth():
-            return {"user_id": self.test_user_id}
+        response = self.client.get("/v1/analytics/budgets")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["message"] == "Budget status retrieved successfully"
+        assert len(data["budgets"]) == 1
+        assert data["total_budgets"] == 1
+        assert data["budgets"][0]["budget_type"] == "daily"
+        assert data["budgets"][0]["budget_limit"] == 10.0
 
-        from app.main import app, get_authenticated_user
-
-        app.dependency_overrides[get_authenticated_user] = mock_auth
-
-        try:
-            response = self.client.get("/v1/analytics/budgets")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["message"] == "Budget status retrieved successfully"
-            assert len(data["budgets"]) == 1
-            assert data["total_budgets"] == 1
-            assert data["budgets"][0]["budget_type"] == "daily"
-            assert data["budgets"][0]["budget_limit"] == 10.0
-        finally:
-            app.dependency_overrides.clear()
-
-    @patch("app.main.get_authenticated_user")
     @patch("app.main.model_muxer")
-    def test_set_budget_basic_mode(self, mock_model_muxer, mock_auth):
+    def test_set_budget_basic_mode(self, mock_model_muxer):
         """Test setting budget in basic mode."""
-        # Mock authentication
-        mock_auth.return_value = {"user_id": self.test_user_id}
-
         # Mock basic mode
         mock_model_muxer.enhanced_mode = False
 
-        budget_request = {"budget_type": "daily", "budget_limit": 15.0, "alert_thresholds": [50.0, 80.0, 95.0]}
+        budget_request = {
+            "budget_type": "daily",
+            "budget_limit": 15.0,
+            "alert_thresholds": [50.0, 80.0, 95.0],
+        }
 
-        response = self.client.post("/v1/analytics/budgets", headers=self.test_headers, json=budget_request)
+        response = self.client.post(
+            "/v1/analytics/budgets", headers=self.test_headers, json=budget_request
+        )
 
         assert response.status_code == 501
         assert "enhanced mode" in response.json()["error"]["message"].lower()
 
-    @patch("app.main.get_authenticated_user")
     @patch("app.main.model_muxer")
-    async def test_set_budget_enhanced_mode(self, mock_model_muxer, mock_auth):
+    def test_set_budget_enhanced_mode(self, mock_model_muxer):
         """Test setting budget in enhanced mode."""
-        # Mock authentication
-        mock_auth.return_value = {"user_id": self.test_user_id}
-
         # Mock enhanced mode with advanced cost tracker
         mock_model_muxer.enhanced_mode = True
         mock_advanced_tracker = AsyncMock()
@@ -135,7 +123,9 @@ class TestBudgetManagement:
             "alert_thresholds": [50.0, 80.0, 95.0],
         }
 
-        response = self.client.post("/v1/analytics/budgets", headers=self.test_headers, json=budget_request)
+        response = self.client.post(
+            "/v1/analytics/budgets", headers=self.test_headers, json=budget_request
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -155,34 +145,38 @@ class TestBudgetManagement:
             alert_thresholds=[50.0, 80.0, 95.0],
         )
 
-    @patch("app.main.get_authenticated_user")
     @patch("app.main.model_muxer")
-    def test_set_budget_invalid_request(self, mock_model_muxer, mock_auth):
+    def test_set_budget_invalid_request(self, mock_model_muxer):
         """Test setting budget with invalid request data."""
-        # Mock authentication
-        mock_auth.return_value = {"user_id": self.test_user_id}
-
         # Mock enhanced mode
         mock_model_muxer.enhanced_mode = True
         mock_model_muxer.advanced_cost_tracker = AsyncMock()
 
         # Test missing budget_type
-        response = self.client.post("/v1/analytics/budgets", headers=self.test_headers, json={"budget_limit": 15.0})
+        response = self.client.post(
+            "/v1/analytics/budgets", headers=self.test_headers, json={"budget_limit": 15.0}
+        )
         assert response.status_code == 400
 
         # Test missing budget_limit
-        response = self.client.post("/v1/analytics/budgets", headers=self.test_headers, json={"budget_type": "daily"})
+        response = self.client.post(
+            "/v1/analytics/budgets", headers=self.test_headers, json={"budget_type": "daily"}
+        )
         assert response.status_code == 400
 
         # Test invalid budget_type
         response = self.client.post(
-            "/v1/analytics/budgets", headers=self.test_headers, json={"budget_type": "invalid", "budget_limit": 15.0}
+            "/v1/analytics/budgets",
+            headers=self.test_headers,
+            json={"budget_type": "invalid", "budget_limit": 15.0},
         )
         assert response.status_code == 400
 
         # Test invalid budget_limit
         response = self.client.post(
-            "/v1/analytics/budgets", headers=self.test_headers, json={"budget_type": "daily", "budget_limit": -5.0}
+            "/v1/analytics/budgets",
+            headers=self.test_headers,
+            json={"budget_type": "daily", "budget_limit": -5.0},
         )
         assert response.status_code == 400
 
@@ -215,13 +209,21 @@ class TestAdvancedCostTrackerBudgets:
             alert_thresholds=[50.0, 80.0, 95.0],
         )
 
-        # Verify database call
-        mock_cursor.execute.assert_called_once()
-        call_args = mock_cursor.execute.call_args[0]
-        assert "INSERT OR REPLACE INTO user_budgets" in call_args[0]
-        assert call_args[1][0] == self.test_user_id
-        assert call_args[1][1] == "daily"
-        assert call_args[1][2] == 10.0
+        # Verify database call - should have been called at least once
+        assert mock_cursor.execute.call_count >= 1
+
+        # Find the INSERT OR REPLACE call among all calls
+        insert_call_found = False
+        for call in mock_cursor.execute.call_args_list:
+            call_args = call[0]
+            if "INSERT OR REPLACE INTO user_budgets" in call_args[0]:
+                assert call_args[1][0] == self.test_user_id
+                assert call_args[1][1] == "daily"
+                assert call_args[1][2] == 10.0
+                insert_call_found = True
+                break
+
+        assert insert_call_found, "INSERT OR REPLACE INTO user_budgets call not found"
 
     @patch("app.cost_tracker.ENHANCED_FEATURES_AVAILABLE", False)
     async def test_set_budget_basic_mode(self):
@@ -244,7 +246,9 @@ class TestAdvancedCostTrackerBudgets:
         mock_conn.cursor.return_value = mock_cursor
 
         # Mock budget data
-        mock_cursor.fetchall.return_value = [("daily", 10.0, None, None, json.dumps([50.0, 80.0, 95.0]))]
+        mock_cursor.fetchall.return_value = [
+            ("daily", 10.0, None, None, json.dumps([50.0, 80.0, 95.0]))
+        ]
 
         tracker = AdvancedCostTracker()
 

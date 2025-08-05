@@ -21,7 +21,7 @@ By participating in this project, you agree to maintain professional and respect
 
 ```bash
 # Fork the repository on GitHub, then clone your fork
-git clone https://github.com/YOUR_USERNAME/ModelMuxer.git
+git clone https://github.com/YOUR_USERNAME/modelmuxer.git
 cd ModelMuxer
 
 # Add upstream remote
