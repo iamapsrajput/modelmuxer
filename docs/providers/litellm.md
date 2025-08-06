@@ -7,21 +7,25 @@ The LiteLLM provider enables ModelMuxer to integrate with [LiteLLM](https://docs
 ## Key Benefits
 
 ### 🌐 Unified Access
+
 - Access 100+ models from 20+ providers through one endpoint
 - Consistent API interface regardless of underlying provider
 - Simplified model management and configuration
 
 ### 💰 Cost Optimization
+
 - Combine LiteLLM's cost tracking with ModelMuxer's budget management
 - Real-time cost calculation and optimization
 - Support for custom pricing configurations
 
 ### 🔄 Advanced Features
+
 - Load balancing across multiple models
 - Automatic fallbacks and retries
 - Custom model configurations and aliases
 
 ### 🛡️ Production Ready
+
 - Built-in rate limiting and error handling
 - Comprehensive logging and monitoring
 - Health checks and availability monitoring
@@ -31,11 +35,13 @@ The LiteLLM provider enables ModelMuxer to integrate with [LiteLLM](https://docs
 ### Prerequisites
 
 1. **Install LiteLLM**:
+
    ```bash
    pip install litellm[proxy]
    ```
 
 2. **Create LiteLLM configuration** (`config.yaml`):
+
    ```yaml
    model_list:
      # OpenAI Models
@@ -43,29 +49,29 @@ The LiteLLM provider enables ModelMuxer to integrate with [LiteLLM](https://docs
        litellm_params:
          model: openai/gpt-4
          api_key: os.environ/OPENAI_API_KEY
-     
+
      - model_name: gpt-3.5-turbo
        litellm_params:
          model: openai/gpt-3.5-turbo
          api_key: os.environ/OPENAI_API_KEY
-     
+
      # Anthropic Models
      - model_name: claude-3-sonnet
        litellm_params:
          model: anthropic/claude-3-sonnet-20240229
          api_key: os.environ/ANTHROPIC_API_KEY
-     
+
      - model_name: claude-3-haiku
        litellm_params:
          model: anthropic/claude-3-haiku-20240307
          api_key: os.environ/ANTHROPIC_API_KEY
-     
+
      # Google Models
      - model_name: gemini-pro
        litellm_params:
          model: google/gemini-pro
          api_key: os.environ/GOOGLE_API_KEY
-     
+
      # Groq Models
      - model_name: llama2-70b-chat
        litellm_params:
@@ -86,6 +92,7 @@ The LiteLLM provider enables ModelMuxer to integrate with [LiteLLM](https://docs
 ### ModelMuxer Configuration
 
 1. **Environment Variables** (`.env`):
+
    ```bash
    # LiteLLM Configuration
    LITELLM_BASE_URL=http://localhost:4000
@@ -93,10 +100,11 @@ The LiteLLM provider enables ModelMuxer to integrate with [LiteLLM](https://docs
    ```
 
 2. **Custom Model Configuration** (optional):
+
    ```python
    # In your application startup
    from app.providers import LiteLLMProvider
-   
+
    # Initialize with custom models
    custom_models = {
        "gpt-4": {
@@ -110,7 +118,7 @@ The LiteLLM provider enables ModelMuxer to integrate with [LiteLLM](https://docs
            "metadata": {"context_window": 200000, "provider": "anthropic"}
        }
    }
-   
+
    provider = LiteLLMProvider(
        base_url="http://localhost:4000",
        api_key="your-master-key",
@@ -133,18 +141,18 @@ async def basic_example():
         base_url="http://localhost:4000",
         api_key="your-api-key"
     )
-    
+
     messages = [
         ChatMessage(role="user", content="What is the capital of France?")
     ]
-    
+
     response = await provider.chat_completion(
         messages=messages,
         model="gpt-3.5-turbo",
         max_tokens=100,
         temperature=0.7
     )
-    
+
     print(f"Response: {response.choices[0].message.content}")
     print(f"Cost: ${provider.calculate_cost(response.usage.prompt_tokens, response.usage.completion_tokens, 'gpt-3.5-turbo'):.6f}")
 
@@ -156,11 +164,11 @@ asyncio.run(basic_example())
 ```python
 async def streaming_example():
     provider = LiteLLMProvider(base_url="http://localhost:4000")
-    
+
     messages = [
         ChatMessage(role="user", content="Write a short story about AI")
     ]
-    
+
     print("Streaming response:")
     async for chunk in provider.stream_chat_completion(
         messages=messages,
@@ -169,7 +177,7 @@ async def streaming_example():
     ):
         if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
             print(chunk["choices"][0]["delta"]["content"], end="", flush=True)
-    
+
     print("\n\nStreaming complete!")
 
 asyncio.run(streaming_example())
@@ -180,23 +188,23 @@ asyncio.run(streaming_example())
 ```python
 async def cost_optimization_example():
     provider = LiteLLMProvider(base_url="http://localhost:4000")
-    
+
     # Get available models and their costs
     models = provider.get_supported_models()
-    
+
     prompt_tokens = 1000
     completion_tokens = 500
-    
+
     print("Cost comparison for 1000 input + 500 output tokens:")
     for model in models:
         cost = provider.calculate_cost(prompt_tokens, completion_tokens, model)
         print(f"{model}: ${cost:.6f}")
-    
+
     # Find the most cost-effective model
-    costs = {model: provider.calculate_cost(prompt_tokens, completion_tokens, model) 
+    costs = {model: provider.calculate_cost(prompt_tokens, completion_tokens, model)
              for model in models}
     cheapest_model = min(costs, key=costs.get)
-    
+
     print(f"\nMost cost-effective model: {cheapest_model} (${costs[cheapest_model]:.6f})")
 
 asyncio.run(cost_optimization_example())
@@ -229,11 +237,11 @@ print(f"Model info: {model_info}")
 ```python
 async def health_check_example():
     provider = LiteLLMProvider(base_url="http://localhost:4000")
-    
+
     # Check if LiteLLM proxy is healthy
     is_healthy = await provider.health_check()
     print(f"LiteLLM proxy health: {'✅ Healthy' if is_healthy else '❌ Unhealthy'}")
-    
+
     # Get available models from proxy
     try:
         available_models = await provider.get_available_models()
@@ -295,25 +303,31 @@ response = await router.route_request(
 ### Common Issues
 
 1. **Connection Refused**
+
    ```
    Error: Connection refused to http://localhost:4000
    ```
+
    - Ensure LiteLLM proxy is running: `litellm --config config.yaml`
    - Check the port and URL configuration
    - Verify firewall settings
 
 2. **Authentication Errors**
+
    ```
    Error: 401 Unauthorized
    ```
+
    - Check if `LITELLM_API_KEY` matches the master key in LiteLLM config
    - Verify API key format and validity
    - Ensure the key has proper permissions
 
 3. **Model Not Found**
+
    ```
    Error: Model 'xyz' not found
    ```
+
    - Check LiteLLM config.yaml for model definitions
    - Verify model names match exactly
    - Restart LiteLLM proxy after config changes
@@ -348,14 +362,14 @@ Regular health monitoring:
 ```python
 async def monitor_litellm():
     provider = LiteLLMProvider(base_url="http://localhost:4000")
-    
+
     while True:
         try:
             is_healthy = await provider.health_check()
             if not is_healthy:
                 print("⚠️ LiteLLM proxy is unhealthy")
                 # Implement alerting logic here
-            
+
             await asyncio.sleep(30)  # Check every 30 seconds
         except Exception as e:
             print(f"Health check failed: {e}")
@@ -365,21 +379,25 @@ async def monitor_litellm():
 ## Best Practices
 
 1. **Configuration Management**
+
    - Use environment variables for sensitive data
    - Version control your LiteLLM config files
    - Implement configuration validation
 
 2. **Error Handling**
+
    - Implement proper retry logic
    - Handle provider-specific errors gracefully
    - Monitor error rates and patterns
 
 3. **Performance Optimization**
+
    - Use connection pooling for high-throughput scenarios
    - Implement caching for model metadata
    - Monitor response times and optimize accordingly
 
 4. **Security**
+
    - Secure your LiteLLM proxy endpoint
    - Use HTTPS in production
    - Implement proper API key rotation
@@ -389,4 +407,4 @@ async def monitor_litellm():
    - Monitor model performance and availability
    - Set up alerting for critical issues
 
-For more information, see the [LiteLLM documentation](https://docs.litellm.ai/) and [ModelMuxer routing guide](../routing.md).
+For more information, see the [LiteLLM documentation](https://docs.litellm.ai/) and [ModelMuxer architecture guide](../architecture.md).
