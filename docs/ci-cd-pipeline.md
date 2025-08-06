@@ -38,6 +38,9 @@ strategy:
 
 - **116+ unit and integration tests** must pass
 - **Code coverage** reporting with HTML output
+- **Ruff formatting compliance** - all code must pass `ruff format --check`
+- **Ruff linting standards** - zero linting violations allowed
+- **MyPy type checking** - strict type safety enforcement
 - **Performance benchmarking** with custom PR comments and artifact storage
 - **Dependency vulnerability scanning**
 
@@ -218,6 +221,30 @@ Custom `.gitleaks.toml` configuration provides:
 - **Local reproduction**: Run CI commands locally for debugging
 
 ## Best Practices
+
+### Local Development Validation
+
+Before committing code, developers should run the complete validation suite:
+
+```bash
+# 1. Format code
+poetry run ruff format app/ tests/
+
+# 2. Check formatting compliance
+poetry run ruff format --check app/ tests/
+
+# 3. Run linting
+poetry run ruff check app/ tests/
+
+# 4. Type checking
+poetry run mypy app/ --ignore-missing-imports
+
+# 5. Security scanning
+poetry run bandit -r app/ --exit-zero
+
+# 6. Run tests
+poetry run pytest
+```
 
 ### Code Quality
 
