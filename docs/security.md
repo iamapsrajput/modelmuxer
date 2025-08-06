@@ -329,7 +329,7 @@ export DATABASE_URL="postgresql://..."
 
 For security issues or questions:
 
-- Email: security@modelmuxer.com
 - Security advisory: Report privately via GitHub Security Advisories
+- GitHub Issues: Use the "security" label for non-sensitive security questions
 
 **Note**: Please do not report security vulnerabilities in public issues.

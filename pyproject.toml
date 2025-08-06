@@ -76,6 +76,7 @@ flake8 = "^6.0.0"
 pip-audit = "^2.6.0"
 types-psutil = "^7.0.0.20250801"
 interrogate = "^1.7.0"
+pip-licenses = "^5.0.0"
 
 [tool.poetry.group.jupyter]
 optional = true

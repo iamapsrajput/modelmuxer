@@ -613,7 +613,7 @@ ModelMuxer is licensed under the [Business Source License 1.1](LICENSE).
 ### 💼 Commercial Licensing
 
 For commercial use, enterprise licenses, or questions about licensing,
-contact: [licensing@modelmuxer.com](mailto:licensing@modelmuxer.com)
+please open a GitHub Issue with the "licensing" label.
 
 ### 🏛️ Academic and Research Use
 
@@ -638,7 +638,7 @@ research projects. Please cite the project in academic publications.
 - 📊 **Advanced Analytics**: Enhanced reporting and business intelligence
 - 🔒 **Enhanced Security**: Additional compliance and security features
 
-Contact [enterprise@modelmuxer.com](mailto:enterprise@modelmuxer.com) for more information.
+Please open a GitHub Issue with the "enterprise" label for more information.
 
 ## 🙏 Acknowledgments
 
@@ -655,7 +655,7 @@ Contact [enterprise@modelmuxer.com](mailto:enterprise@modelmuxer.com) for more i
 
 For questions, support, or feedback:
 
-- 📧 Email: <support@modelmuxer.com>
 - 💬 Discord: [Join our community](https://discord.gg/modelmuxer)
-- 🐛 Issues: [GitHub Issues](https://github.com/your-org/modelmuxer/issues)
+- 🐛 Issues: [GitHub Issues](https://github.com/iamapsrajput/modelmuxer/issues)
+- 📧 Support: Open a GitHub Issue with the "support" label
 - 📖 Docs: [docs.modelmuxer.com](https://docs.modelmuxer.com)
