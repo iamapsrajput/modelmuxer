@@ -10,6 +10,10 @@ name: Code Quality Analysis
   pull_request:
     branches: [main, dev]
 
+# Set minimal permissions at top level
+permissions:
+  contents: read
+
 env:
   PYTHON_VERSION: "3.11"
   POETRY_VERSION: "1.7.1"
@@ -18,14 +22,17 @@ jobs:
   code-quality:
     name: Code Quality Metrics
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed for benchmark-action to push to gh-pages
+      pages: write # Needed for GitHub Pages deployment
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.3.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -68,7 +75,7 @@ jobs:
           fi
 
       - name: Upload code quality reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: code-quality-reports-${{ github.run_number }}
           path: |
@@ -83,10 +90,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.3.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -118,7 +125,7 @@ jobs:
           folder-path: "docs"
 
       - name: Upload documentation reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: documentation-reports-${{ github.run_number }}
           path: |

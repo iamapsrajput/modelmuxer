@@ -51,7 +51,18 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     def _compile_suspicious_patterns(self) -> list[re.Pattern]:
         """Compile patterns for detecting suspicious requests."""
         patterns = [
-            re.compile(r"<script[^>]*>.*?</script>", re.IGNORECASE | re.DOTALL),  # XSS
+            # XSS - More robust script tag detection that handles malformed tags
+            # Matches <script> tags with various attributes and malformed closing tags
+            re.compile(r"<script\b[^>]*>.*?</script\s*[^>]*>", re.IGNORECASE | re.DOTALL),
+            # Also catch script tags without proper closing
+            re.compile(r"<script\b[^>]*>(?!.*</script)", re.IGNORECASE | re.DOTALL),
+            # Catch other dangerous HTML elements
+            re.compile(r"<iframe\b[^>]*>", re.IGNORECASE),
+            re.compile(r"<object\b[^>]*>", re.IGNORECASE),
+            re.compile(r"<embed\b[^>]*>", re.IGNORECASE),
+            re.compile(r"javascript:", re.IGNORECASE),
+            re.compile(r"vbscript:", re.IGNORECASE),
+            re.compile(r"on\w+\s*=", re.IGNORECASE),  # Event handlers like onclick, onload
             re.compile(r"union\s+select", re.IGNORECASE),  # SQL injection
             re.compile(r"drop\s+table", re.IGNORECASE),  # SQL injection
             re.compile(r"exec\s*\(", re.IGNORECASE),  # Code injection
@@ -116,15 +127,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     async def _check_ip_blocking(self, client_ip: str) -> None:
         """Check if IP is blocked."""
         if client_ip in self.blocked_ips:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="IP address is blocked"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="IP address is blocked")
 
         # Check dynamic IP blocking (from Redis)
         if self.redis_client.exists(f"blocked_ip:{client_ip}"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="IP address is temporarily blocked"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="IP address is temporarily blocked")
 
     async def _check_rate_limiting(self, request: Request, client_ip: str) -> None:
         """Check rate limiting for the request."""
@@ -149,9 +156,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         self.redis_client.expire(minute_key, 60)
 
         if minute_count > requests_per_minute:
-            await self._handle_rate_limit_exceeded(
-                client_ip, "minute", minute_count, requests_per_minute
-            )
+            await self._handle_rate_limit_exceeded(client_ip, "minute", minute_count, requests_per_minute)
 
         # Check hour-based rate limit
         hour_key = f"rate_limit:{client_ip}:{rate_limit_key}:hour:{int(time.time() // 3600)}"
@@ -175,22 +180,14 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             return "get_requests"
         return None
 
-    async def _handle_rate_limit_exceeded(
-        self, client_ip: str, window: str, current: int, limit: int
-    ) -> None:
+    async def _handle_rate_limit_exceeded(self, client_ip: str, window: str, current: int, limit: int) -> None:
         """Handle rate limit exceeded."""
-        logger.warning(
-            "rate_limit_exceeded", client_ip=client_ip, window=window, current=current, limit=limit
-        )
+        logger.warning("rate_limit_exceeded", client_ip=client_ip, window=window, current=current, limit=limit)
 
         # Temporarily block IP if severely exceeding limits
         if current > limit * 2:
-            self.redis_client.setex(
-                f"blocked_ip:{client_ip}", 300, "rate_limit_exceeded"
-            )  # 5 minutes
-            logger.warning(
-                "ip_temporarily_blocked", client_ip=client_ip, reason="severe_rate_limit_violation"
-            )
+            self.redis_client.setex(f"blocked_ip:{client_ip}", 300, "rate_limit_exceeded")  # 5 minutes
+            logger.warning("ip_temporarily_blocked", client_ip=client_ip, reason="severe_rate_limit_violation")
 
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -230,12 +227,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
                 if suspicion_score > 5:
                     # Temporarily block highly suspicious IPs
-                    self.redis_client.setex(
-                        f"blocked_ip:{client_ip}", 1800, "suspicious_activity"
-                    )  # 30 minutes
-                    logger.warning(
-                        "ip_blocked_suspicious_activity", client_ip=client_ip, score=suspicion_score
-                    )
+                    self.redis_client.setex(f"blocked_ip:{client_ip}", 1800, "suspicious_activity")  # 30 minutes
+                    logger.warning("ip_blocked_suspicious_activity", client_ip=client_ip, score=suspicion_score)
 
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -258,9 +251,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         for header, value in security_headers.items():
             response.headers[header] = value
 
-    async def _log_request(
-        self, request: Request, response: Response, start_time: float, client_ip: str
-    ) -> None:
+    async def _log_request(self, request: Request, response: Response, start_time: float, client_ip: str) -> None:
         """Log request details for security monitoring."""
         duration = time.time() - start_time
 
@@ -282,9 +273,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         logger.info("api_request", **log_data)
 
-    async def _log_security_event(
-        self, request: Request, client_ip: str, event_type: str, details: str
-    ) -> None:
+    async def _log_security_event(self, request: Request, client_ip: str, event_type: str, details: str) -> None:
         """Log security events for monitoring and analysis."""
         event_data = {
             "event_type": event_type,
@@ -333,9 +322,7 @@ class PIIProtectionMiddleware(BaseHTTPMiddleware):
             logger.warning("request_blocked_pii", path=request.url.path, error=str(e))
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                content={
-                    "error": "Request contains sensitive information that cannot be processed"
-                },
+                content={"error": "Request contains sensitive information that cannot be processed"},
             )
 
     def _should_protect_path(self, path: str) -> bool:

@@ -13,6 +13,10 @@ name: Security Scan
     # Run daily at 3 AM UTC for comprehensive security monitoring
     - cron: "0 3 * * *"
 
+# Set minimal permissions at top level
+permissions:
+  contents: read
+
 jobs:
   security-scan:
     name: Security Vulnerability Scan
