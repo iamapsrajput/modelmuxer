@@ -16,7 +16,7 @@ and performance requirements. Built for scale, security, and efficiency.
 
 - **🧠 Intelligent Routing**: Cascade, semantic, heuristic, and hybrid routing strategies
 - **💰 Cost Optimization**: Real-time budget management and cost-aware model selection
-- **🌐 Multi-Provider**: OpenAI, Anthropic, Google, Mistral, Groq, and more
+- **🌐 Multi-Provider**: OpenAI, Anthropic, Google, Mistral, Groq, LiteLLM, and more
 - **🔐 Enterprise Security**: JWT authentication, RBAC, and audit logging
 - **📊 Observability**: Comprehensive metrics, tracing, and monitoring
 - **☸️ Production Ready**: Kubernetes-native with high availability
@@ -132,7 +132,7 @@ For complete API documentation, see our [OpenAPI Specification](docs/openapi/ope
 ### Prerequisites
 
 - Python 3.11 or higher
-- API keys for at least one LLM provider (OpenAI, Anthropic, or Mistral)
+- API keys for at least one LLM provider (OpenAI, Anthropic, Mistral, or LiteLLM proxy)
 
 ### Installation
 
@@ -183,6 +183,10 @@ Copy `.env.example` to `.env` and configure the following:
 OPENAI_API_KEY=sk-your-openai-key-here
 ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
 MISTRAL_API_KEY=your-mistral-key-here
+
+# Optional: LiteLLM Proxy Configuration
+LITELLM_BASE_URL=http://localhost:4000
+LITELLM_API_KEY=your-litellm-api-key-here
 
 # Optional: Router Configuration
 DEFAULT_MODEL=gpt-3.5-turbo
@@ -355,6 +359,52 @@ curl -H "Authorization: Bearer sk-test-key-1" \
 curl -H "Authorization: Bearer sk-test-key-1" \
   http://localhost:8000/providers
 ```
+
+## 🔗 LiteLLM Integration
+
+ModelMuxer supports [LiteLLM](https://docs.litellm.ai/) as a unified proxy for accessing multiple LLM providers through a single endpoint. This is particularly useful for:
+
+- **Unified API**: Access 100+ LLM models through one consistent interface
+- **Cost Optimization**: Leverage LiteLLM's built-in cost tracking and optimization
+- **Provider Abstraction**: Switch between providers without changing your code
+- **Advanced Features**: Load balancing, fallbacks, and custom model configurations
+
+### LiteLLM Setup
+
+1. **Install and run LiteLLM proxy**:
+
+   ```bash
+   pip install litellm[proxy]
+   litellm --config config.yaml
+   ```
+
+2. **Configure ModelMuxer**:
+
+   ```bash
+   # In your .env file
+   LITELLM_BASE_URL=http://localhost:4000
+   LITELLM_API_KEY=your-litellm-api-key-here  # Optional
+   ```
+
+3. **Example LiteLLM config.yaml**:
+   ```yaml
+   model_list:
+     - model_name: gpt-3.5-turbo
+       litellm_params:
+         model: openai/gpt-3.5-turbo
+         api_key: sk-your-openai-key
+     - model_name: claude-3-haiku
+       litellm_params:
+         model: anthropic/claude-3-haiku-20240307
+         api_key: sk-ant-your-anthropic-key
+   ```
+
+### LiteLLM Benefits in ModelMuxer
+
+- **Seamless Integration**: Works with existing routing strategies
+- **Cost Tracking**: Combines LiteLLM and ModelMuxer cost analytics
+- **Fallback Support**: Automatic failover when LiteLLM proxy is unavailable
+- **Custom Models**: Support for custom model configurations and pricing
 
 ## Routing Logic Details
 

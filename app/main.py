@@ -36,7 +36,7 @@ from .models import (
     MetricsResponse,
     UserStats,
 )
-from .providers import AnthropicProvider, MistralProvider, OpenAIProvider
+from .providers import AnthropicProvider, LiteLLMProvider, MistralProvider, OpenAIProvider
 from .providers.base import AuthenticationError, ProviderError, RateLimitError
 from .router import router
 
@@ -383,6 +383,26 @@ async def lifespan(app: FastAPI):
             # Mistral provider initialized (logged via structlog if available)
         except Exception:  # nosec B110
             # Mistral provider failed to initialize (logged via structlog if available)
+            pass
+
+    # LiteLLM Proxy
+    litellm_base_url = os.getenv("LITELLM_BASE_URL")
+    litellm_api_key = os.getenv("LITELLM_API_KEY")
+    if litellm_base_url:
+        try:
+            # LiteLLM can work with or without API key depending on proxy configuration
+            providers["litellm"] = LiteLLMProvider(
+                base_url=litellm_base_url,
+                api_key=litellm_api_key,
+                custom_models={},  # Can be configured via environment or config file
+            )
+            # LiteLLM provider initialized (logged via structlog if available)
+            if logger:
+                logger.info("litellm_provider_initialized", base_url=litellm_base_url)
+        except Exception as e:  # nosec B110
+            if logger:
+                logger.error("LiteLLM provider failed to initialize", error=str(e))
+            # LiteLLM provider failed to initialize (logged via structlog if available)
             pass
 
     if not providers:
