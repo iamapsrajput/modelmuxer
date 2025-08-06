@@ -13,14 +13,13 @@ name: Security Scan
     # Run daily at 3 AM UTC for comprehensive security monitoring
     - cron: "0 3 * * *"
 
-env:
-  PYTHON_VERSION: "3.11"
-  POETRY_VERSION: "1.7.1"
-
 jobs:
   security-scan:
     name: Security Vulnerability Scan
     runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: "3.11"
+      POETRY_VERSION: "1.7.1"
     permissions:
       contents: read
       security-events: write
@@ -128,6 +127,9 @@ jobs:
   codeql-analysis:
     name: CodeQL Security Analysis
     runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: "3.11"
+      POETRY_VERSION: "1.7.1"
     permissions:
       actions: read
       contents: read
