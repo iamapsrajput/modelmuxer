@@ -45,6 +45,7 @@ sqlalchemy = "^2.0.0"
 alembic = "^1.12.0"
 aiosqlite = "^0.21.0"
 structlog = "^23.2.0"
+# Tiktoken for OpenAI tokenization and LiteLLM compatibility
 tiktoken = "^0.7.0"
 tenacity = "^8.2.0"
 cachetools = "^5.3.0"
@@ -58,6 +59,7 @@ cryptography = "^44.0.2"
 passlib = { extras = ["bcrypt"], version = "^1.7.4" }
 email-validator = "^2.1.0"
 # Security fixes for vulnerabilities - using cryptography instead of ecdsa
+bleach = "^6.2.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
@@ -90,6 +92,8 @@ optional = true
 
 [tool.poetry.group.ml.dependencies]
 sentence-transformers = "^3.1.0"
+# NOTE: CVE-2025-3730 affects torch <= 2.7.1 - waiting for 2.7.2+ release
+# Vulnerability: PyTorch Improper Resource Shutdown (Low severity, local attack only)
 torch = ">=2.7.1,<3.0.0"
 transformers = "^4.30.0"
 datasets = "^2.14.0"

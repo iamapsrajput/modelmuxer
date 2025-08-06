@@ -403,7 +403,6 @@ async def lifespan(app: FastAPI):
             if logger:
                 logger.error("LiteLLM provider failed to initialize", error=str(e))
             # LiteLLM provider failed to initialize (logged via structlog if available)
-            pass
 
     if not providers:
         # No providers initialized! Check your API keys.
