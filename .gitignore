@@ -351,3 +351,9 @@ CLAUDE.md
 podman-compose.yaml
 podman-compose.yml
 *podman*
+
+# Skipping those files for now
+claude-code-review.yml
+claude-code-review.yaml
+claude.yml
+claude.yaml
