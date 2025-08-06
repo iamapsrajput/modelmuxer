@@ -664,7 +664,7 @@ async def stream_chat_completion(provider, request, model_name, routing_reason, 
             success=True,
         )
 
-    except Exception as e:
+    except Exception:
         structlog.get_logger().exception("Exception in stream_chat_completion", exc_info=True)
         error_chunk = {"error": {"message": "An internal error occurred.", "type": "provider_error"}}
         yield f"data: {json.dumps(error_chunk)}\n\n"
