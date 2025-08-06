@@ -12,6 +12,10 @@ on:
     # Run weekly on Sundays at 2 AM UTC
     - cron: "0 2 * * 0"
 
+# Set minimal permissions at top level
+permissions:
+  contents: read
+
 jobs:
   license-compliance:
     runs-on: ubuntu-latest
