@@ -157,37 +157,46 @@ class HeuristicRouter:
             "show me",
         ]
 
-        # Model preferences by task type
+        # Model preferences by task type (including LiteLLM proxy models)
         self.model_preferences = {
             "code": [
                 ("openai", "gpt-4o"),
                 ("anthropic", "claude-3-sonnet-20240229"),
                 ("anthropic", "claude-3-5-sonnet-20241022"),
+                ("litellm", "gpt-4"),  # LiteLLM proxy for GPT-4
                 ("openai", "gpt-3.5-turbo"),
+                ("litellm", "gpt-3.5-turbo"),  # LiteLLM proxy fallback
                 ("groq", "mixtral-8x7b-32768"),
             ],
             "complex": [
                 ("openai", "gpt-4o"),
                 ("anthropic", "claude-3-sonnet-20240229"),
                 ("anthropic", "claude-3-5-sonnet-20241022"),
+                ("litellm", "claude-3-sonnet"),  # LiteLLM proxy for Claude
                 ("anthropic", "claude-3-haiku-20240307"),
+                ("litellm", "gpt-4"),  # LiteLLM proxy for GPT-4
                 ("openai", "gpt-3.5-turbo"),
+                ("litellm", "claude-3-haiku"),  # LiteLLM proxy for Haiku
                 ("groq", "mixtral-8x7b-32768"),
             ],
             "simple": [
                 ("groq", "mixtral-8x7b-32768"),
                 ("openai", "gpt-4o-mini"),
+                ("litellm", "claude-3-haiku"),  # LiteLLM proxy for Haiku
                 ("mistral", "mistral-small"),
                 ("mistral", "mistral-small-latest"),
                 ("anthropic", "claude-3-haiku-20240307"),
+                ("litellm", "gpt-3.5-turbo"),  # LiteLLM proxy for GPT-3.5
                 ("openai", "gpt-3.5-turbo"),
             ],
             "general": [
                 ("groq", "mixtral-8x7b-32768"),
                 ("openai", "gpt-4o-mini"),
+                ("litellm", "gpt-3.5-turbo"),  # LiteLLM proxy for GPT-3.5
                 ("mistral", "mistral-small"),
                 ("mistral", "mistral-small-latest"),
                 ("openai", "gpt-3.5-turbo"),
+                ("litellm", "claude-3-haiku"),  # LiteLLM proxy for Haiku
                 ("anthropic", "claude-3-haiku-20240307"),
             ],
         }

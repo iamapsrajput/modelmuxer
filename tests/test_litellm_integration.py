@@ -58,21 +58,31 @@ class TestLiteLLMIntegration:
 
     def test_litellm_provider_in_routing_system(self, router, providers_dict):
         """Test that LiteLLM provider integrates with routing system."""
-        # Test simple query routing
+        # Test simple query routing - verify LiteLLM models are in preferences
         simple_messages = [ChatMessage(role="user", content="What is 2+2?", name=None)]
 
-        # Mock the routing logic to prefer LiteLLM for simple tasks
-        with patch.object(router, "select_model") as mock_select:
-            mock_select.return_value = (
-                "litellm",
-                "gpt-3.5-turbo",
-                "Simple query, using cost-effective model",
-            )
+        # Test that the router's model preferences include LiteLLM models
+        # This verifies the critical fix: LiteLLM models are now in model_preferences
+        general_preferences = router.model_preferences.get("general", [])
+        simple_qa_preferences = router.model_preferences.get("simple_qa", [])
 
-            provider, model, reason = router.select_model(simple_messages)
-            assert provider == "litellm"
-            assert model == "gpt-3.5-turbo"
-            assert "cost-effective" in reason.lower()
+        # Check that LiteLLM provider is included in preferences
+        litellm_in_general = any(pref[0] == "litellm" for pref in general_preferences)
+        litellm_in_simple_qa = any(pref[0] == "litellm" for pref in simple_qa_preferences)
+
+        assert (
+            litellm_in_general or litellm_in_simple_qa
+        ), "LiteLLM provider should be in routing preferences"
+
+        # Test the router's analysis functionality (this doesn't require providers)
+        analysis = router.analyze_prompt(simple_messages)
+        assert analysis is not None, "Router should analyze prompt"
+        assert "task_type" in analysis, "Analysis should include task type"
+
+        # Test that LiteLLM provider can handle the expected models
+        litellm_provider = providers_dict["litellm"]
+        supported_models = litellm_provider.get_supported_models()
+        assert len(supported_models) > 0, "LiteLLM provider should support models"
 
     def test_litellm_code_task_routing(self, router, providers_dict):
         """Test LiteLLM provider selection for code tasks."""
@@ -84,16 +94,30 @@ class TestLiteLLMIntegration:
             )
         ]
 
-        with patch.object(router, "select_model") as mock_select:
-            mock_select.return_value = (
-                "litellm",
-                "claude-3-haiku",
-                "Code task, using capable model",
-            )
+        # Test that LiteLLM models are included in code-related preferences
+        code_preferences = router.model_preferences.get("code", [])
+        complex_preferences = router.model_preferences.get("complex", [])
 
-            provider, model, reason = router.select_model(code_messages)
-            assert provider == "litellm"
-            assert model == "claude-3-haiku"
+        # Check that LiteLLM provider is included in code task preferences
+        litellm_in_code = any(pref[0] == "litellm" for pref in code_preferences)
+        litellm_in_complex = any(pref[0] == "litellm" for pref in complex_preferences)
+
+        assert (
+            litellm_in_code or litellm_in_complex
+        ), "LiteLLM provider should be in code task preferences"
+
+        # Test prompt analysis for code tasks
+        analysis = router.analyze_prompt(code_messages)
+        assert analysis is not None, "Router should analyze code prompt"
+        assert "task_type" in analysis, "Analysis should include task type"
+
+        # Verify the analysis detects this as a code-related task
+        task_type = analysis["task_type"]
+        assert task_type in [
+            "code_generation",
+            "code",
+            "general",
+        ], f"Unexpected task type for code prompt: {task_type}"
 
     @pytest.mark.asyncio
     async def test_litellm_provider_fallback_mechanism(self, litellm_provider):
