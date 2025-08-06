@@ -147,33 +147,53 @@ jobs:
         run: |
           if [ -d "tests/performance" ]; then
             echo "Running performance benchmarks..."
+
+            # Run benchmarks and capture exit code
+            set +e  # Don't exit on error
             poetry run pytest tests/performance/ \
               --benchmark-json=benchmark-results.json \
               --benchmark-only \
-              -v || {
-              echo "Benchmark tests failed, creating minimal benchmark file"
-              echo '{"benchmarks": [], "machine_info": {"node": "github-actions"}}' > benchmark-results.json
-            }
+              -v
+            PYTEST_EXIT_CODE=$?
+            set -e  # Re-enable exit on error
 
-            # Verify the JSON file was created and is valid
+            echo "Pytest exit code: $PYTEST_EXIT_CODE"
+
+            # Check if benchmark file was created and has valid data
             if [ -f "benchmark-results.json" ]; then
-              echo "Benchmark file created successfully"
-              python -m json.tool benchmark-results.json > /dev/null && echo "JSON is valid" || {
-                echo "Invalid JSON, creating fallback"
-                echo '{"benchmarks": [], "machine_info": {"node": "github-actions"}}' > benchmark-results.json
-              }
+              echo "Benchmark file exists, checking content..."
+
+              # Validate JSON syntax
+              if python -m json.tool benchmark-results.json > /dev/null 2>&1; then
+                echo "JSON is syntactically valid"
+
+                # Check if benchmarks array has data
+                BENCHMARK_COUNT=$(python -c "import json; data=json.load(open('benchmark-results.json')); print(len(data.get('benchmarks', [])))" 2>/dev/null || echo "0")
+                echo "Found $BENCHMARK_COUNT benchmarks"
+
+                if [ "$BENCHMARK_COUNT" -gt 0 ]; then
+                  echo "✅ Valid benchmark data found"
+                  echo "HAS_BENCHMARKS=true" >> $GITHUB_ENV
+                else
+                  echo "⚠️ No benchmark data found in JSON"
+                  echo "HAS_BENCHMARKS=false" >> $GITHUB_ENV
+                fi
+              else
+                echo "❌ Invalid JSON syntax"
+                echo "HAS_BENCHMARKS=false" >> $GITHUB_ENV
+              fi
             else
-              echo "No benchmark file created, creating fallback"
-              echo '{"benchmarks": [], "machine_info": {"node": "github-actions"}}' > benchmark-results.json
+              echo "❌ No benchmark file created"
+              echo "HAS_BENCHMARKS=false" >> $GITHUB_ENV
             fi
           else
-            echo "No performance tests found, creating empty benchmark file"
-            echo '{"benchmarks": [], "machine_info": {"node": "github-actions"}}' > benchmark-results.json
+            echo "❌ No performance tests directory found"
+            echo "HAS_BENCHMARKS=false" >> $GITHUB_ENV
           fi
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_BENCHMARKS == 'true'
         with:
           tool: "pytest"
           output-file-path: benchmark-results.json
@@ -186,8 +206,18 @@ jobs:
           gh-pages-branch: "gh-pages"
           benchmark-data-dir-path: "dev/bench"
 
+      - name: Skip benchmark storage (no data)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_BENCHMARKS != 'true'
+        run: |
+          echo "⚠️ Skipping benchmark storage - no valid benchmark data found"
+          echo "This is expected if:"
+          echo "  - Benchmark tests failed to run"
+          echo "  - No benchmark fixtures were found"
+          echo "  - Performance tests were skipped"
+
       - name: Upload performance reports
         uses: actions/upload-artifact@v4
+        if: always() # Upload even if benchmarks failed
         with:
           name: performance-reports-${{ github.run_number }}
           path: |
