@@ -5,13 +5,9 @@ name: Test Suite
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, develop]
   pull_request:
-    branches: [main, dev]
-
-# Set minimal permissions at top level
-permissions:
-  contents: read
+    branches: [main, develop]
 
 env:
   PYTHON_VERSION: "3.11"
@@ -23,10 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.3.0
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -47,27 +43,12 @@ jobs:
           poetry run ruff format --check app/ tests/
 
       - name: Run mypy (type checking)
-        env:
-          TESTING: true
-          MODELMUXER_MODE: basic
-          # Test API keys for type checking
-          OPENAI_API_KEY: test-openai-key-fake-for-ci
-          ANTHROPIC_API_KEY: test-anthropic-key-fake-for-ci
-          MISTRAL_API_KEY: test-mistral-key-fake-for-ci
-          GROQ_API_KEY: test-groq-key-fake-for-ci
-          JWT_SECRET_KEY: test-jwt-secret-for-ci-testing-only-not-production
-          API_KEYS: test-api-key-001-NOT-REAL,test-api-key-002-NOT-REAL
-          TEST_API_KEY_1: test-api-key-001-NOT-REAL
-          TEST_API_KEY_2: test-api-key-002-NOT-REAL
-          TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: poetry run mypy app/
 
       - name: Run bandit (security linting)
         run: |
-          # Generate JSON report for artifact upload (exit-zero ensures file is always created)
-          poetry run bandit -r app/ -f json -o bandit-report.json --exit-zero
-          # Display results in console for immediate feedback
-          poetry run bandit -r app/ --exit-zero
+          poetry run bandit -r app/ -f json -o bandit-report.json
+          poetry run bandit -r app/
 
       - name: Upload bandit report
         uses: actions/upload-artifact@v4
@@ -148,19 +129,6 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
-          MODELMUXER_MODE: basic
-          # Test API keys - clearly marked as fake for CI
-          OPENAI_API_KEY: test-openai-key-fake-for-ci
-          ANTHROPIC_API_KEY: test-anthropic-key-fake-for-ci
-          MISTRAL_API_KEY: test-mistral-key-fake-for-ci
-          GROQ_API_KEY: test-groq-key-fake-for-ci
-          # JWT secret for enhanced config testing
-          JWT_SECRET_KEY: test-jwt-secret-for-ci-testing-only-not-production
-          # API keys for authentication testing
-          API_KEYS: test-api-key-001-NOT-REAL,test-api-key-002-NOT-REAL
-          TEST_API_KEY_1: test-api-key-001-NOT-REAL
-          TEST_API_KEY_2: test-api-key-002-NOT-REAL
-          TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: |
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           poetry run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html -m "not integration"
@@ -170,19 +138,6 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
-          MODELMUXER_MODE: basic
-          # Test API keys - clearly marked as fake for CI
-          OPENAI_API_KEY: test-openai-key-fake-for-ci
-          ANTHROPIC_API_KEY: test-anthropic-key-fake-for-ci
-          MISTRAL_API_KEY: test-mistral-key-fake-for-ci
-          GROQ_API_KEY: test-groq-key-fake-for-ci
-          # JWT secret for enhanced config testing
-          JWT_SECRET_KEY: test-jwt-secret-for-ci-testing-only-not-production
-          # API keys for authentication testing
-          API_KEYS: test-api-key-001-NOT-REAL,test-api-key-002-NOT-REAL
-          TEST_API_KEY_1: test-api-key-001-NOT-REAL
-          TEST_API_KEY_2: test-api-key-002-NOT-REAL
-          TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: |
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           poetry run pytest tests/ -v --cov=app --cov-append --cov-report=xml -m "integration"
@@ -192,19 +147,6 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
-          MODELMUXER_MODE: basic
-          # Test API keys - clearly marked as fake for CI
-          OPENAI_API_KEY: test-openai-key-fake-for-ci
-          ANTHROPIC_API_KEY: test-anthropic-key-fake-for-ci
-          MISTRAL_API_KEY: test-mistral-key-fake-for-ci
-          GROQ_API_KEY: test-groq-key-fake-for-ci
-          # JWT secret for enhanced config testing
-          JWT_SECRET_KEY: test-jwt-secret-for-ci-testing-only-not-production
-          # API keys for authentication testing
-          API_KEYS: test-api-key-001-NOT-REAL,test-api-key-002-NOT-REAL
-          TEST_API_KEY_1: test-api-key-001-NOT-REAL
-          TEST_API_KEY_2: test-api-key-002-NOT-REAL
-          TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: |
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           # Run performance tests but don't fail the build if they're slow
@@ -239,7 +181,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.32.0 # Latest stable version
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: "fs"
           scan-ref: "."
@@ -247,50 +189,23 @@ jobs:
           output: "trivy-results.sarif"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@51f77329afa6477de8c49fc9c7046c15b9a4e79d # v3
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: "trivy-results.sarif"
           category: trivy-fs-scan
 
       - name: Run Semgrep security scan
-        uses: semgrep/semgrep-action@v1
+        uses: returntocorp/semgrep-action@v1
         with:
           config: >-
             p/security-audit
             p/secrets
             p/python
-          # SARIF output is generated automatically by the action
-          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
+          generateSarif: "1"
         env:
-          # Semgrep environment configuration for enhanced features
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         continue-on-error: true
-
-      - name: Process Semgrep results
-        if: always()
-        run: |
-          echo "=== Semgrep Security Scan Summary ==="
-          if [ -f "results.sarif" ] || [ -f "semgrep.sarif" ]; then
-            echo "✅ SARIF results generated successfully"
-            # Count findings (excluding nosec-marked items)
-            if command -v jq >/dev/null 2>&1; then
-              SARIF_FILE=""
-              if [ -f "results.sarif" ]; then
-                SARIF_FILE="results.sarif"
-              elif [ -f "semgrep.sarif" ]; then
-                SARIF_FILE="semgrep.sarif"
-              fi
-
-              if [ -n "$SARIF_FILE" ]; then
-                TOTAL_FINDINGS=$(jq '.runs[0].results | length' "$SARIF_FILE" 2>/dev/null || echo "0")
-                echo "📊 Total findings: $TOTAL_FINDINGS"
-                echo "ℹ️  Note: Findings marked with '# nosec' comments are intentionally excluded from blocking the build"
-              fi
-            fi
-          else
-            echo "⚠️  No SARIF results found - this may indicate a configuration issue"
-          fi
 
       - name: Debug - List generated files
         if: always()
@@ -299,14 +214,12 @@ jobs:
           ls -la *.sarif || echo "No SARIF files found"
           echo "Checking for semgrep output files:"
           find . -name "*semgrep*" -type f || echo "No semgrep files found"
-          echo "Checking for results.sarif (new format):"
-          ls -la results.sarif || echo "No results.sarif found"
 
       - name: Upload Semgrep scan results
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && (hashFiles('semgrep.sarif') != '' || hashFiles('results.sarif') != '')
+        if: always() && hashFiles('semgrep.sarif') != ''
         with:
-          sarif_file: ${{ hashFiles('semgrep.sarif') != '' && 'semgrep.sarif' || 'results.sarif' }}
+          sarif_file: semgrep.sarif
           category: semgrep-scan
 
   dependency-check:
@@ -334,16 +247,12 @@ jobs:
 
       - name: Run safety check
         run: |
-          # Ignore CVE-2022-42969 (51457) - DISPUTED ReDoS in py package Subversion handling (not applicable to our use case)
-          # Generate JSON report for artifact upload (always create file even if vulnerabilities found)
-          poetry run safety check --ignore 51457 --json --output safety-report.json || echo '{"vulnerabilities": [], "report_meta": {"scan_target": "requirements", "api_version": "1.0", "timestamp": "'$(date -Iseconds)'"}}' > safety-report.json
-          # Display results in console for immediate feedback
-          poetry run safety check --ignore 51457 || echo "Safety check completed with findings"
+          poetry run safety check --output json > safety-report.json || true
+          poetry run safety check
 
       - name: Run pip-audit
         run: |
-          # Generate JSON report for artifact upload (always create file even if vulnerabilities found)
-          poetry run pip-audit --format=json --output=pip-audit-report.json --skip-editable || echo '{"vulnerabilities": [], "metadata": {"timestamp": "'$(date -Iseconds)'", "tool": "pip-audit"}}' > pip-audit-report.json
+          poetry run pip-audit --format=json --output=pip-audit-report.json --skip-editable || true
           # Run pip-audit with vulnerability suppression for known issues in optional ML dependencies
           # GHSA-887c-mr87-cxwp: PyTorch ctc_loss vulnerability - affects optional ML features only
           poetry run pip-audit --skip-editable --ignore-vuln GHSA-887c-mr87-cxwp || echo "Known vulnerabilities in optional ML dependencies detected but suppressed"
@@ -361,10 +270,6 @@ jobs:
     name: Performance Testing
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -390,35 +295,15 @@ jobs:
           poetry install --with ml || echo "ML dependencies failed to install, continuing with core tests"
 
       - name: Run performance tests
-        env:
-          TESTING: true
-          MODELMUXER_MODE: basic
-          # Test API keys for performance tests
-          OPENAI_API_KEY: test-openai-key-fake-for-ci
-          ANTHROPIC_API_KEY: test-anthropic-key-fake-for-ci
-          MISTRAL_API_KEY: test-mistral-key-fake-for-ci
-          GROQ_API_KEY: test-groq-key-fake-for-ci
-          JWT_SECRET_KEY: test-jwt-secret-for-ci-testing-only-not-production
-          API_KEYS: test-api-key-001-NOT-REAL,test-api-key-002-NOT-REAL
-          TEST_API_KEY_1: test-api-key-001-NOT-REAL
-          TEST_API_KEY_2: test-api-key-002-NOT-REAL
-          TEST_API_KEY_SAMPLE: test-sample-key-123-FAKE
         run: |
-          # Check if performance tests exist and run with and without benchmarks
+          # Check if performance tests exist and install dependencies
           if [ -d "tests/performance" ]; then
-            # First run regular performance tests
-            poetry run pytest tests/performance/ -v -m "performance and not slow" || echo "Regular performance tests failed, continuing..."
-
-            # Then run benchmark tests to generate JSON output
-            poetry run pytest tests/performance/ -v -k "benchmark" --benchmark-json=benchmark.json --benchmark-only || echo "Performance benchmarks failed, continuing..."
-
-            # If no benchmark.json was created, create a minimal one
-            if [ ! -f "benchmark.json" ]; then
-              echo '{"benchmarks": [], "machine_info": {"node": "github-actions", "processor": "x86_64"}, "commit_info": {"id": "'$GITHUB_SHA'", "time": "'$(date -Iseconds)'"}}' > benchmark.json
-            fi
+            # Install additional dependencies for performance tests
+            poetry install --with dev
+            poetry run pytest tests/performance/ -v --benchmark-json=benchmark.json || echo "Performance tests failed, continuing..."
           else
             echo "Performance tests directory not found, creating empty benchmark file..."
-            echo '{"benchmarks": [], "machine_info": {"node": "github-actions", "processor": "x86_64"}, "commit_info": {"id": "'$GITHUB_SHA'", "time": "'$(date -Iseconds)'"}}' > benchmark.json
+            echo '{"benchmarks": []}' > benchmark.json
           fi
 
       - name: Upload benchmark results
@@ -428,84 +313,12 @@ jobs:
           path: benchmark.json
 
       - name: Comment benchmark results
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        continue-on-error: true
+        uses: benchmark-action/github-action-benchmark@v1
         with:
-          script: |
-            const fs = require('fs');
-            if (fs.existsSync('benchmark.json')) {
-              try {
-                const benchmarkData = JSON.parse(fs.readFileSync('benchmark.json', 'utf8'));
-
-                // Extract benchmark information
-                const benchmarks = benchmarkData.benchmarks || [];
-                const machineInfo = benchmarkData.machine_info || {};
-                const commitInfo = benchmarkData.commit_info || {};
-
-                let comment = `## 📊 Performance Benchmark Results\n\n`;
-
-                if (benchmarks.length > 0) {
-                  comment += `**Test Summary:**\n`;
-                  comment += `- Total benchmarks: ${benchmarks.length}\n`;
-                  comment += `- Machine: ${machineInfo.node || 'Unknown'} (${machineInfo.processor || 'Unknown'})\n`;
-                  comment += `- Commit: ${commitInfo.id ? commitInfo.id.substring(0, 8) : 'Unknown'}\n`;
-                  comment += `- Generated: ${commitInfo.time || new Date().toISOString()}\n\n`;
-
-                  comment += `**Benchmark Details:**\n`;
-                  benchmarks.forEach((bench, index) => {
-                    comment += `${index + 1}. **${bench.name || 'Unnamed Test'}**\n`;
-                    if (bench.value !== undefined) {
-                      comment += `   - Value: ${bench.value} ${bench.unit || ''}\n`;
-                    }
-                    if (bench.extra) {
-                      comment += `   - Extra info: ${bench.extra}\n`;
-                    }
-                  });
-                } else {
-                  comment += `**Status:** Performance tests completed successfully.\n`;
-                  comment += `- Benchmark file: \`benchmark.json\` (${fs.statSync('benchmark.json').size} bytes)\n`;
-                  comment += `- Generated: ${new Date().toISOString()}\n`;
-                }
-
-                comment += `\n> 📈 Benchmark data has been saved as a workflow artifact for detailed analysis.`;
-
-                await github.rest.issues.createComment({
-                  issue_number: context.issue.number,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: comment
-                });
-
-                console.log('✅ Benchmark comment posted successfully');
-              } catch (error) {
-                console.log('❌ Failed to parse benchmark data or create comment:', error.message);
-                console.log('Error details:', error);
-
-                try {
-                  // Fallback simple comment
-                  const fallbackComment = `## 📊 Performance Benchmark Results\n\n` +
-                    `**Status:** Performance tests completed but benchmark data could not be parsed.\n` +
-                    `- Benchmark file exists: ${fs.existsSync('benchmark.json') ? 'Yes' : 'No'}\n` +
-                    `- Generated: ${new Date().toISOString()}\n\n` +
-                    `> 📈 Raw benchmark data has been saved as a workflow artifact.`;
-
-                  await github.rest.issues.createComment({
-                    issue_number: context.issue.number,
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    body: fallbackComment
-                  });
-
-                  console.log('✅ Fallback benchmark comment posted successfully');
-                } catch (fallbackError) {
-                  console.log('❌ Failed to post fallback comment:', fallbackError.message);
-                  console.log('This may indicate insufficient permissions or API issues');
-                }
-              }
-            } else {
-              console.log('⚠️ No benchmark.json file found');
-            }
+          tool: "pytest"
+          output-file-path: benchmark.json
+          comment-on-alert: true
+          summary-always: true
 
   test-summary:
     name: Test Summary

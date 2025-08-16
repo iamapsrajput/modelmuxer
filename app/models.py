@@ -36,6 +36,7 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: float | None = Field(None, description="Frequency penalty")
     logit_bias: dict[str, float] | None = Field(None, description="Logit bias")
     user: str | None = Field(None, description="User identifier")
+    region: str | None = Field(None, description="Region identifier for compliance/policy checks")
 
 
 class Usage(BaseModel):

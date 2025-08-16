@@ -376,6 +376,53 @@ async def monitor_litellm():
             await asyncio.sleep(60)  # Wait longer on errors
 ```
 
+## LiteLLM Docker Setup
+
+For a complete Docker-based setup with LiteLLM proxy:
+
+### Quick Setup
+
+1. **Configure API Keys**
+   - Update `config/litellm-config.yaml` with your provider API keys
+   - Update `.env` with LiteLLM configuration
+
+2. **Start Services**
+   ```bash
+   # Basic setup
+   docker-compose -f infra/docker-compose.litellm.yaml up -d
+
+   # With monitoring (Prometheus + Grafana)
+   docker-compose -f infra/docker-compose.litellm.yaml --profile monitoring up -d
+   ```
+
+3. **Access Services**
+   - ModelMuxer API: http://localhost:8000
+   - LiteLLM Proxy: http://localhost:4000
+   - Grafana (with monitoring): http://localhost:3000 (admin/admin123)
+
+### Configuration Files
+
+**`config/litellm-config.yaml`**:
+```yaml
+model_list:
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: your-openai-key-here
+  - model_name: claude-3-5-sonnet
+    litellm_params:
+      model: anthropic/claude-3-5-sonnet-20241022
+      api_key: your-anthropic-key-here
+```
+
+**Environment Variables**:
+```env
+LITELLM_BASE_URL=http://localhost:4000
+LITELLM_API_KEY=your-litellm-key
+DEFAULT_ROUTING_STRATEGY=hybrid
+CASCADE_ROUTING_ENABLED=true
+```
+
 ## Best Practices
 
 1. **Configuration Management**

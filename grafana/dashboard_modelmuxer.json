@@ -1,0 +1,236 @@
+{
+    "annotations": {
+        "list": []
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "id": null,
+    "links": [],
+    "panels": [
+        {
+            "type": "stat",
+            "title": "HTTP RPS",
+            "id": 1,
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum(rate(http_requests_total[1m]))",
+                    "legendFormat": "rps",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "HTTP Latency p95/p99 by Route (ms)",
+            "id": 2,
+            "gridPos": {
+                "x": 6,
+                "y": 0,
+                "w": 18,
+                "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.95, sum by (le,route,method) (rate(http_request_latency_ms_bucket[5m])))",
+                    "legendFormat": "p95 {{route}} {{method}}",
+                    "refId": "A"
+                },
+                {
+                    "expr": "histogram_quantile(0.99, sum by (le,route,method) (rate(http_request_latency_ms_bucket[5m])))",
+                    "legendFormat": "p99 {{route}} {{method}}",
+                    "refId": "B"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "Router Decision Latency (ms)",
+            "id": 3,
+            "gridPos": {
+                "x": 0,
+                "y": 4,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum by (route) (rate(llm_router_decision_latency_ms_sum[5m])) / sum by (route) (rate(llm_router_decision_latency_ms_count[5m]))",
+                    "legendFormat": "avg {{route}}",
+                    "refId": "A"
+                },
+                {
+                    "expr": "histogram_quantile(0.95, sum by (le, route) (rate(llm_router_decision_latency_ms_bucket[5m])))",
+                    "legendFormat": "p95 {{route}}",
+                    "refId": "B"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "Adapter Latency by Provider/Model (ms)",
+            "id": 4,
+            "gridPos": {
+                "x": 12,
+                "y": 4,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum by (provider,model) (rate(llm_request_latency_ms_sum[5m])) / sum by (provider,model) (rate(llm_request_latency_ms_count[5m]))",
+                    "legendFormat": "{{provider}} {{model}} avg",
+                    "refId": "A"
+                },
+                {
+                    "expr": "histogram_quantile(0.95, sum by (le,provider,model) (rate(llm_request_latency_ms_bucket[5m])))",
+                    "legendFormat": "{{provider}} {{model}} p95",
+                    "refId": "B"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "Router Fallbacks by Reason",
+            "id": 5,
+            "gridPos": {
+                "x": 0,
+                "y": 12,
+                "w": 12,
+                "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum by (route,reason) (rate(llm_router_fallbacks_total[5m]))",
+                    "legendFormat": "{{route}} {{reason}}",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "Policy Violations & Redactions",
+            "id": 6,
+            "gridPos": {
+                "x": 12,
+                "y": 12,
+                "w": 12,
+                "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum by (type) (rate(policy_violations_total[5m]))",
+                    "legendFormat": "violation {{type}}",
+                    "refId": "A"
+                },
+                {
+                    "expr": "sum by (pii_type) (rate(policy_redactions_total[5m]))",
+                    "legendFormat": "redaction {{pii_type}}",
+                    "refId": "B"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "Adapter Token Usage",
+            "id": 7,
+            "gridPos": {
+                "x": 0,
+                "y": 19,
+                "w": 12,
+                "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum by (provider,model) (rate(llm_request_tokens_in_total[5m]))",
+                    "legendFormat": "in {{provider}} {{model}}",
+                    "refId": "A"
+                },
+                {
+                    "expr": "sum by (provider,model) (rate(llm_request_tokens_out_total[5m]))",
+                    "legendFormat": "out {{provider}} {{model}}",
+                    "refId": "B"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "HTTP Error Rate",
+            "id": 8,
+            "gridPos": {
+                "x": 12,
+                "y": 19,
+                "w": 12,
+                "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "targets": [
+                {
+                    "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))",
+                    "legendFormat": "5xx error rate",
+                    "refId": "A"
+                },
+                {
+                    "expr": "sum(rate(http_requests_total{status=~\"4..\"}[5m])) / sum(rate(http_requests_total[5m]))",
+                    "legendFormat": "4xx error rate",
+                    "refId": "B"
+                }
+            ]
+        }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 39,
+    "style": "dark",
+    "tags": [
+        "modelmuxer",
+        "observability"
+    ],
+    "templating": {
+        "list": [
+            {
+                "name": "route",
+                "type": "query",
+                "datasource": "${DS_PROMETHEUS}",
+                "query": "label_values(http_requests_total, route)",
+                "includeAll": true,
+                "multi": true
+            },
+            {
+                "name": "provider",
+                "type": "query",
+                "datasource": "${DS_PROMETHEUS}",
+                "query": "label_values(llm_request_latency_ms_bucket, provider)",
+                "includeAll": true,
+                "multi": true
+            },
+            {
+                "name": "model",
+                "type": "query",
+                "datasource": "${DS_PROMETHEUS}",
+                "query": "label_values(llm_request_latency_ms_bucket, model)",
+                "includeAll": true,
+                "multi": true
+            }
+        ]
+    },
+    "time": {
+        "from": "now-6h",
+        "to": "now"
+    },
+    "title": "ModelMuxer — Observability",
+    "uid": "modelmuxer-obsv",
+    "version": 1
+}

@@ -13,10 +13,18 @@ import json
 from datetime import date, datetime
 from typing import Any
 
-import numpy as np
 import structlog
 
 logger = structlog.get_logger(__name__)
+
+# Optional numpy import for ML features
+try:
+    import numpy as np
+
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    np = None  # type: ignore
 
 # Supported types for secure serialization
 SerializableType = str | int | float | bool | None | dict[str, Any] | list[Any]
@@ -41,7 +49,7 @@ class SecureSerializer:
             return obj
         elif isinstance(obj, datetime | date):
             return {"__type__": "datetime", "__value__": obj.isoformat()}
-        elif isinstance(obj, np.ndarray):
+        elif NUMPY_AVAILABLE and isinstance(obj, np.ndarray):
             return {
                 "__type__": "numpy_array",
                 "__value__": obj.tolist(),
@@ -76,6 +84,11 @@ class SecureSerializer:
             if obj_type == "datetime":
                 return datetime.fromisoformat(value)
             elif obj_type == "numpy_array":
+                if not NUMPY_AVAILABLE:
+                    logger.warning(
+                        "numpy_not_available", message="Cannot restore numpy array without numpy"
+                    )
+                    return value
                 array = np.array(value, dtype=obj["__dtype__"])
                 return array.reshape(obj["__shape__"])
             elif obj_type == "object":

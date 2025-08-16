@@ -64,10 +64,22 @@ test-integration:
 
 # Run linting and type checking
 lint:
-	poetry run black --check app/ tests/
-	poetry run isort --check-only app/ tests/
-	poetry run flake8 app/ tests/
+	poetry run ruff check .
+	poetry run black --check .
+
+typecheck:
 	poetry run mypy app/
+
+test:
+	poetry run pytest -q
+
+test-cov:
+	poetry run pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=70
+
+security:
+	poetry run bandit -q -r app || true
+	poetry run semgrep --error --config p/python || true
+	poetry run trivy fs --exit-code 1 --severity HIGH,CRITICAL . || true
 
 # Format code
 format:

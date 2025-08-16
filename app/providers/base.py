@@ -2,13 +2,17 @@
 # Licensed under Business Source License 1.1 – see LICENSE for details.
 """
 Abstract base class for LLM providers.
+
+This module contains legacy provider interfaces (chat_completion, streaming)
+and the new unified Provider Adapter interface (invoke) with shared
+resilience helpers and a common ProviderResponse dataclass.
 """
 
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 
@@ -45,7 +49,7 @@ class ModelNotFoundError(ProviderError):
 
 
 class LLMProvider(ABC):
-    """Abstract base class for LLM providers."""
+    """Legacy abstract base class for providers using chat_completion interface."""
 
     def __init__(self, api_key: str, base_url: str, provider_name: str):
         self.api_key = api_key
@@ -233,3 +237,58 @@ class LLMProvider(ABC):
             return True
         except Exception:
             return False
+
+
+# ===================== New Adapter Interface =====================
+from dataclasses import dataclass
+import time
+
+from app.settings import settings
+
+
+@dataclass
+class ProviderResponse:
+    """Standard adapter response used across providers.
+
+    - output_text: final assistant text
+    - tokens_in/tokens_out: token counts from provider
+    - latency_ms: total latency in milliseconds
+    - raw: raw provider payload (optional)
+    - error: error string if any
+    """
+
+    output_text: str
+    tokens_in: int
+    tokens_out: int
+    latency_ms: int
+    raw: Optional[Any] = None
+    error: Optional[str] = None
+
+
+class SimpleCircuitBreaker:
+    """Minimal circuit breaker for adapters."""
+
+    def __init__(self) -> None:
+        self.failures = 0
+        self.open_until: float = 0.0
+
+    def is_open(self) -> bool:
+        return time.time() < self.open_until
+
+    def on_failure(self) -> None:
+        self.failures += 1
+        if self.failures >= settings.providers.circuit_fail_threshold:
+            self.open_until = time.time() + settings.providers.circuit_cooldown_sec
+
+    def on_success(self) -> None:
+        self.failures = 0
+        self.open_until = 0.0
+
+
+class LLMProviderAdapter(ABC):
+    """Abstract provider adapter with a unified invoke() method."""
+
+    @abstractmethod
+    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:
+        """Invoke the provider synchronously and return standardized response."""
+        raise NotImplementedError

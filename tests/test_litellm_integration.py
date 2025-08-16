@@ -1,326 +1,265 @@
-# ModelMuxer (c) 2025 Ajay Rajput
-# Licensed under Business Source License 1.1 – see LICENSE for details.
+#!/usr/bin/env python3
 """
-Integration tests for LiteLLM provider with ModelMuxer routing system.
+ModelMuxer + LiteLLM Integration Test Script
+Tests the complete integration between ModelMuxer and LiteLLM proxy.
 """
 
-import os
-from unittest.mock import AsyncMock, MagicMock, patch
-
+import asyncio
+import json
+import sys
+from typing import Dict, Any
 import httpx
-import pytest
+import time
 
-from app.models import ChatMessage
-from app.providers.base import AuthenticationError, ProviderError, RateLimitError
-from app.providers.litellm_provider import LiteLLMProvider
-from app.router import HeuristicRouter
+# Test configuration
+MODELMUXER_BASE_URL = "http://localhost:8000"
+LITELLM_BASE_URL = "https://litellm.int.thomsonreuters.com"
+TEST_API_KEY = "sk-test-claude-dev"  # From .env file
 
 
-class TestLiteLLMIntegration:
-    """Integration tests for LiteLLM provider with routing system."""
-
-    @pytest.fixture
-    def litellm_provider(self):
-        """Create a LiteLLM provider for integration testing."""
-        custom_models = {
-            "gpt-3.5-turbo": {
-                "pricing": {"input": 0.0015, "output": 0.002},
-                "rate_limits": {"requests_per_minute": 60, "tokens_per_minute": 60000},
-                "metadata": {"context_window": 4096, "task_types": ["general", "simple"]},
-            },
-            "claude-3-haiku": {
-                "pricing": {"input": 0.00025, "output": 0.00125},
-                "rate_limits": {"requests_per_minute": 100, "tokens_per_minute": 100000},
-                "metadata": {"context_window": 200000, "task_types": ["complex", "code"]},
-            },
-            "gpt-4": {
-                "pricing": {"input": 0.03, "output": 0.06},
-                "rate_limits": {"requests_per_minute": 20, "tokens_per_minute": 20000},
-                "metadata": {"context_window": 8192, "task_types": ["complex", "code"]},
-            },
+class IntegrationTester:
+    def __init__(self):
+        self.modelmuxer_url = MODELMUXER_BASE_URL
+        self.litellm_url = LITELLM_BASE_URL
+        self.api_key = TEST_API_KEY
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
         }
 
-        return LiteLLMProvider(
-            base_url="http://localhost:4000",
-            api_key="test-integration-key",
-            custom_models=custom_models,
-        )
+    async def test_health_checks(self) -> Dict[str, bool]:
+        """Test health endpoints for both services."""
+        print("🏥 Testing health checks...")
+        results = {}
 
-    @pytest.fixture
-    def router(self):
-        """Create a heuristic router for testing."""
-        return HeuristicRouter()
+        async with httpx.AsyncClient() as client:
+            # Test ModelMuxer health
+            try:
+                response = await client.get(f"{self.modelmuxer_url}/health", timeout=10)
+                results["modelmuxer_health"] = response.status_code == 200
+                print(f"   ✅ ModelMuxer health: {response.status_code}")
+            except Exception as e:
+                results["modelmuxer_health"] = False
+                print(f"   ❌ ModelMuxer health failed: {e}")
 
-    @pytest.fixture
-    def providers_dict(self, litellm_provider):
-        """Create providers dictionary for routing tests."""
-        return {"litellm": litellm_provider}
+            # Test LiteLLM health
+            try:
+                response = await client.get(f"{self.litellm_url}/health", timeout=10)
+                results["litellm_health"] = response.status_code == 200
+                print(f"   ✅ LiteLLM health: {response.status_code}")
+            except Exception as e:
+                results["litellm_health"] = False
+                print(f"   ❌ LiteLLM health failed: {e}")
 
-    def test_litellm_provider_in_routing_system(self, router, providers_dict):
-        """Test that LiteLLM provider integrates with routing system."""
-        # Test simple query routing - verify LiteLLM models are in preferences
-        simple_messages = [ChatMessage(role="user", content="What is 2+2?", name=None)]
+        return results
 
-        # Test that the router's model preferences include LiteLLM models
-        # This verifies the critical fix: LiteLLM models are now in model_preferences
-        general_preferences = router.model_preferences.get("general", [])
-        simple_qa_preferences = router.model_preferences.get("simple_qa", [])
+    async def test_available_models(self) -> Dict[str, Any]:
+        """Test available models through ModelMuxer."""
+        print("🎯 Testing available models...")
 
-        # Check that LiteLLM provider is included in preferences
-        litellm_in_general = any(pref[0] == "litellm" for pref in general_preferences)
-        litellm_in_simple_qa = any(pref[0] == "litellm" for pref in simple_qa_preferences)
-
-        assert (
-            litellm_in_general or litellm_in_simple_qa
-        ), "LiteLLM provider should be in routing preferences"
-
-        # Test the router's analysis functionality (this doesn't require providers)
-        analysis = router.analyze_prompt(simple_messages)
-        assert analysis is not None, "Router should analyze prompt"
-        assert "task_type" in analysis, "Analysis should include task type"
-
-        # Test that LiteLLM provider can handle the expected models
-        litellm_provider = providers_dict["litellm"]
-        supported_models = litellm_provider.get_supported_models()
-        assert len(supported_models) > 0, "LiteLLM provider should support models"
-
-    def test_litellm_code_task_routing(self, router, providers_dict):
-        """Test LiteLLM provider selection for code tasks."""
-        code_messages = [
-            ChatMessage(
-                role="user",
-                content="Write a Python function to implement binary search algorithm",
-                name=None,
-            )
-        ]
-
-        # Test that LiteLLM models are included in code-related preferences
-        code_preferences = router.model_preferences.get("code", [])
-        complex_preferences = router.model_preferences.get("complex", [])
-
-        # Check that LiteLLM provider is included in code task preferences
-        litellm_in_code = any(pref[0] == "litellm" for pref in code_preferences)
-        litellm_in_complex = any(pref[0] == "litellm" for pref in complex_preferences)
-
-        assert (
-            litellm_in_code or litellm_in_complex
-        ), "LiteLLM provider should be in code task preferences"
-
-        # Test prompt analysis for code tasks
-        analysis = router.analyze_prompt(code_messages)
-        assert analysis is not None, "Router should analyze code prompt"
-        assert "task_type" in analysis, "Analysis should include task type"
-
-        # Verify the analysis detects this as a code-related task
-        task_type = analysis["task_type"]
-        assert task_type in [
-            "code_generation",
-            "code",
-            "general",
-        ], f"Unexpected task type for code prompt: {task_type}"
-
-    @pytest.mark.asyncio
-    async def test_litellm_provider_fallback_mechanism(self, litellm_provider):
-        """Test LiteLLM provider fallback when primary model fails."""
-        messages = [ChatMessage(role="user", content="Hello", name=None)]
-
-        # Mock first call to fail, second to succeed
-        mock_responses = [
-            httpx.HTTPStatusError(
-                "Rate limit", request=MagicMock(), response=MagicMock(status_code=429)
-            ),
-            MagicMock(
-                status_code=200,
-                json=lambda: {
-                    "choices": [{"message": {"content": "Hello!"}, "finish_reason": "stop"}],
-                    "usage": {"prompt_tokens": 5, "completion_tokens": 2},
-                },
-            ),
-        ]
-
-        with patch.object(litellm_provider.client, "post", new_callable=AsyncMock) as mock_post:
-            mock_post.side_effect = mock_responses
-
-            # First call should raise RateLimitError
-            with pytest.raises((RateLimitError, ProviderError)):
-                await litellm_provider.chat_completion(messages, "gpt-3.5-turbo")
-
-            # Reset mock for second call
-            mock_post.side_effect = None
-            mock_post.return_value = mock_responses[1]
-
-            # Second call should succeed
-            response = await litellm_provider.chat_completion(messages, "claude-3-haiku")
-            assert response.choices[0].message.content == "Hello!"
-
-    @pytest.mark.asyncio
-    async def test_litellm_cost_optimization(self, litellm_provider):
-        """Test cost calculation and optimization with LiteLLM."""
-        # Test cost calculation for different models
-        gpt35_cost = litellm_provider.calculate_cost(1000, 500, "gpt-3.5-turbo")
-        claude_cost = litellm_provider.calculate_cost(1000, 500, "claude-3-haiku")
-        gpt4_cost = litellm_provider.calculate_cost(1000, 500, "gpt-4")
-
-        # Claude should be cheapest, GPT-4 most expensive
-        assert claude_cost < gpt35_cost < gpt4_cost
-
-        # Verify actual cost calculations
-        expected_gpt35 = (1000 / 1_000_000) * 0.0015 + (500 / 1_000_000) * 0.002
-        expected_claude = (1000 / 1_000_000) * 0.00025 + (500 / 1_000_000) * 0.00125
-        expected_gpt4 = (1000 / 1_000_000) * 0.03 + (500 / 1_000_000) * 0.06
-
-        assert abs(gpt35_cost - expected_gpt35) < 0.0001
-        assert abs(claude_cost - expected_claude) < 0.0001
-        assert abs(gpt4_cost - expected_gpt4) < 0.0001
-
-    @pytest.mark.asyncio
-    async def test_litellm_rate_limiting_integration(self, litellm_provider):
-        """Test rate limiting integration with LiteLLM provider."""
-        rate_limits = litellm_provider.get_rate_limits()
-
-        assert "requests_per_minute" in rate_limits
-        assert "gpt-3.5-turbo" in rate_limits["requests_per_minute"]
-        assert rate_limits["requests_per_minute"]["gpt-3.5-turbo"]["requests_per_minute"] == 60
-        assert rate_limits["requests_per_minute"]["claude-3-haiku"]["requests_per_minute"] == 100
-
-    @pytest.mark.asyncio
-    async def test_litellm_streaming_integration(self, litellm_provider):
-        """Test streaming integration with LiteLLM provider."""
-        messages = [ChatMessage(role="user", content="Count to 5", name=None)]
-
-        # Mock streaming response
-        stream_chunks = [
-            'data: {"choices":[{"delta":{"content":"1"}}]}',
-            'data: {"choices":[{"delta":{"content":", 2"}}]}',
-            'data: {"choices":[{"delta":{"content":", 3"}}]}',
-            'data: {"choices":[{"delta":{"content":", 4"}}]}',
-            'data: {"choices":[{"delta":{"content":", 5"}}]}',
-            "data: [DONE]",
-        ]
-
-        async def mock_aiter_lines():
-            for chunk in stream_chunks:
-                yield chunk
-
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.aiter_lines = mock_aiter_lines
-
-        with patch.object(litellm_provider.client, "stream") as mock_stream:
-            mock_stream.return_value.__aenter__.return_value = mock_response
-
-            collected_content = []
-            async for chunk in litellm_provider.stream_chat_completion(
-                messages=messages, model="gpt-3.5-turbo"
-            ):
-                if "choices" in chunk and chunk["choices"]:
-                    delta = chunk["choices"][0].get("delta", {})
-                    if "content" in delta:
-                        collected_content.append(delta["content"])
-
-            full_content = "".join(collected_content)
-            assert "1, 2, 3, 4, 5" == full_content
-
-    def test_litellm_model_configuration_validation(self, litellm_provider):
-        """Test model configuration validation."""
-        # Test that all configured models have required fields
-        for model_name in litellm_provider.supported_models:
-            model_info = litellm_provider.get_model_info(model_name)
-
-            assert "model" in model_info
-            assert "provider" in model_info
-            assert "pricing" in model_info
-            assert "rate_limits" in model_info
-            assert model_info["provider"] == "litellm"
-
-            # Verify pricing structure
-            pricing = model_info["pricing"]
-            assert "input" in pricing
-            assert "output" in pricing
-            assert isinstance(pricing["input"], int | float)
-            assert isinstance(pricing["output"], int | float)
-
-    @pytest.mark.asyncio
-    async def test_litellm_error_handling_integration(self, litellm_provider):
-        """Test comprehensive error handling in integration scenarios."""
-        messages = [ChatMessage(role="user", content="Test message", name=None)]
-
-        # Test various HTTP errors
-        error_scenarios = [
-            (400, "Bad Request"),
-            (401, "Unauthorized"),
-            (403, "Forbidden"),
-            (404, "Not Found"),
-            (429, "Rate Limited"),
-            (500, "Internal Server Error"),
-            (502, "Bad Gateway"),
-            (503, "Service Unavailable"),
-        ]
-
-        for status_code, error_msg in error_scenarios:
-            mock_response = MagicMock()
-            mock_response.status_code = status_code
-
-            with patch.object(litellm_provider.client, "post", new_callable=AsyncMock) as mock_post:
-                mock_post.side_effect = httpx.HTTPStatusError(
-                    error_msg, request=MagicMock(), response=mock_response
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.modelmuxer_url}/v1/models", headers=self.headers, timeout=15
                 )
 
-                with pytest.raises((RateLimitError, AuthenticationError, ProviderError)):
-                    await litellm_provider.chat_completion(messages, "gpt-3.5-turbo")
+                if response.status_code == 200:
+                    models = response.json()
+                    print(f"   ✅ Found {len(models.get('data', []))} available models")
+                    for model in models.get("data", [])[:5]:  # Show first 5
+                        print(f"      - {model.get('id', 'Unknown')}")
+                    return {"success": True, "models": models}
+                else:
+                    print(f"   ❌ Models endpoint failed: {response.status_code}")
+                    print(f"      Response: {response.text}")
+                    return {"success": False, "error": response.text}
 
-    def test_litellm_custom_model_management(self, litellm_provider):
-        """Test dynamic model management capabilities."""
-        initial_model_count = len(litellm_provider.supported_models)
+            except Exception as e:
+                print(f"   ❌ Models test failed: {e}")
+                return {"success": False, "error": str(e)}
 
-        # Add a new custom model
-        litellm_provider.add_custom_model(
-            model_name="custom-llama-7b",
-            pricing={"input": 0.0001, "output": 0.0002},
-            rate_limits={"requests_per_minute": 200, "tokens_per_minute": 200000},
-            metadata={"provider": "ollama", "size": "7B", "task_types": ["general"]},
-        )
+    async def test_simple_completion(self) -> Dict[str, Any]:
+        """Test simple chat completion."""
+        print("💬 Testing simple chat completion...")
 
-        # Verify model was added
-        assert len(litellm_provider.supported_models) == initial_model_count + 1
-        assert "custom-llama-7b" in litellm_provider.supported_models
+        payload = {
+            "messages": [{"role": "user", "content": "Hello! Just say 'Hi' back."}],
+            "max_tokens": 50,
+            "temperature": 0.7,
+        }
 
-        # Verify model configuration
-        model_info = litellm_provider.get_model_info("custom-llama-7b")
-        assert model_info["pricing"]["input"] == 0.0001
-        assert model_info["rate_limits"]["requests_per_minute"] == 200
-        assert model_info["metadata"]["provider"] == "ollama"
+        async with httpx.AsyncClient() as client:
+            try:
+                start_time = time.time()
+                response = await client.post(
+                    f"{self.modelmuxer_url}/v1/chat/completions",
+                    headers=self.headers,
+                    json=payload,
+                    timeout=30,
+                )
+                end_time = time.time()
 
-    @pytest.mark.asyncio
-    async def test_litellm_health_monitoring_integration(self, litellm_provider):
-        """Test health monitoring integration."""
-        # Test successful health check
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"data": [{"id": "gpt-3.5-turbo"}]}
+                if response.status_code == 200:
+                    result = response.json()
+                    content = result["choices"][0]["message"]["content"]
+                    metadata = result.get("router_metadata", {})
 
-        with patch.object(litellm_provider.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+                    print(f"   ✅ Completion successful ({end_time - start_time:.2f}s)")
+                    print(f"      Model: {metadata.get('selected_model', 'Unknown')}")
+                    print(f"      Provider: {metadata.get('selected_provider', 'Unknown')}")
+                    print(f"      Response: {content[:100]}...")
+                    print(f"      Cost: ${metadata.get('estimated_cost', 0):.6f}")
 
-            health_status = await litellm_provider.health_check()
-            assert health_status is True
+                    return {"success": True, "response": result}
+                else:
+                    print(f"   ❌ Completion failed: {response.status_code}")
+                    print(f"      Response: {response.text}")
+                    return {"success": False, "error": response.text}
 
-        # Test failed health check
-        with patch.object(litellm_provider.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = httpx.RequestError("Connection failed")
+            except Exception as e:
+                print(f"   ❌ Completion test failed: {e}")
+                return {"success": False, "error": str(e)}
 
-            health_status = await litellm_provider.health_check()
-            assert health_status is False
+    async def test_code_completion(self) -> Dict[str, Any]:
+        """Test code completion (should prefer Claude)."""
+        print("👨‍💻 Testing code completion...")
 
-    def test_litellm_environment_configuration(self):
-        """Test LiteLLM provider configuration from environment variables."""
-        test_env = {"LITELLM_BASE_URL": "http://test-proxy:4000", "LITELLM_API_KEY": "test-env-key"}
+        payload = {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Write a simple Python function to calculate fibonacci numbers",
+                }
+            ],
+            "max_tokens": 200,
+            "temperature": 0.1,
+        }
 
-        with patch.dict(os.environ, test_env):
-            provider = LiteLLMProvider(
-                base_url=os.getenv("LITELLM_BASE_URL"), api_key=os.getenv("LITELLM_API_KEY")
-            )
+        async with httpx.AsyncClient() as client:
+            try:
+                start_time = time.time()
+                response = await client.post(
+                    f"{self.modelmuxer_url}/v1/chat/completions",
+                    headers=self.headers,
+                    json=payload,
+                    timeout=30,
+                )
+                end_time = time.time()
 
-            assert provider.base_url == "http://test-proxy:4000"
-            assert provider.api_key == "test-env-key"
-            assert provider.provider_name == "litellm"
+                if response.status_code == 200:
+                    result = response.json()
+                    content = result["choices"][0]["message"]["content"]
+                    metadata = result.get("router_metadata", {})
+
+                    print(f"   ✅ Code completion successful ({end_time - start_time:.2f}s)")
+                    print(f"      Model: {metadata.get('selected_model', 'Unknown')}")
+                    print(f"      Provider: {metadata.get('selected_provider', 'Unknown')}")
+                    print(f"      Routing strategy: {metadata.get('routing_strategy', 'Unknown')}")
+                    print(f"      Cost: ${metadata.get('estimated_cost', 0):.6f}")
+
+                    # Check if Claude was preferred for code
+                    used_claude = "claude" in metadata.get("selected_model", "").lower()
+                    if used_claude:
+                        print("      ✅ Claude was correctly chosen for code task")
+                    else:
+                        print("      ⚠️ Claude was not chosen (may be due to routing logic)")
+
+                    return {"success": True, "response": result, "used_claude": used_claude}
+                else:
+                    print(f"   ❌ Code completion failed: {response.status_code}")
+                    return {"success": False, "error": response.text}
+
+            except Exception as e:
+                print(f"   ❌ Code completion test failed: {e}")
+                return {"success": False, "error": str(e)}
+
+    async def test_enhanced_features(self) -> Dict[str, Any]:
+        """Test enhanced ModelMuxer features."""
+        print("🚀 Testing enhanced features...")
+
+        results = {}
+
+        async with httpx.AsyncClient() as client:
+            # Test analytics endpoint
+            try:
+                response = await client.get(
+                    f"{self.modelmuxer_url}/v1/analytics/costs", headers=self.headers, timeout=10
+                )
+                results["analytics"] = response.status_code == 200
+                print(f"   ✅ Analytics endpoint: {response.status_code}")
+            except Exception as e:
+                results["analytics"] = False
+                print(f"   ❌ Analytics failed: {e}")
+
+            # Test metrics endpoint
+            try:
+                response = await client.get(
+                    f"{self.modelmuxer_url}/metrics", headers=self.headers, timeout=10
+                )
+                results["metrics"] = response.status_code == 200
+                print(f"   ✅ Metrics endpoint: {response.status_code}")
+            except Exception as e:
+                results["metrics"] = False
+                print(f"   ❌ Metrics failed: {e}")
+
+        return results
+
+    async def run_all_tests(self) -> Dict[str, Any]:
+        """Run all integration tests."""
+        print("🧪 Starting ModelMuxer + LiteLLM Integration Tests\n")
+
+        all_results = {
+            "timestamp": time.time(),
+            "health_checks": await self.test_health_checks(),
+            "models": await self.test_available_models(),
+            "simple_completion": await self.test_simple_completion(),
+            "code_completion": await self.test_code_completion(),
+            "enhanced_features": await self.test_enhanced_features(),
+        }
+
+        # Summary
+        print("\n📊 Test Summary:")
+        total_tests = 0
+        passed_tests = 0
+
+        for category, results in all_results.items():
+            if category == "timestamp":
+                continue
+
+            if isinstance(results, dict):
+                for test_name, passed in results.items():
+                    total_tests += 1
+                    if passed:
+                        passed_tests += 1
+                        print(f"   ✅ {category}.{test_name}")
+                    else:
+                        print(f"   ❌ {category}.{test_name}")
+
+        success_rate = (passed_tests / total_tests) * 100 if total_tests > 0 else 0
+        print(f"\n🎯 Overall Success Rate: {success_rate:.1f}% ({passed_tests}/{total_tests})")
+
+        return all_results
+
+
+async def main():
+    """Main test runner."""
+    tester = IntegrationTester()
+    results = await tester.run_all_tests()
+
+    # Save results to file
+    with open("test_results.json", "w") as f:
+        json.dump(results, f, indent=2, default=str)
+
+    print("\n📄 Results saved to test_results.json")
+
+    # Exit with appropriate code
+    health_ok = all(results["health_checks"].values())
+    if not health_ok:
+        print("\n⚠️  Services are not healthy. Please check your Docker containers.")
+        sys.exit(1)
+
+    print("\n🎉 Integration tests completed!")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

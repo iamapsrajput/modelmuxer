@@ -2,9 +2,13 @@
 
 ## The Enterprise-Grade Intelligent LLM Routing Engine
 
+[![CI](https://github.com/ajayrajput/modelmuxer/workflows/CI/badge.svg)](https://github.com/ajayrajput/modelmuxer/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ajayrajput/modelmuxer/workflows/CodeQL/badge.svg)](https://github.com/ajayrajput/modelmuxer/actions/workflows/codeql.yml)
+[![Coverage](https://codecov.io/gh/ajayrajput/modelmuxer/branch/main/graph/badge.svg)](https://codecov.io/gh/ajayrajput/modelmuxer)
+[![Ruff](https://img.shields.io/badge/ruff-checked-brightgreen)](https://github.com/astral-sh/ruff)
+[![Mypy](https://img.shields.io/badge/mypy-checked-brightgreen)](https://mypy-lang.org/)
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1-blue.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-108%20Total-green.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/Coverage-35%25-yellow.svg)](htmlcov/)
 [![Production Ready](https://img.shields.io/badge/Production-Ready-green.svg)](docs/deployment.md)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 
@@ -659,3 +663,326 @@ For questions, support, or feedback:
 - 🐛 Issues: [GitHub Issues](https://github.com/iamapsrajput/modelmuxer/issues)
 - 📧 Support: Open a GitHub Issue with the "support" label
 - 📖 Docs: [docs.modelmuxer.com](https://docs.modelmuxer.com)
+
+## Policy Module
+
+ModelMuxer includes a comprehensive policy enforcement system that provides compliance and safety features for LLM interactions.
+
+### Features
+
+- **PII Redaction**: Automatically detects and redacts sensitive information including:
+
+  - Email addresses
+  - Phone numbers
+  - Credit card numbers
+  - Social Security Numbers
+  - IPv4/IPv6 addresses
+  - IBAN codes
+  - JWT-like tokens
+  - Physical addresses
+  - National IDs
+  - Custom patterns via regex
+
+- **Jailbreak Detection**: Identifies and blocks attempts to bypass safety measures using pattern matching
+
+- **Per-tenant Model/Region Control**: Fine-grained access control for different tenants:
+  - Allow/deny specific models per tenant
+  - Allow/deny specific regions per tenant
+
+### Configuration
+
+Add these settings to your `.env` file:
+
+```bash
+# Enable/disable policy features
+FEATURES__REDACT_PII=true
+FEATURES__ENABLE_PII_NER=false
+
+# Jailbreak detection
+POLICY__ENABLE_JAILBREAK_DETECTION=true
+POLICY__JAILBREAK_PATTERNS_PATH=app/policy/patterns/jailbreak.txt
+
+# Per-tenant model control (JSON format)
+POLICY__MODEL_ALLOW='{"tenant_a":["gpt-4o","claude-3-opus"],"tenant_b":["gpt-3.5-turbo"]}'
+POLICY__MODEL_DENY='{"tenant_a":["gpt-4o-mini"],"tenant_b":["gpt-4o"]}'
+
+# Per-tenant region control (JSON format)
+POLICY__REGION_ALLOW='{"tenant_a":["us","eu"],"tenant_b":["us"]}'
+POLICY__REGION_DENY='{"tenant_a":["cn","ru"],"tenant_b":["cn"]}'
+
+# Custom PII patterns (JSON array of regex strings)
+POLICY__EXTRA_PII_REGEX='["customsecret\\d+","internal_id_\\w+"]'
+```
+
+### Adding Jailbreak Patterns
+
+Edit `app/policy/patterns/jailbreak.txt` to add new patterns (one per line):
+
+```txt
+ignore previous instructions
+dan mode
+simulate developer mode
+system prompt reveal
+bypass safety
+ignore safety guidelines
+```
+
+### Safety Notes
+
+- **No Raw PII Logging**: All PII is redacted before logging to prevent data leaks
+- **Pattern Caching**: Jailbreak patterns are cached with a 15-second TTL for performance
+- **Label Whitelisting**: PII types in metrics are whitelisted to prevent cardinality explosion
+- **Error Handling**: Policy violations return structured 403 errors with detailed reasons
+
+### Testing
+
+Run policy tests:
+
+```bash
+# Unit tests for policy logic
+pytest tests/policy/test_rules.py
+
+# Integration tests with metrics
+pytest tests/routing/test_router_policy_integration.py
+```
+
+### Observability
+
+The policy module provides comprehensive observability:
+
+- **Prometheus Metrics**:
+
+  - `policy_redactions_total{pii_type}` - Count of PII redactions by type
+  - `policy_violations_total{type}` - Count of policy violations by type
+
+- **OpenTelemetry Spans**:
+  - `policy.enforce` span with attributes:
+    - `tenant_id` - The tenant being enforced
+    - `blocked` - Whether the request was blocked
+    - `reasons` - Comma-separated list of violation reasons
+    - `num_redactions` - Total number of redactions performed
+    - `pii_types_redacted` - Types of PII that were redacted
+
+### API Response
+
+When a request is blocked by policy, the API returns a 403 error:
+
+```json
+{
+  "error": {
+    "message": "Request blocked by policy",
+    "type": "policy_violation",
+    "reasons": ["jailbreak_detected", "model_denied"]
+  }
+}
+```
+
+The `reasons` array contains specific violation types that caused the block.
+
+## 📊 Observability
+
+ModelMuxer provides comprehensive observability through OpenTelemetry tracing, Prometheus metrics, and structured logging.
+
+### Features
+
+- **OpenTelemetry Tracing**: Distributed tracing across request → routing → provider calls
+- **Prometheus Metrics**: HTTP, router, adapter, and policy metrics with proper labeling
+- **Structured Logging**: JSON logs with trace/span IDs and no PII exposure
+- **Grafana Dashboard**: Pre-built dashboard for monitoring and alerting
+
+### Configuration
+
+Add these settings to your `.env` file:
+
+```bash
+# Enable observability features
+OBSERVABILITY__ENABLE_TRACING=true
+OBSERVABILITY__ENABLE_METRICS=true
+OBSERVABILITY__LOG_LEVEL=info
+
+# OpenTelemetry configuration
+OBSERVABILITY__SAMPLING_RATIO=1.0
+OBSERVABILITY__OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
+# Prometheus metrics endpoint
+OBSERVABILITY__PROM_METRICS_PATH=/metrics/prometheus
+
+# CORS origins for monitoring
+OBSERVABILITY__CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+```
+
+### Metrics Endpoints
+
+| Endpoint              | Description        | Authentication |
+| --------------------- | ------------------ | -------------- |
+| `/metrics/prometheus` | Prometheus metrics | None (public)  |
+| `/health`             | Health check       | None (public)  |
+
+### Available Metrics
+
+#### HTTP Metrics
+
+- `http_requests_total{route,method,status}` - Request count by route/method/status
+- `http_request_latency_ms{route,method}` - Request latency histogram
+
+#### Router Metrics
+
+- `llm_router_requests_total{route}` - Router decision count
+- `llm_router_decision_latency_ms{route}` - Router decision latency
+- `llm_router_fallbacks_total{route,reason}` - Fallback count by reason
+
+#### Adapter Metrics
+
+- `llm_requests_total{provider,model,outcome}` - Provider request count
+- `llm_request_latency_ms{provider,model}` - Provider latency
+- `llm_request_tokens_in_total{provider,model}` - Input token count
+- `llm_request_tokens_out_total{provider,model}` - Output token count
+
+#### Policy Metrics
+
+- `policy_violations_total{type}` - Policy violation count
+- `policy_redactions_total{pii_type}` - PII redaction count
+
+### Tracing
+
+OpenTelemetry spans are created for:
+
+- **HTTP Requests**: `http.request` span with route/method attributes
+- **Router Decisions**: `router.decide` span with task type and confidence scores
+- **Provider Calls**: `provider.invoke` span (from adapters) with provider/model/tokens
+
+Trace IDs are propagated in response headers as `x-trace-id`.
+
+### Grafana Dashboard
+
+Import the included dashboard:
+
+1. **Download**: `grafana/dashboard_modelmuxer.json`
+2. **Import**: In Grafana, go to Dashboards → Import
+3. **Configure**: Set your Prometheus data source as `${DS_PROMETHEUS}`
+4. **View**: Dashboard includes panels for:
+   - HTTP latency p95/p99 by route
+   - Router decision latency
+   - Adapter latency by provider/model
+   - Router fallbacks by reason
+   - Policy violations and redactions
+   - Token usage rates
+   - Error rates
+
+### Logging
+
+Structured JSON logging includes:
+
+- **Trace Context**: `trace_id` and `span_id` when available
+- **No PII**: Raw prompts and PII are never logged
+- **Configurable Level**: Set via `OBSERVABILITY__LOG_LEVEL`
+
+Example log entry:
+
+```json
+{
+  "level": "INFO",
+  "logger": "app.main",
+  "message": "Request processed successfully",
+  "time": "2025-01-16T10:30:00+00:00",
+  "trace_id": "1234567890abcdef1234567890abcdef",
+  "span_id": "abcdef1234567890"
+}
+```
+
+### Testing
+
+Run observability tests:
+
+```bash
+# Test metrics endpoint
+pytest tests/observability/test_metrics_endpoint.py
+
+# Test tracing spans
+pytest tests/observability/test_tracing_spans.py
+```
+
+### Production Setup
+
+For production deployment:
+
+1. **Prometheus**: Configure scraping from `/metrics/prometheus`
+2. **Jaeger/Zipkin**: Set `OTEL_EXPORTER_OTLP_ENDPOINT` to your collector
+3. **Grafana**: Import dashboard and configure alerts
+4. **Log Aggregation**: Send JSON logs to your log aggregation system
+
+## 🔧 CI/CD Pipeline
+
+ModelMuxer uses a comprehensive CI/CD pipeline to ensure code quality, security, and reliability.
+
+### Local Development
+
+Run the same checks locally that are used in CI:
+
+```bash
+# Install development dependencies
+poetry install --with dev
+
+# Run linting and formatting
+make lint
+
+# Run type checking
+make typecheck
+
+# Run tests with coverage
+make test-cov
+
+# Run security scans
+make security
+
+# Run all checks
+make lint && make typecheck && make test-cov && make security
+```
+
+### CI Workflows
+
+#### Main CI Pipeline (`.github/workflows/ci.yml`)
+
+- **Lint**: Ruff and Black formatting checks across Python 3.10-3.12
+- **Type Check**: MyPy static type checking
+- **Test**: Pytest with coverage (≥70% required) and Redis/PostgreSQL services
+- **Security**: Bandit, Semgrep, and Trivy vulnerability scanning
+
+#### Container Security (`.github/workflows/container-security.yml`)
+
+- **Image Scanning**: Trivy vulnerability scanning of Docker images
+- **SBOM Generation**: Software Bill of Materials for supply chain security
+- **Image Signing**: Cosign-based container signing for releases
+
+#### CodeQL Analysis (`.github/workflows/codeql.yml`)
+
+- **Static Analysis**: GitHub's CodeQL for advanced security analysis
+- **Scheduled Scans**: Weekly automated security scanning
+
+### Quality Gates
+
+All PRs must pass:
+
+- ✅ **Linting**: No Ruff or Black violations
+- ✅ **Type Checking**: No MyPy errors
+- ✅ **Tests**: ≥70% code coverage
+- ✅ **Security**: No critical/high severity vulnerabilities
+- ✅ **Documentation**: Updated README and docstrings
+
+### Pre-commit Hooks
+
+Install pre-commit hooks for automatic code quality checks:
+
+```bash
+# Install pre-commit
+poetry run pre-commit install
+
+# Run all hooks
+poetry run pre-commit run --all-files
+```
+
+### Security Notes
+
+- **Metrics Endpoint**: Public read-only access (no authentication required)
+- **No PII in Spans**: Only route/method/status and confidence scores are recorded
+- **Sampling Control**: Adjust `OBSERVABILITY__SAMPLING_RATIO` for high-volume deployments

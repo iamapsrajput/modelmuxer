@@ -199,7 +199,7 @@ data:
     bind 0.0.0.0
     port 6379
     protected-mode no
-    
+
     # General
     daemonize no
     supervised no
@@ -207,7 +207,7 @@ data:
     loglevel notice
     logfile ""
     databases 16
-    
+
     # Persistence
     save 900 1
     save 300 10
@@ -217,7 +217,7 @@ data:
     rdbchecksum yes
     dbfilename dump.rdb
     dir /data
-    
+
     # AOF
     appendonly yes
     appendfilename "appendonly.aof"
@@ -226,12 +226,12 @@ data:
     auto-aof-rewrite-percentage 100
     auto-aof-rewrite-min-size 64mb
     aof-load-truncated yes
-    
+
     # Memory Management
     maxmemory 1gb
     maxmemory-policy allkeys-lru
     maxmemory-samples 5
-    
+
     # Cluster
     cluster-enabled yes
     cluster-config-file nodes-6379.conf
@@ -239,19 +239,19 @@ data:
     cluster-slave-validity-factor 10
     cluster-migration-barrier 1
     cluster-require-full-coverage yes
-    
+
     # Slow Log
     slowlog-log-slower-than 10000
     slowlog-max-len 128
-    
+
     # Client Output Buffer Limits
     client-output-buffer-limit normal 0 0 0
     client-output-buffer-limit replica 256mb 64mb 60
     client-output-buffer-limit pubsub 32mb 8mb 60
-    
+
     # TCP keepalive
     tcp-keepalive 300
-    
+
     # Timeout
     timeout 0
     tcp-backlog 511

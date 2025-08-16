@@ -10,7 +10,7 @@ The following environments should be configured in your GitHub repository:
 ### 1. staging
 
 - **Purpose**: Staging/development deployments
-- **Branch**: `dev`
+- **Branch**: `develop`
 - **Required Secrets**: See secrets list below
 
 ### 2. production

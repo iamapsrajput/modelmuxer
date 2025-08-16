@@ -25,8 +25,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 # Prometheus not used in basic mode - only in enhanced mode
 # Core imports
 from .auth import SecurityHeaders, auth, sanitize_user_input, validate_request_size
-from .config import settings
+from .config import settings as legacy_settings  # kept for enhanced mode compatibility
 from .cost_tracker import cost_tracker
+from .settings import settings as app_settings
 from .database import db
 from .models import (
     ChatCompletionRequest,
@@ -35,52 +36,116 @@ from .models import (
     HealthResponse,
     MetricsResponse,
     UserStats,
+    Choice,
+    Usage,
+    RouterMetadata,
+    ChatMessage,
 )
 from .providers import AnthropicProvider, LiteLLMProvider, MistralProvider, OpenAIProvider
 from .providers.base import AuthenticationError, ProviderError, RateLimitError
 from .router import router
+from app.policy.rules import enforce_policies  # policy integration
+from app.telemetry.tracing import init_tracing, start_span, get_trace_id
+from app.telemetry.metrics import HTTP_REQUESTS, HTTP_LATENCY
+from app.telemetry.logging import configure_json_logging
+
+try:  # optional dependency in test/basic envs
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+except Exception:  # pragma: no cover
+    CONTENT_TYPE_LATEST = None  # type: ignore[assignment]
+    generate_latest = None  # type: ignore[assignment]
 
 # Enhanced imports (optional - loaded based on availability and configuration)
 try:
-    # Cache imports
-    from .cache.memory_cache import MemoryCache
-    from .cache.redis_cache import RedisCache
-
-    # Classification imports
-    from .classification.embeddings import EmbeddingManager
-    from .classification.prompt_classifier import PromptClassifier
+    # Core enhanced config (always required for enhanced mode)
     from .config import enhanced_config
 
-    # Middleware imports
-    from .middleware.auth_middleware import AuthMiddleware
-    from .middleware.logging_middleware import LoggingMiddleware
-    from .middleware.rate_limit_middleware import RateLimitMiddleware
-
-    # Monitoring imports
-    from .monitoring.health_checker import HealthChecker
-    from .monitoring.metrics_collector import MetricsCollector
-
-    # Routing imports
-    from .routing.cascade_router import CascadeRouter
-    from .routing.heuristic_router import HeuristicRouter
-    from .routing.hybrid_router import HybridRouter
-    from .routing.semantic_router import SemanticRouter
-
-    ENHANCED_FEATURES_AVAILABLE = True
+    # Core enhanced features available
+    CORE_ENHANCED_AVAILABLE = True
     logger = structlog.get_logger(__name__)
+
+    # Optional cache imports (can fail without breaking enhanced mode)
+    try:
+        from .cache.memory_cache import MemoryCache
+        from .cache.redis_cache import RedisCache
+
+        CACHE_FEATURES_AVAILABLE = True
+    except ImportError:
+        MemoryCache = None
+        RedisCache = None
+        CACHE_FEATURES_AVAILABLE = False
+
+    # Optional ML imports (can fail without breaking enhanced mode)
+    try:
+        from .classification.embeddings import EmbeddingManager
+        from .classification.prompt_classifier import PromptClassifier
+
+        ML_FEATURES_AVAILABLE = True
+    except ImportError:
+        EmbeddingManager = None
+        PromptClassifier = None
+        ML_FEATURES_AVAILABLE = False
+
+    # Optional middleware imports (can fail without breaking enhanced mode)
+    try:
+        from .middleware.auth_middleware import AuthMiddleware
+        from .middleware.logging_middleware import LoggingMiddleware
+        from .middleware.rate_limit_middleware import RateLimitMiddleware
+
+        MIDDLEWARE_FEATURES_AVAILABLE = True
+    except ImportError:
+        AuthMiddleware = None
+        LoggingMiddleware = None
+        RateLimitMiddleware = None
+        MIDDLEWARE_FEATURES_AVAILABLE = False
+
+    # Optional monitoring imports (can fail without breaking enhanced mode)
+    try:
+        from .monitoring.health_checker import HealthChecker
+        from .monitoring.metrics_collector import MetricsCollector
+
+        MONITORING_FEATURES_AVAILABLE = True
+    except ImportError:
+        HealthChecker = None
+        MetricsCollector = None
+        MONITORING_FEATURES_AVAILABLE = False
+
+    # Optional routing imports (can fail without breaking enhanced mode)
+    try:
+        from .routing.cascade_router import CascadeRouter
+        from .routing.heuristic_router import HeuristicRouter
+        from .routing.hybrid_router import HybridRouter
+        from .routing.semantic_router import SemanticRouter
+
+        ROUTING_FEATURES_AVAILABLE = True
+    except ImportError:
+        CascadeRouter = None
+        HeuristicRouter = None
+        HybridRouter = None
+        SemanticRouter = None
+        ROUTING_FEATURES_AVAILABLE = False
+
+    ENHANCED_FEATURES_AVAILABLE = CORE_ENHANCED_AVAILABLE
 
 except ImportError:
     ENHANCED_FEATURES_AVAILABLE = False
+    CORE_ENHANCED_AVAILABLE = False
+    CACHE_FEATURES_AVAILABLE = False
+    ML_FEATURES_AVAILABLE = False
+    MIDDLEWARE_FEATURES_AVAILABLE = False
+    MONITORING_FEATURES_AVAILABLE = False
+    ROUTING_FEATURES_AVAILABLE = False
     # Create a fallback logger to avoid AttributeError
     logger = structlog.get_logger(__name__)
     enhanced_config = None
+    MemoryCache = None
+    RedisCache = None
     # Enhanced features not available, running in basic mode
-    # Error details would be logged via structlog if available
 
-# Determine if we should run in enhanced mode
+# Determine if we should run in enhanced mode (via centralized settings)
 ENHANCED_MODE = (
     ENHANCED_FEATURES_AVAILABLE
-    and os.getenv("MODELMUXER_MODE", "basic").lower() in ["enhanced", "production"]
+    and app_settings.features.mode in ["enhanced", "production"]
     and enhanced_config is not None
 )
 
@@ -103,7 +168,7 @@ class ModelMuxer:
             enhanced_mode = ENHANCED_MODE
 
         self.enhanced_mode = enhanced_mode
-        self.config = enhanced_config if enhanced_mode and enhanced_config else settings
+        self.config = enhanced_config if enhanced_mode and enhanced_config else app_settings
 
         # Initialize components
         self.providers: dict[str, Any] = {}
@@ -167,6 +232,12 @@ class ModelMuxer:
         if not hasattr(self.config, "cache") or not self.config.cache.enabled:
             return
 
+        # Skip if cache features are not available
+        if not CACHE_FEATURES_AVAILABLE or MemoryCache is None or RedisCache is None:
+            if logger:
+                logger.info("cache_skipped", reason="Cache dependencies not available")
+            return
+
         try:
             if self.config.cache.backend == "redis":
                 # Parse Redis URL for connection details
@@ -193,12 +264,16 @@ class ModelMuxer:
         except Exception as e:
             if logger:
                 logger.warning("cache_init_failed", error=str(e))
-            # Fallback to memory cache with basic settings
-            self.cache = MemoryCache(max_size=1000, default_ttl=300)
 
     def _initialize_classification(self) -> None:
         """Initialize ML classification system."""
         if not hasattr(self.config, "classification") or not self.config.classification.enabled:
+            return
+
+        # Skip if ML features are not available
+        if not ML_FEATURES_AVAILABLE or EmbeddingManager is None or PromptClassifier is None:
+            if logger:
+                logger.info("classification_skipped", reason="ML dependencies not available")
             return
 
         try:
@@ -260,19 +335,19 @@ class ModelMuxer:
             # Import here to avoid circular imports
             from .cost_tracker import create_advanced_cost_tracker
 
-            # Use Redis URL from cache config if available
-            redis_url = "redis://localhost:6379/0"
+            # Use Docker-compatible Redis URL
+            redis_url = "redis://host.docker.internal:6379/0"
             if hasattr(self.config, "cache") and hasattr(self.config.cache, "redis_url"):
                 redis_url = self.config.cache.redis_url
             elif hasattr(self.config, "cache"):
                 redis_url = f"redis://{self.config.cache.redis_host}:{self.config.cache.redis_port}/{self.config.cache.redis_db}"
 
             self.advanced_cost_tracker = create_advanced_cost_tracker(
-                db_path="cost_tracker.db", redis_url=redis_url
+                db_path="cost_tracker_enhanced.db", redis_url=redis_url
             )
             self.cost_tracker = self.advanced_cost_tracker  # For backward compatibility
             if logger:
-                logger.info("enhanced_cost_tracker_initialized")
+                logger.info("enhanced_cost_tracker_initialized", redis_url=redis_url)
         except Exception as e:
             if logger:
                 logger.warning("cost_tracker_init_failed", error=str(e))
@@ -343,16 +418,9 @@ async def lifespan(app: FastAPI):
     await db.init_database()
     # Database initialized (logged via structlog if available)
 
-    # Initialize providers with API keys from settings
-    import os
-
-    from dotenv import load_dotenv
-
-    # Load environment variables from .env file
-    load_dotenv()
-
+    # Initialize providers with API keys from centralized settings
     # OpenAI
-    openai_key = os.getenv("OPENAI_API_KEY")
+    openai_key = app_settings.api.openai_api_key
     if openai_key and not openai_key.startswith("your-") and not openai_key.endswith("-here"):
         try:
             providers["openai"] = OpenAIProvider(api_key=openai_key)
@@ -362,7 +430,7 @@ async def lifespan(app: FastAPI):
             # OpenAI provider failed to initialize (logged via structlog)
 
     # Anthropic
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    anthropic_key = app_settings.api.anthropic_api_key
     if (
         anthropic_key
         and not anthropic_key.startswith("your-")
@@ -376,7 +444,7 @@ async def lifespan(app: FastAPI):
             pass
 
     # Mistral
-    mistral_key = os.getenv("MISTRAL_API_KEY")
+    mistral_key = app_settings.api.mistral_api_key
     if mistral_key and not mistral_key.startswith("your-") and not mistral_key.endswith("-here"):
         try:
             providers["mistral"] = MistralProvider(api_key=mistral_key)
@@ -386,8 +454,10 @@ async def lifespan(app: FastAPI):
             pass
 
     # LiteLLM Proxy
-    litellm_base_url = os.getenv("LITELLM_BASE_URL")
-    litellm_api_key = os.getenv("LITELLM_API_KEY")
+    litellm_base_url = (
+        str(app_settings.api.litellm_base_url) if app_settings.api.litellm_base_url else None
+    )
+    litellm_api_key = app_settings.api.litellm_api_key
     if litellm_base_url:
         try:
             # LiteLLM can work with or without API key depending on proxy configuration
@@ -425,6 +495,22 @@ async def lifespan(app: FastAPI):
     # Cleanup complete (logged via structlog if available)
 
 
+# Initialize tracing and logging
+try:
+    if app_settings.observability.enable_tracing:
+        init_tracing(
+            service_name="modelmuxer",
+            sampling_ratio=app_settings.observability.sampling_ratio,
+            otlp_endpoint=(
+                str(app_settings.observability.otel_exporter_otlp_endpoint)
+                if app_settings.observability.otel_exporter_otlp_endpoint
+                else None
+            ),
+        )
+    configure_json_logging(app_settings.observability.log_level)
+except Exception:
+    pass
+
 # Create FastAPI app
 app = FastAPI(
     title="ModelMuxer - LLM Router API",
@@ -433,11 +519,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware with secure configuration
-# Get allowed origins from environment or use secure defaults
-allowed_origins = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,https://modelmuxer.com"
-).split(",")
+# Add CORS middleware with secure configuration from centralized settings
+allowed_origins = app_settings.observability.cors_origins
 
 app.add_middleware(
     CORSMiddleware,
@@ -508,6 +591,41 @@ async def validate_request_middleware(request: Request, call_next) -> None:
     return await call_next(request)
 
 
+@app.middleware("http")
+async def request_observability_middleware(request: Request, call_next):
+    route = request.scope.get("route").path if request.scope.get("route") else request.url.path
+    method = request.method
+    start_ts = time.perf_counter()
+    with start_span("http.request", route=route, method=method):
+        try:
+            response = await call_next(request)
+            status = str(response.status_code)
+        except Exception:
+            status = "500"
+            response = JSONResponse({"error": {"message": "internal error"}}, status_code=500)
+        finally:
+            elapsed_ms = (time.perf_counter() - start_ts) * 1000
+            try:
+                HTTP_REQUESTS.labels(route, method, status).inc()
+                HTTP_LATENCY.labels(route, method).observe(elapsed_ms)
+            except Exception:
+                pass
+    trace_id = get_trace_id()
+    if trace_id:
+        response.headers["x-trace-id"] = trace_id
+    return response
+
+
+if app_settings.observability.enable_metrics and generate_latest and CONTENT_TYPE_LATEST:
+
+    @app.get(app_settings.observability.prom_metrics_path, include_in_schema=False)
+    async def prometheus_metrics():
+        """Expose Prometheus metrics endpoint (unauthenticated, read-only)."""
+        return JSONResponse(
+            content=generate_latest().decode("utf-8"), media_type=CONTENT_TYPE_LATEST
+        )
+
+
 async def get_authenticated_user(
     request: Request, authorization: str | None = Header(None)
 ) -> dict[str, Any]:
@@ -528,17 +646,50 @@ async def chat_completions(
     user_id = user_info["user_id"]
 
     try:
+        # DEBUG: Check providers at request time
+        print(f"DEBUG: Global providers dict at request time: {list(providers.keys())}")
+        print(
+            f"DEBUG: ModelMuxer providers dict at request time: {list(model_muxer.providers.keys())}"
+        )
+
         # Sanitize input messages
         for message in request.messages:
             message.content = sanitize_user_input(message.content)
 
+        # Enforce policies early (before routing, budget, or provider calls)
+        tenant_id = user_id or "anonymous"
+        policy_result = enforce_policies(request, tenant_id)
+        if policy_result.blocked:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": {
+                        "message": "Request blocked by policy",
+                        "type": "policy_violation",
+                        "reasons": policy_result.reasons,
+                    }
+                },
+            )
+        # Replace last message content with sanitized prompt
+        if request.messages:
+            request.messages[-1].content = policy_result.sanitized_prompt
+
         # Route the request to the best provider/model
-        provider_name, model_name, routing_reason = router.select_model(
-            messages=request.messages, user_id=user_id
-        )
+        print(f"DEBUG: About to call router.select_model with router type: {type(router)}")
+        try:
+            provider_name, model_name, routing_reason = router.select_model(
+                messages=request.messages, user_id=user_id
+            )
+            print(
+                f"DEBUG: Router selected - provider: {provider_name}, model: {model_name}, reason: {routing_reason}"
+            )
+        except Exception as e:
+            print(f"DEBUG: Router selection failed: {e}")
+            raise
 
         # Check if provider is available
         if provider_name not in providers:
+            print(f"DEBUG: Provider {provider_name} not found in providers dict!")
             raise HTTPException(
                 status_code=503,
                 detail=ErrorResponse.create(
@@ -549,16 +700,35 @@ async def chat_completions(
             )
 
         provider = providers[provider_name]
+        print(f"DEBUG: Successfully got provider: {type(provider).__name__}")
 
-        # Estimate cost and check budget
-        cost_estimate = cost_tracker.estimate_request_cost(
-            messages=request.messages,
-            provider=provider_name,
-            model=model_name,
-            max_tokens=request.max_tokens,
+        # Estimate cost and check budget using ModelMuxer's cost tracker
+        active_cost_tracker = (
+            model_muxer.cost_tracker if model_muxer.enhanced_mode else cost_tracker
         )
+        print(f"DEBUG: About to estimate cost with cost_tracker: {type(active_cost_tracker)}")
+        try:
+            cost_estimate = active_cost_tracker.estimate_request_cost(
+                messages=request.messages,
+                provider=provider_name,
+                model=model_name,
+                max_tokens=request.max_tokens,
+            )
+            print(f"DEBUG: Cost estimate successful: {cost_estimate}")
+        except Exception as cost_exc:
+            print(f"DEBUG: Cost estimation failed: {cost_exc}")
+            print(f"DEBUG: Cost exception type: {type(cost_exc).__name__}")
+            raise
 
-        budget_check = await db.check_budget(user_id, cost_estimate["estimated_cost"])
+        print(f"DEBUG: About to check budget for user: {user_id}")
+        try:
+            budget_check = await db.check_budget(user_id, cost_estimate["estimated_cost"])
+            print(f"DEBUG: Budget check result: {budget_check}")
+        except Exception as budget_exc:
+            print(f"DEBUG: Budget check failed: {budget_exc}")
+            print(f"DEBUG: Budget exception type: {type(budget_exc).__name__}")
+            raise
+
         if not budget_check["allowed"]:
             raise HTTPException(
                 status_code=402,
@@ -575,39 +745,125 @@ async def chat_completions(
                 stream_chat_completion(
                     provider, request, model_name, routing_reason, user_id, start_time
                 ),
-                media_type="text/plain",
+                media_type="text/event-stream",  # Correct media type for SSE
+                headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
             )
         else:
             # Make the request to the provider
-            response = await provider.chat_completion(
-                messages=request.messages,
-                model=model_name,
-                max_tokens=request.max_tokens,
-                temperature=request.temperature,
-                **{
-                    k: v
-                    for k, v in request.dict().items()
-                    if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
-                    and v is not None
-                },
+            print(
+                f"DEBUG: About to call provider.chat_completion with provider: {type(provider).__name__}"
             )
+            print(f"DEBUG: Model name: {model_name}")
+            print(f"DEBUG: Number of messages: {len(request.messages)}")
+            print(f"DEBUG: Max tokens: {request.max_tokens}")
+            print(f"DEBUG: Temperature: {request.temperature}")
+
+            try:
+                if app_settings.features.provider_adapters_enabled:
+                    # Use unified adapter path
+                    from app.providers.registry import PROVIDERS
+
+                    # Simple prompt join for adapters
+                    prompt_text = "\n".join(
+                        [msg.content for msg in request.messages if msg.content]
+                    )
+                    adapter = PROVIDERS.get(provider_name)
+                    if adapter is None:
+                        raise RuntimeError(f"No adapter registered for provider: {provider_name}")
+                    adapter_resp = await adapter.invoke(
+                        model=model_name,
+                        prompt=prompt_text,
+                        temperature=request.temperature or app_settings.router.temperature_default,
+                        max_tokens=request.max_tokens or app_settings.router.max_tokens_default,
+                    )
+                    if adapter_resp.error:
+                        raise ProviderError(adapter_resp.error)
+                    # Build ChatCompletionResponse
+                    estimated_cost = cost_tracker.calculate_cost(
+                        provider_name,
+                        model_name,
+                        adapter_resp.tokens_in,
+                        adapter_resp.tokens_out,
+                    )
+                    response = ChatCompletionResponse(
+                        id=f"chatcmpl-adapter-{int(time.time()*1000)}",
+                        object="chat.completion",
+                        created=int(datetime.now().timestamp()),
+                        model=model_name,
+                        choices=[
+                            Choice(
+                                index=0,
+                                message=ChatMessage(
+                                    role="assistant", content=adapter_resp.output_text, name=None
+                                ),
+                                finish_reason="stop",
+                            )
+                        ],
+                        usage=Usage(
+                            prompt_tokens=adapter_resp.tokens_in,
+                            completion_tokens=adapter_resp.tokens_out,
+                            total_tokens=adapter_resp.tokens_in + adapter_resp.tokens_out,
+                        ),
+                        router_metadata=RouterMetadata(
+                            selected_provider=provider_name,
+                            selected_model=model_name,
+                            routing_reason=routing_reason,
+                            estimated_cost=estimated_cost,
+                            response_time_ms=adapter_resp.latency_ms,
+                        ),
+                    )
+                else:
+                    response = await provider.chat_completion(
+                        messages=request.messages,
+                        model=model_name,
+                        max_tokens=request.max_tokens,
+                        temperature=request.temperature,
+                        **{
+                            k: v
+                            for k, v in request.dict().items()
+                            if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
+                            and v is not None
+                        },
+                    )
+                print(f"DEBUG: Successfully got response from provider: {type(response)}")
+            except Exception as provider_exc:
+                print(f"DEBUG: Provider call failed: {provider_exc}")
+                print(f"DEBUG: Provider exception type: {type(provider_exc).__name__}")
+                raise
 
             # Update routing reason in metadata
             response.router_metadata.routing_reason = routing_reason
 
-            # Log the request
-            await db.log_request(
-                user_id=user_id,
-                provider=provider_name,
-                model=model_name,
-                messages=[msg.dict() for msg in request.messages],
-                input_tokens=response.usage.prompt_tokens,
-                output_tokens=response.usage.completion_tokens,
-                cost=response.router_metadata.estimated_cost,
-                response_time_ms=response.router_metadata.response_time_ms,
-                routing_reason=routing_reason,
-                success=True,
-            )
+            # Log the request using enhanced cost tracker if available
+            if (
+                model_muxer.enhanced_mode
+                and hasattr(model_muxer, "advanced_cost_tracker")
+                and model_muxer.advanced_cost_tracker
+            ):
+                await model_muxer.advanced_cost_tracker.log_simple_request(
+                    user_id=user_id,
+                    session_id=user_id,  # Use user_id as session_id for now
+                    provider=provider_name,
+                    model=model_name,
+                    cost=response.router_metadata.estimated_cost,
+                    success=True,
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                )
+            else:
+                # Fallback to basic database logging
+                await db.log_request(
+                    user_id=user_id,
+                    provider=provider_name,
+                    model=model_name,
+                    messages=[msg.dict() for msg in request.messages],
+                    input_tokens=response.usage.prompt_tokens,
+                    output_tokens=response.usage.completion_tokens,
+                    cost=response.router_metadata.estimated_cost,
+                    response_time_ms=response.router_metadata.response_time_ms,
+                    routing_reason=routing_reason,
+                    success=True,
+                )
 
             return response
 
@@ -993,6 +1249,104 @@ async def enhanced_chat_completions(
     # In enhanced mode, this would use advanced routing, caching, etc.
     # For now, fall back to regular chat completions
     return await chat_completions(request, user_info)
+
+
+# =============================================================================
+# ANTHROPIC API COMPATIBILITY
+# =============================================================================
+
+
+@app.post("/v1/messages")
+@app.post("/messages")
+async def anthropic_messages(
+    request: Request,
+    beta: bool = False,  # Support for beta parameter
+    user_info: dict[str, Any] = Depends(get_authenticated_user),
+):
+    """Anthropic Messages API compatibility endpoint with beta support."""
+    try:
+        # Parse Anthropic format request
+        body = await request.json()
+
+        # Convert Anthropic format to OpenAI format
+        messages = []
+        if "system" in body:
+            messages.append({"role": "system", "content": body["system"]})
+
+        if "messages" in body:
+            messages.extend(body["messages"])
+
+        # Import message model
+        from .models import ChatMessage
+
+        # Convert messages to proper format
+        converted_messages = []
+        for msg in messages:
+            if isinstance(msg.get("content"), str):
+                converted_messages.append(ChatMessage(role=msg["role"], content=msg["content"]))
+            elif isinstance(msg.get("content"), list):
+                # Handle multi-part content
+                content_text = ""
+                for part in msg["content"]:
+                    if part.get("type") == "text":
+                        content_text += part.get("text", "")
+
+                converted_messages.append(ChatMessage(role=msg["role"], content=content_text))
+
+        # Create OpenAI format request
+        openai_request = ChatCompletionRequest(
+            messages=converted_messages,
+            model=body.get("model", "claude-3-5-sonnet-20241022"),
+            max_tokens=body.get("max_tokens", 1000),
+            temperature=body.get("temperature", 0.7),
+            stream=body.get("stream", False),
+        )
+
+        # Route through normal chat completions
+        response = await chat_completions(openai_request, user_info)
+
+        # Handle different response types
+        if isinstance(response, JSONResponse):
+            # Error response - pass through
+            return response
+        elif isinstance(response, StreamingResponse):
+            # For streaming responses, return as-is (already in correct SSE format)
+            # Claude Dev expects Server-Sent Events, which our streaming already provides
+            return response
+
+        # Convert non-streaming OpenAI response to Anthropic format
+        anthropic_response = {
+            "id": response.id,
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "text", "text": response.choices[0].message.content}],
+            "model": response.router_metadata.selected_model,
+            "stop_reason": (
+                "end_turn"
+                if response.choices[0].finish_reason == "stop"
+                else response.choices[0].finish_reason
+            ),
+            "stop_sequence": None,
+            "usage": {
+                "input_tokens": response.usage.prompt_tokens,
+                "output_tokens": response.usage.completion_tokens,
+            },
+        }
+
+        return anthropic_response
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error("anthropic_api_error", error=str(e), exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "type": "error",
+                "error": {"type": "internal_server_error", "message": str(e)},
+            },
+        )
 
 
 def cli():

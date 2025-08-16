@@ -7,8 +7,12 @@ Heuristic routing logic for selecting the best LLM provider and model.
 import re
 from typing import Any
 
-from .config import settings
+from app.settings import settings
 from .models import ChatMessage
+from app.providers.registry import PROVIDERS  # Adapter registry
+from app.telemetry.tracing import start_span
+from app.telemetry.metrics import ROUTER_REQUESTS, ROUTER_DECISION_LATENCY, ROUTER_FALLBACKS
+import time
 
 
 class HeuristicRouter:
@@ -157,46 +161,55 @@ class HeuristicRouter:
             "show me",
         ]
 
-        # Model preferences by task type (including LiteLLM proxy models)
+        # Model preferences by task type (using actual LiteLLM models)
         self.model_preferences = {
             "code": [
+                # Best Claude models for code (from your LiteLLM proxy)
+                ("litellm", "anthropic/claude-sonnet-4-20250514"),  # Your premium Claude model
+                ("litellm", "anthropic/claude-4-sonnet-20250514"),  # Alternative Claude 4
+                ("litellm", "anthropic/claude-3-5-sonnet-latest"),  # Latest Claude 3.5
+                ("litellm", "anthropic/claude-3-5-sonnet-20241022"),  # Specific Claude 3.5
+                ("litellm", "openai/gpt-4o"),  # GPT-4o for code
+                ("litellm", "openai/o1"),  # OpenAI O1 reasoning model
+                ("litellm", "openai/gpt-4"),  # Standard GPT-4
+                # Fallback to direct providers if needed
                 ("openai", "gpt-4o"),
-                ("anthropic", "claude-3-sonnet-20240229"),
-                ("anthropic", "claude-3-5-sonnet-20241022"),
-                ("litellm", "gpt-4"),  # LiteLLM proxy for GPT-4
                 ("openai", "gpt-3.5-turbo"),
-                ("litellm", "gpt-3.5-turbo"),  # LiteLLM proxy fallback
-                ("groq", "mixtral-8x7b-32768"),
+                ("anthropic", "claude-3-5-sonnet-20241022"),
             ],
             "complex": [
+                # Best models for complex reasoning (from your LiteLLM proxy)
+                ("litellm", "anthropic/claude-sonnet-4-20250514"),  # Top Claude model for analysis
+                ("litellm", "anthropic/claude-opus-4-20250514"),  # Claude Opus for deep thinking
+                ("litellm", "openai/o1"),  # OpenAI O1 reasoning model
+                ("litellm", "anthropic/claude-3-5-sonnet-latest"),  # Latest Claude 3.5
+                ("litellm", "openai/gpt-4o"),  # GPT-4o for complex tasks
+                ("litellm", "anthropic/claude-3-opus-20240229"),  # Claude Opus
+                # Fallback to direct providers
                 ("openai", "gpt-4o"),
-                ("anthropic", "claude-3-sonnet-20240229"),
                 ("anthropic", "claude-3-5-sonnet-20241022"),
-                ("litellm", "claude-3-sonnet"),  # LiteLLM proxy for Claude
-                ("anthropic", "claude-3-haiku-20240307"),
-                ("litellm", "gpt-4"),  # LiteLLM proxy for GPT-4
                 ("openai", "gpt-3.5-turbo"),
-                ("litellm", "claude-3-haiku"),  # LiteLLM proxy for Haiku
-                ("groq", "mixtral-8x7b-32768"),
             ],
             "simple": [
-                ("groq", "mixtral-8x7b-32768"),
+                # Cost-effective models for simple queries (from your LiteLLM proxy)
+                ("litellm", "openai/gpt-3.5-turbo"),  # Standard GPT-3.5
+                ("litellm", "openai/gpt-4o-mini"),  # Cheaper GPT-4o variant
+                ("litellm", "anthropic/claude-3-haiku-20240307"),  # Fast Claude
+                ("litellm", "anthropic/claude-3-5-haiku-20241022"),  # Latest Claude Haiku
+                # Fallback to direct providers
                 ("openai", "gpt-4o-mini"),
-                ("litellm", "claude-3-haiku"),  # LiteLLM proxy for Haiku
-                ("mistral", "mistral-small"),
-                ("mistral", "mistral-small-latest"),
-                ("anthropic", "claude-3-haiku-20240307"),
-                ("litellm", "gpt-3.5-turbo"),  # LiteLLM proxy for GPT-3.5
                 ("openai", "gpt-3.5-turbo"),
+                ("anthropic", "claude-3-haiku-20240307"),
             ],
             "general": [
-                ("groq", "mixtral-8x7b-32768"),
+                # Balanced models for general use (from your LiteLLM proxy)
+                ("litellm", "openai/gpt-3.5-turbo"),  # Reliable general model
+                ("litellm", "openai/gpt-4o-mini"),  # Better general model
+                ("litellm", "anthropic/claude-3-haiku-20240307"),  # Claude for variety
+                ("litellm", "anthropic/claude-3-5-haiku-20241022"),  # Latest Claude Haiku
+                # Fallback to direct providers
                 ("openai", "gpt-4o-mini"),
-                ("litellm", "gpt-3.5-turbo"),  # LiteLLM proxy for GPT-3.5
-                ("mistral", "mistral-small"),
-                ("mistral", "mistral-small-latest"),
                 ("openai", "gpt-3.5-turbo"),
-                ("litellm", "claude-3-haiku"),  # LiteLLM proxy for Haiku
                 ("anthropic", "claude-3-haiku-20240307"),
             ],
         }
@@ -244,7 +257,9 @@ class HeuristicRouter:
 
         # Calculate code confidence
         analysis["code_confidence"] = min(1.0, (code_matches * 0.3 + programming_matches * 0.1))
-        analysis["has_code"] = analysis["code_confidence"] >= settings.code_detection_threshold
+        analysis["has_code"] = (
+            analysis["code_confidence"] >= settings.router.code_detection_threshold
+        )
 
         # Complexity detection (using word boundaries to avoid false positives)
         # Complexity analysis
@@ -256,7 +271,7 @@ class HeuristicRouter:
         # Calculate complexity confidence
         analysis["complexity_confidence"] = min(1.0, complexity_matches * 0.1)
         analysis["has_complexity"] = (
-            analysis["complexity_confidence"] >= settings.complexity_threshold
+            analysis["complexity_confidence"] >= settings.router.complexity_threshold
         )
 
         # Simple query detection
@@ -269,7 +284,7 @@ class HeuristicRouter:
         analysis["simple_confidence"] = min(1.0, simple_matches * 0.2)
         analysis["is_simple"] = (
             analysis["simple_confidence"] >= 0.2
-            and analysis["total_length"] < settings.simple_query_max_length
+            and analysis["total_length"] < settings.router.simple_query_max_length
             and analysis["message_count"] <= 2
         )
 
@@ -299,6 +314,18 @@ class HeuristicRouter:
         """
         analysis = self.analyze_prompt(messages)
         task_type = analysis["task_type"]
+        route_label = "chat"
+        ROUTER_REQUESTS.labels(route_label).inc()
+        t0 = time.perf_counter()
+        with start_span(
+            "router.decide",
+            route=route_label,
+            task_type=task_type,
+            code_confidence=analysis.get("code_confidence"),
+            complexity_confidence=analysis.get("complexity_confidence"),
+            simple_confidence=analysis.get("simple_confidence"),
+        ) as span:
+            pass
 
         # Get model preferences for this task type
         preferences = self.model_preferences.get(task_type, self.model_preferences["general"])
@@ -333,15 +360,43 @@ class HeuristicRouter:
                         ("mistral", "mistral-small-latest"),
                     ]
 
+        # Import providers from main to check availability
+        from .main import providers
+
         # Select the first available model from preferences
         for provider, model in preferences:
-            # Check if the provider and model are available in current configuration
-            pricing = settings.get_provider_pricing()
-            if provider in pricing and model in pricing[provider]:
-                return provider, model, self._generate_reasoning(analysis, provider, model)
+            # Check if the provider is actually available (not just in pricing config)
+            if provider in providers:
+                # Skip pricing check for LiteLLM since it's a proxy that can handle various models
+                if provider == "litellm":
+                    return provider, model, self._generate_reasoning(analysis, provider, model)
+                # For other providers, check if it exists in pricing config for cost calculation
+                pricing = settings.get_provider_pricing()
+                if provider in pricing and model in pricing[provider]:
+                    return provider, model, self._generate_reasoning(analysis, provider, model)
 
-        # Fallback
-        return "openai", "gpt-3.5-turbo", "Fallback to default model"
+        # Fallback to first available provider
+        if providers:
+            first_provider = next(iter(providers.keys()))
+            # Use a generic model name that should work with most providers
+            ROUTER_FALLBACKS.labels(route_label, "no_preferred_available").inc()
+            ROUTER_DECISION_LATENCY.labels(route_label).observe((time.perf_counter() - t0) * 1000)
+            return (
+                first_provider,
+                "gpt-3.5-turbo",
+                f"Fallback to available provider: {first_provider}",
+            )
+        else:
+            ROUTER_FALLBACKS.labels(route_label, "no_providers").inc()
+            ROUTER_DECISION_LATENCY.labels(route_label).observe((time.perf_counter() - t0) * 1000)
+            return "openai", "gpt-3.5-turbo", "No providers available - using default fallback"
+
+    async def invoke_via_adapter(self, provider: str, model: str, prompt: str, **kwargs: Any):
+        """Invoke a model via the unified adapter registry."""
+        adapter = PROVIDERS.get(provider)
+        if not adapter:
+            raise ValueError(f"Provider adapter not available: {provider}")
+        return await adapter.invoke(model=model, prompt=prompt, **kwargs)
 
     def _generate_reasoning(self, analysis: dict, provider: str, model: str) -> str:
         """Generate human-readable reasoning for the routing decision."""

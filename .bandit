@@ -4,5 +4,5 @@ exclude_dirs:
 
 skips:
   - B301  # pickle usage - acceptable in controlled caching environment
-  - B403  # pickle import - needed for performance in caching layer  
+  - B403  # pickle import - needed for performance in caching layer
   - B104  # hardcoded bind all interfaces - intentional for containerized deployment
