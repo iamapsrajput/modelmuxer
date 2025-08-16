@@ -139,15 +139,15 @@ spec:
             echo "Waiting for primary database..."
             sleep 2
           done
-          
+
           # Create base backup from primary
           pg_basebackup -h postgresql-primary -D /var/lib/postgresql/data/pgdata -U $POSTGRES_REPLICATION_USER -v -P -W
-          
+
           # Configure as standby
           echo "standby_mode = 'on'" >> /var/lib/postgresql/data/pgdata/postgresql.conf
           echo "primary_conninfo = 'host=postgresql-primary port=5432 user=$POSTGRES_REPLICATION_USER'" >> /var/lib/postgresql/data/pgdata/postgresql.conf
           echo "trigger_file = '/tmp/promote_to_primary'" >> /var/lib/postgresql/data/pgdata/postgresql.conf
-          
+
           # Start PostgreSQL
           postgres
         resources:
@@ -199,25 +199,25 @@ data:
     listen_addresses = '*'
     port = 5432
     max_connections = 200
-    
+
     # Memory settings
     shared_buffers = 1GB
     effective_cache_size = 3GB
     work_mem = 16MB
     maintenance_work_mem = 256MB
-    
+
     # WAL settings
     wal_level = replica
     max_wal_senders = 3
     max_replication_slots = 3
     wal_keep_segments = 64
-    
+
     # Checkpoint settings
     checkpoint_completion_target = 0.9
     checkpoint_timeout = 15min
     max_wal_size = 2GB
     min_wal_size = 1GB
-    
+
     # Logging
     log_destination = 'stderr'
     logging_collector = on
@@ -225,11 +225,11 @@ data:
     log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
     log_statement = 'mod'
     log_min_duration_statement = 1000
-    
+
     # Performance
     random_page_cost = 1.1
     effective_io_concurrency = 200
-    
+
     # Autovacuum
     autovacuum = on
     autovacuum_max_workers = 3

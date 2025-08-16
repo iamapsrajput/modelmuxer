@@ -1,0 +1,22 @@
+---
+description: "Authentication, authorization, and security middleware locations"
+globs: app/security/**/*.py,app/middleware/auth_middleware.py
+---
+
+### Security and Auth
+
+- Security middleware and PII protection:
+
+  - [app/security/middleware.py](mdc:app/security/middleware.py)
+  - [app/security/pii_protection.py](mdc:app/security/pii_protection.py)
+
+- Security config and RBAC:
+
+  - [app/security/config.py](mdc:app/security/config.py)
+  - [app/security/auth.py](mdc:app/security/auth.py)
+
+- Enhanced authentication middleware:
+
+  - [app/middleware/auth_middleware.py](mdc:app/middleware/auth_middleware.py)
+
+- FastAPI dependency for authenticated user is defined in [app/main.py](mdc:app/main.py) (`get_authenticated_user`) and delegates to the auth layer.

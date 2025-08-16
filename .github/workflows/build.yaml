@@ -5,14 +5,10 @@ name: Build & Push Docker Images
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, develop]
     tags: ["v*"]
   pull_request:
     branches: [main]
-
-# Set minimal permissions at top level
-permissions:
-  contents: read
 
 env:
   REGISTRY: ghcr.io
@@ -60,9 +56,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            type=sha,prefix={{branch}}-,enable={{is_default_branch}}
-            type=sha,prefix=dev-,enable=${{ github.ref == 'refs/heads/dev' }}
-            type=sha,prefix=pr-,enable=${{ github.event_name == 'pull_request' }}
+            type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
@@ -71,9 +65,8 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.alpine
-          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -82,8 +75,8 @@ jobs:
             VCS_REF=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: ${{ github.event_name != 'pull_request' }}
-          sbom: ${{ github.event_name != 'pull_request' }}
+          provenance: true
+          sbom: true
 
       - name: Run Trivy vulnerability scanner on image
         uses: aquasecurity/trivy-action@master

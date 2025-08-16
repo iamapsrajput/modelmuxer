@@ -119,7 +119,7 @@ data:
         matches: "^(.*)_per_second"
         as: "requests_per_second"
       metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[2m])) by (<<.GroupBy>>)'
-    
+
     - seriesQuery: 'modelmuxer_cascade_steps_total{namespace!="",pod!=""}'
       resources:
         overrides:
@@ -129,7 +129,7 @@ data:
         matches: "^modelmuxer_(.*)_total"
         as: "cascade_steps_per_second"
       metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[2m])) by (<<.GroupBy>>)'
-    
+
     - seriesQuery: 'modelmuxer_cost_per_request{namespace!="",pod!=""}'
       resources:
         overrides:

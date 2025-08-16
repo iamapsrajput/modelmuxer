@@ -187,13 +187,13 @@ temp_*
 *.temp
 # Note: test_*.py files should be committed, not ignored
 
-# Augment AI temporary files and directories (Task 4.1 - Development Workflow)
-.augment/
+# Augment AI temporary files (Task 4.1 - Development Workflow)
 *_augment.md
 *_local.md
 *_temp.md
 *_draft.md
 *_notes.md
+WARP.md
 
 # Model files and embeddings
 models/
@@ -335,25 +335,7 @@ audit_reports/
 security_scans/
 
 # Security and test reports
-bandit-report*.json
+bandit-report.json
 *.bandit-report
 security-report.*
-
-# Development chronicles and temporary documentation
-CI_CD_FIXES_SUMMARY.md
-COMPLETE_IMPLEMENTATION_CHRONICLE.md
-CLAUDE.md
-*_CHRONICLE.md
-*_SUMMARY.md
-*_FIXES.md
-
-# Podman-related files (removed from project)
-podman-compose.yaml
-podman-compose.yml
-*podman*
-
-# Skipping those files for now
-claude-code-review.yml
-claude-code-review.yaml
-claude.yml
-claude.yaml
+.cursorignore

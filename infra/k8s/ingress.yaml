@@ -17,12 +17,12 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-    
+
     # Rate limiting
     nginx.ingress.kubernetes.io/rate-limit: "100"
     nginx.ingress.kubernetes.io/rate-limit-window: "1m"
     nginx.ingress.kubernetes.io/rate-limit-connections: "10"
-    
+
     # Security headers
     nginx.ingress.kubernetes.io/configuration-snippet: |
       add_header X-Frame-Options DENY;
@@ -31,13 +31,13 @@ metadata:
       add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
       add_header Referrer-Policy "strict-origin-when-cross-origin";
       add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';";
-    
+
     # CORS
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "*"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
-    
+
     # Certificate management (cert-manager)
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     cert-manager.io/acme-challenge-type: "http01"

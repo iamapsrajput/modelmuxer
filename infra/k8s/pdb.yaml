@@ -84,7 +84,7 @@ data:
             webhook: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
           - type: "email"
             recipients: ["ops@modelmuxer.com"]
-      
+
       - name: "emergency-maintenance"
         schedule: "manual"
         duration: "30m"
@@ -92,7 +92,7 @@ data:
           modelmuxer: 2
           postgresql-read: 2
           redis-cluster: 2
-    
+
     # Rollback configuration
     rollback_policy:
       automatic: true

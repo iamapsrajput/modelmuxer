@@ -24,8 +24,11 @@ else:
     raise ImportError("Could not load basic config module")
 Settings = basic_config_module.Settings
 
-# Initialize with basic config by default
-settings = Settings()
+# Import centralized settings
+from ..settings import settings as app_settings
+
+# Initialize with centralized settings by default
+settings = app_settings
 
 # Enhanced config components (will be set if enhanced mode is available)
 enhanced_config: Any | None = None
@@ -41,7 +44,7 @@ RoutingConfig: type[Any] | None = None
 load_enhanced_config: Callable[[], Any] | None = None
 
 # Only try to load enhanced config if we're in enhanced mode
-if os.getenv("MODELMUXER_MODE", "basic").lower() in ["enhanced", "production"]:
+if app_settings.features.mode in ["enhanced", "production"]:
     try:
         from .enhanced_config import (
             AuthConfig,  # type: ignore[misc]
@@ -59,17 +62,18 @@ if os.getenv("MODELMUXER_MODE", "basic").lower() in ["enhanced", "production"]:
 
         # Use enhanced config if it loaded successfully
         if enhanced_config:
-            settings = enhanced_config
+            # Keep centralized settings as primary, enhanced config for extended features
             # Enhanced configuration loaded successfully (logged via structlog if available)
+            pass
         else:
-            # Enhanced config is None, using basic configuration (logged via structlog if available)
+            # Enhanced config is None, using centralized configuration (logged via structlog if available)
             pass
 
     except Exception:  # nosec B110
-        # Enhanced config failed to load, falling back to basic configuration
+        # Enhanced config failed to load, falling back to centralized configuration
         # Error details logged via structlog if available
         pass
-        # Keep basic config and None values for enhanced components
+        # Keep centralized config and None values for enhanced components
 
 __all__ = [
     "ModelMuxerConfig",

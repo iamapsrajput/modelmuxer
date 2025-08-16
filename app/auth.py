@@ -11,14 +11,20 @@ from typing import Any
 from fastapi import Header, HTTPException, Request
 
 # Removed unused imports: HTTPAuthorizationCredentials, HTTPBearer
-from .config import settings
+from app.settings import settings
 
 
 class APIKeyAuth:
     """API key authentication handler."""
 
     def __init__(self) -> None:
-        self.allowed_keys = set(settings.get_allowed_api_keys())
+        # Load from centralized settings
+        from .settings import settings as app_settings
+
+        allowed_keys = app_settings.api.api_keys
+        print(f"DEBUG: Loaded API keys from settings: {len(allowed_keys)} keys")
+
+        self.allowed_keys = set(allowed_keys)
         # Simple rate limiting storage (in production, use Redis)
         self.rate_limit_storage: dict[str, dict[str, Any]] = {}
 
