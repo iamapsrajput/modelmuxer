@@ -10,7 +10,7 @@ intent classification. Designed to be deterministic and fast.
 from __future__ import annotations
 
 import re
-from typing import Any, Dict
+from typing import Any
 
 
 CODE_FENCE_RE = re.compile(r"```[\s\S]*?```", re.MULTILINE)
@@ -98,7 +98,7 @@ def _word_count(text: str) -> int:
     return len(text.split())
 
 
-def extract_features(text: str) -> Dict[str, Any]:
+def extract_features(text: str) -> dict[str, Any]:
     """Extract routing-time features from text.
 
     Returns a dict with booleans, counts, and lightweight scores.

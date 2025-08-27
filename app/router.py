@@ -11,7 +11,8 @@ from app.settings import settings
 from .models import ChatMessage
 from app.providers.registry import PROVIDERS  # Adapter registry
 from app.telemetry.tracing import start_span
-from app.telemetry.metrics import ROUTER_REQUESTS, ROUTER_DECISION_LATENCY, ROUTER_FALLBACKS
+from app.telemetry.metrics import ROUTER_REQUESTS, ROUTER_DECISION_LATENCY, ROUTER_FALLBACKS, ROUTER_INTENT_TOTAL
+from app.core.intent import classify_intent
 import time
 
 
@@ -257,9 +258,7 @@ class HeuristicRouter:
 
         # Calculate code confidence
         analysis["code_confidence"] = min(1.0, (code_matches * 0.3 + programming_matches * 0.1))
-        analysis["has_code"] = (
-            analysis["code_confidence"] >= settings.router.code_detection_threshold
-        )
+        analysis["has_code"] = analysis["code_confidence"] >= settings.router.code_detection_threshold
 
         # Complexity detection (using word boundaries to avoid false positives)
         # Complexity analysis
@@ -270,9 +269,7 @@ class HeuristicRouter:
 
         # Calculate complexity confidence
         analysis["complexity_confidence"] = min(1.0, complexity_matches * 0.1)
-        analysis["has_complexity"] = (
-            analysis["complexity_confidence"] >= settings.router.complexity_threshold
-        )
+        analysis["has_complexity"] = analysis["complexity_confidence"] >= settings.router.complexity_threshold
 
         # Simple query detection
         simple_matches = 0
@@ -300,18 +297,27 @@ class HeuristicRouter:
 
         return analysis
 
-    def select_model(
+    async def select_model(
         self,
         messages: list[ChatMessage],
         user_id: str | None = None,
         budget_constraint: float | None = None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[str, str, str, dict[str, Any]]:
         """
         Select the best provider and model for the given messages.
 
         Returns:
-            Tuple of (provider, model, reasoning)
+            Tuple of (provider, model, reasoning, intent_metadata)
         """
+        # Classify intent first
+        intent_metadata = {"label": "unknown", "confidence": 0.0, "signals": {}, "method": "disabled"}
+        try:
+            intent_metadata = await classify_intent(messages)
+            ROUTER_INTENT_TOTAL.labels(intent_metadata["label"]).inc()
+        except Exception as e:
+            # Log error but continue with routing
+            print(f"Intent classification failed: {e}")
+
         analysis = self.analyze_prompt(messages)
         task_type = analysis["task_type"]
         route_label = "chat"
@@ -324,6 +330,8 @@ class HeuristicRouter:
             code_confidence=analysis.get("code_confidence"),
             complexity_confidence=analysis.get("complexity_confidence"),
             simple_confidence=analysis.get("simple_confidence"),
+            route_intent_label=intent_metadata.get("label"),
+            route_intent_confidence=intent_metadata.get("confidence"),
         ) as span:
             pass
 
@@ -369,11 +377,13 @@ class HeuristicRouter:
             if provider in providers:
                 # Skip pricing check for LiteLLM since it's a proxy that can handle various models
                 if provider == "litellm":
-                    return provider, model, self._generate_reasoning(analysis, provider, model)
+                    ROUTER_DECISION_LATENCY.labels(route_label).observe((time.perf_counter() - t0) * 1000)
+                    return provider, model, self._generate_reasoning(analysis, provider, model), intent_metadata
                 # For other providers, check if it exists in pricing config for cost calculation
                 pricing = settings.get_provider_pricing()
                 if provider in pricing and model in pricing[provider]:
-                    return provider, model, self._generate_reasoning(analysis, provider, model)
+                    ROUTER_DECISION_LATENCY.labels(route_label).observe((time.perf_counter() - t0) * 1000)
+                    return provider, model, self._generate_reasoning(analysis, provider, model), intent_metadata
 
         # Fallback to first available provider
         if providers:
@@ -385,11 +395,12 @@ class HeuristicRouter:
                 first_provider,
                 "gpt-3.5-turbo",
                 f"Fallback to available provider: {first_provider}",
+                intent_metadata,
             )
         else:
             ROUTER_FALLBACKS.labels(route_label, "no_providers").inc()
             ROUTER_DECISION_LATENCY.labels(route_label).observe((time.perf_counter() - t0) * 1000)
-            return "openai", "gpt-3.5-turbo", "No providers available - using default fallback"
+            return "openai", "gpt-3.5-turbo", "No providers available - using default fallback", intent_metadata
 
     async def invoke_via_adapter(self, provider: str, model: str, prompt: str, **kwargs: Any):
         """Invoke a model via the unified adapter registry."""
@@ -406,9 +417,7 @@ class HeuristicRouter:
             reasons.append(f"Code detected (confidence: {analysis['code_confidence']:.2f})")
 
         if analysis["has_complexity"]:
-            reasons.append(
-                f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})"
-            )
+            reasons.append(f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})")
 
         if analysis["is_simple"]:
             reasons.append(f"Simple query detected (length: {analysis['total_length']} chars)")
@@ -423,9 +432,7 @@ class HeuristicRouter:
         if reasons:
             task_reason += f" ({', '.join(reasons)})"
 
-        model_reason = (
-            f"Selected {provider}/{model} for optimal {analysis['task_type']} performance"
-        )
+        model_reason = f"Selected {provider}/{model} for optimal {analysis['task_type']} performance"
 
         return f"{task_reason}. {model_reason}"
 
