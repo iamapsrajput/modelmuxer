@@ -8,9 +8,9 @@ and an optional .env file at the repository root.
 
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Literal
 
-from pydantic import AliasChoices, AnyUrl, Field, HttpUrl, ValidationError, field_validator
+from pydantic import AliasChoices, AnyUrl, Field, HttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,37 +21,37 @@ class APIKeysSettings(BaseSettings):
     to remain backward compatible (e.g., OPENAI_API_KEY).
     """
 
-    openai_api_key: Optional[str] = Field(
+    openai_api_key: str | None = Field(
         default=None,
         description="OpenAI API key for accessing OpenAI models.",
         validation_alias=AliasChoices("OPENAI_API_KEY", "API_OPENAI_API_KEY"),
     )
-    anthropic_api_key: Optional[str] = Field(
+    anthropic_api_key: str | None = Field(
         default=None,
         description="Anthropic API key for Claude models.",
         validation_alias=AliasChoices("ANTHROPIC_API_KEY", "API_ANTHROPIC_API_KEY"),
     )
-    mistral_api_key: Optional[str] = Field(
+    mistral_api_key: str | None = Field(
         default=None,
         description="Mistral API key for Mistral models.",
         validation_alias=AliasChoices("MISTRAL_API_KEY", "API_MISTRAL_API_KEY"),
     )
-    groq_api_key: Optional[str] = Field(
+    groq_api_key: str | None = Field(
         default=None,
         description="Groq API key for Groq models.",
         validation_alias=AliasChoices("GROQ_API_KEY", "API_GROQ_API_KEY"),
     )
-    litellm_base_url: Optional[HttpUrl] = Field(
+    litellm_base_url: HttpUrl | None = Field(
         default=None,
         description="Base URL for LiteLLM proxy when used as a provider.",
         validation_alias=AliasChoices("LITELLM_BASE_URL", "API_LITELLM_BASE_URL"),
     )
-    litellm_api_key: Optional[str] = Field(
+    litellm_api_key: str | None = Field(
         default=None,
         description="API key for LiteLLM proxy if required by the proxy.",
         validation_alias=AliasChoices("LITELLM_API_KEY", "API_LITELLM_API_KEY"),
     )
-    api_keys: List[str] = Field(
+    api_keys: list[str] = Field(
         default_factory=list,
         description="Comma-separated list of allowed API keys for the built-in API key auth.",
         validation_alias=AliasChoices("API_KEYS", "AUTH_API_KEYS"),
@@ -92,7 +92,7 @@ class DatabaseSettings(BaseSettings):
 class RedisSettings(BaseSettings):
     """Redis cache configuration."""
 
-    url: Optional[AnyUrl] = Field(
+    url: AnyUrl | None = Field(
         default=None,
         description="Redis connection URL (e.g., redis://localhost:6379 or rediss://).",
         validation_alias=AliasChoices("REDIS_URL", "CACHE_REDIS_URL"),
@@ -119,7 +119,7 @@ class RedisSettings(BaseSettings):
 class ObservabilitySettings(BaseSettings):
     """Observability and telemetry settings."""
 
-    cors_origins: List[str] = Field(
+    cors_origins: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:3000",
             "http://localhost:8080",
@@ -133,7 +133,7 @@ class ObservabilitySettings(BaseSettings):
         description="Log level for application logs.",
         validation_alias=AliasChoices("LOG_LEVEL", "OBS_LOG_LEVEL"),
     )
-    otel_exporter_otlp_endpoint: Optional[AnyUrl] = Field(
+    otel_exporter_otlp_endpoint: AnyUrl | None = Field(
         default=None,
         description="OpenTelemetry OTLP endpoint for exporting traces/metrics.",
         validation_alias=AliasChoices("OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_ENDPOINT"),
@@ -143,7 +143,7 @@ class ObservabilitySettings(BaseSettings):
         description="Enable Prometheus metrics endpoint.",
         validation_alias=AliasChoices("PROMETHEUS_ENABLED", "OBS_PROMETHEUS_ENABLED"),
     )
-    sentry_dsn: Optional[AnyUrl] = Field(
+    sentry_dsn: AnyUrl | None = Field(
         default=None,
         description="Sentry DSN for error reporting.",
         validation_alias=AliasChoices("SENTRY_DSN", "OBS_SENTRY_DSN"),
@@ -369,12 +369,16 @@ class RouterSettings(BaseSettings):
     )
     intent_low_confidence: float = Field(
         default=0.4,
-        description="Threshold below which results are treated as low-confidence.",
+        description="Threshold below which results are treated as low-confidence. "
+        "Chosen as 0.4 (vs suggested 0.55) for MVP to be more permissive "
+        "and allow more requests to be classified rather than defaulting to unknown.",
         validation_alias=AliasChoices("INTENT_LOW_CONFIDENCE"),
     )
     intent_min_conf_for_direct: float = Field(
         default=0.7,
-        description="Min confidence to allow direct routing decisions from intent.",
+        description="Min confidence to allow direct routing decisions from intent. "
+        "Chosen as 0.7 (vs suggested 0.72) for MVP to balance accuracy "
+        "with practical routing decisions. Can be tuned based on production performance.",
         validation_alias=AliasChoices("INTENT_MIN_CONF_FOR_DIRECT"),
     )
 
@@ -497,22 +501,22 @@ class ProviderAdapterSettings(BaseSettings):
 class ProviderEndpointsSettings(BaseSettings):
     """Base URLs and per-provider API keys if needed (dup keys are allowed for clarity)."""
 
-    openai_base_url: Optional[AnyUrl] = Field(
+    openai_base_url: AnyUrl | None = Field(
         default=None,
         description="OpenAI base URL (optional).",
         validation_alias=AliasChoices("OPENAI_BASE_URL"),
     )
-    anthropic_base_url: Optional[AnyUrl] = Field(
+    anthropic_base_url: AnyUrl | None = Field(
         default=None,
         description="Anthropic base URL (optional).",
         validation_alias=AliasChoices("ANTHROPIC_BASE_URL"),
     )
-    mistral_base_url: Optional[AnyUrl] = Field(
+    mistral_base_url: AnyUrl | None = Field(
         default=None,
         description="Mistral base URL (optional).",
         validation_alias=AliasChoices("MISTRAL_BASE_URL"),
     )
-    groq_base_url: Optional[AnyUrl] = Field(
+    groq_base_url: AnyUrl | None = Field(
         default=None,
         description="Groq base URL (optional).",
         validation_alias=AliasChoices("GROQ_BASE_URL"),

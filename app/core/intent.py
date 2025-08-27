@@ -9,7 +9,7 @@ optionally a cheap LLM (stubbed) when available. Deterministic in test mode.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from app.models import ChatMessage
 from app.settings import settings
@@ -27,7 +27,7 @@ INTENT_LABELS = {
 }
 
 
-def _heuristic_classify(text: str) -> Tuple[str, float, Dict[str, Any]]:
+def _heuristic_classify(text: str) -> tuple[str, float, dict[str, Any]]:
     f = extract_features(text)
 
     # Priority ordering for mutually exclusive labels
@@ -71,7 +71,7 @@ def _heuristic_classify(text: str) -> Tuple[str, float, Dict[str, Any]]:
     return "chat_lite", 0.7, f
 
 
-async def classify_intent(messages: list[ChatMessage]) -> Dict[str, Any]:
+async def classify_intent(messages: list[ChatMessage]) -> dict[str, Any]:
     """Classify intent for a list of chat messages.
 
     Returns a dict with: label, confidence, signals, method.

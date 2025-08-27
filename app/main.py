@@ -46,8 +46,7 @@ from .providers.base import AuthenticationError, ProviderError, RateLimitError
 from .router import router
 from app.policy.rules import enforce_policies  # policy integration
 from app.telemetry.tracing import init_tracing, start_span, get_trace_id
-from app.telemetry.metrics import HTTP_REQUESTS, HTTP_LATENCY, ROUTER_INTENT_TOTAL
-from app.core.intent import classify_intent
+from app.telemetry.metrics import HTTP_REQUESTS, HTTP_LATENCY
 from app.telemetry.logging import configure_json_logging
 
 try:  # optional dependency in test/basic envs
@@ -653,29 +652,14 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
         if request.messages:
             request.messages[-1].content = policy_result.sanitized_prompt
 
-        # Classify intent (feature-flagged)
-        intent = {"label": "unknown", "confidence": 0.0, "signals": {}, "method": "disabled"}
-        try:
-            intent = await classify_intent(request.messages)
-            with start_span(
-                "router.intent",
-                **{
-                    "route.intent.label": intent.get("label"),
-                    "route.intent.confidence": intent.get("confidence"),
-                    "route.intent.method": intent.get("method"),
-                },
-            ):
-                try:
-                    ROUTER_INTENT_TOTAL.labels(intent.get("label", "unknown")).inc()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        # Intent classification is now handled in the router core
 
         # Route the request to the best provider/model
         print(f"DEBUG: About to call router.select_model with router type: {type(router)}")
         try:
-            provider_name, model_name, routing_reason = router.select_model(messages=request.messages, user_id=user_id)
+            provider_name, model_name, routing_reason, intent_metadata = await router.select_model(
+                messages=request.messages, user_id=user_id
+            )
             print(f"DEBUG: Router selected - provider: {provider_name}, model: {model_name}, reason: {routing_reason}")
         except Exception as e:
             print(f"DEBUG: Router selection failed: {e}")
@@ -794,9 +778,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
                             routing_reason=routing_reason,
                             estimated_cost=estimated_cost,
                             response_time_ms=adapter_resp.latency_ms,
-                            intent_label=intent.get("label"),
-                            intent_confidence=float(intent.get("confidence", 0.0)),
-                            intent_signals=intent.get("signals"),
+                            intent_label=intent_metadata.get("label"),
+                            intent_confidence=float(intent_metadata.get("confidence", 0.0)),
+                            intent_signals=intent_metadata.get("signals"),
                         ),
                     )
                 else:
@@ -820,9 +804,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
             # Update routing reason in metadata and attach intent
             response.router_metadata.routing_reason = routing_reason
             try:
-                response.router_metadata.intent_label = intent.get("label")
-                response.router_metadata.intent_confidence = float(intent.get("confidence", 0.0))
-                response.router_metadata.intent_signals = intent.get("signals")
+                response.router_metadata.intent_label = intent_metadata.get("label")
+                response.router_metadata.intent_confidence = float(intent_metadata.get("confidence", 0.0))
+                response.router_metadata.intent_signals = intent_metadata.get("signals")
             except Exception:
                 pass
 
