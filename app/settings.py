@@ -361,6 +361,23 @@ class RouterSettings(BaseSettings):
         validation_alias=AliasChoices("SIMPLE_QUERY_MAX_LENGTH", "ROUTER_SIMPLE_QUERY_MAX_LENGTH"),
     )
 
+    # Intent classifier controls
+    intent_classifier_enabled: bool = Field(
+        default=True,
+        description="Enable Routing Mind intent classifier (cheap LLM + heuristics).",
+        validation_alias=AliasChoices("ROUTER_INTENT_CLASSIFIER_ENABLED"),
+    )
+    intent_low_confidence: float = Field(
+        default=0.4,
+        description="Threshold below which results are treated as low-confidence.",
+        validation_alias=AliasChoices("INTENT_LOW_CONFIDENCE"),
+    )
+    intent_min_conf_for_direct: float = Field(
+        default=0.7,
+        description="Min confidence to allow direct routing decisions from intent.",
+        validation_alias=AliasChoices("INTENT_MIN_CONF_FOR_DIRECT"),
+    )
+
     @field_validator("max_tokens_default", "simple_query_max_length")
     @classmethod
     def _validate_positive_int(cls, value: int) -> int:  # type: ignore[override]

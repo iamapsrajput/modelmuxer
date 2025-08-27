@@ -46,7 +46,8 @@ from .providers.base import AuthenticationError, ProviderError, RateLimitError
 from .router import router
 from app.policy.rules import enforce_policies  # policy integration
 from app.telemetry.tracing import init_tracing, start_span, get_trace_id
-from app.telemetry.metrics import HTTP_REQUESTS, HTTP_LATENCY
+from app.telemetry.metrics import HTTP_REQUESTS, HTTP_LATENCY, ROUTER_INTENT_TOTAL
+from app.core.intent import classify_intent
 from app.telemetry.logging import configure_json_logging
 
 try:  # optional dependency in test/basic envs
@@ -385,16 +386,10 @@ class ModelMuxer:
             if hasattr(self.config.middleware, "auth") and self.config.middleware.auth.enabled:
                 self.auth_middleware = AuthMiddleware(self.config.middleware.auth)
 
-            if (
-                hasattr(self.config.middleware, "rate_limit")
-                and self.config.middleware.rate_limit.enabled
-            ):
+            if hasattr(self.config.middleware, "rate_limit") and self.config.middleware.rate_limit.enabled:
                 self.rate_limit_middleware = RateLimitMiddleware(self.config.middleware.rate_limit)
 
-            if (
-                hasattr(self.config.middleware, "logging")
-                and self.config.middleware.logging.enabled
-            ):
+            if hasattr(self.config.middleware, "logging") and self.config.middleware.logging.enabled:
                 self.logging_middleware = LoggingMiddleware(self.config.middleware.logging)
 
             if logger:
@@ -431,11 +426,7 @@ async def lifespan(app: FastAPI):
 
     # Anthropic
     anthropic_key = app_settings.api.anthropic_api_key
-    if (
-        anthropic_key
-        and not anthropic_key.startswith("your-")
-        and not anthropic_key.endswith("-here")
-    ):
+    if anthropic_key and not anthropic_key.startswith("your-") and not anthropic_key.endswith("-here"):
         try:
             providers["anthropic"] = AnthropicProvider(api_key=anthropic_key)
             # Anthropic provider initialized (logged via structlog if available)
@@ -454,9 +445,7 @@ async def lifespan(app: FastAPI):
             pass
 
     # LiteLLM Proxy
-    litellm_base_url = (
-        str(app_settings.api.litellm_base_url) if app_settings.api.litellm_base_url else None
-    )
+    litellm_base_url = str(app_settings.api.litellm_base_url) if app_settings.api.litellm_base_url else None
     litellm_api_key = app_settings.api.litellm_api_key
     if litellm_base_url:
         try:
@@ -538,9 +527,7 @@ app.add_middleware(
 
 # Custom exception handlers
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Handle request validation errors."""
     return JSONResponse(
         status_code=400,
@@ -621,22 +608,16 @@ if app_settings.observability.enable_metrics and generate_latest and CONTENT_TYP
     @app.get(app_settings.observability.prom_metrics_path, include_in_schema=False)
     async def prometheus_metrics():
         """Expose Prometheus metrics endpoint (unauthenticated, read-only)."""
-        return JSONResponse(
-            content=generate_latest().decode("utf-8"), media_type=CONTENT_TYPE_LATEST
-        )
+        return JSONResponse(content=generate_latest().decode("utf-8"), media_type=CONTENT_TYPE_LATEST)
 
 
-async def get_authenticated_user(
-    request: Request, authorization: str | None = Header(None)
-) -> dict[str, Any]:
+async def get_authenticated_user(request: Request, authorization: str | None = Header(None)) -> dict[str, Any]:
     """Dependency to authenticate requests."""
     return await auth.authenticate_request(request, authorization)
 
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
-async def chat_completions(
-    request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)
-):
+async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)):
     """
     Create a chat completion using the optimal LLM provider.
 
@@ -648,9 +629,7 @@ async def chat_completions(
     try:
         # DEBUG: Check providers at request time
         print(f"DEBUG: Global providers dict at request time: {list(providers.keys())}")
-        print(
-            f"DEBUG: ModelMuxer providers dict at request time: {list(model_muxer.providers.keys())}"
-        )
+        print(f"DEBUG: ModelMuxer providers dict at request time: {list(model_muxer.providers.keys())}")
 
         # Sanitize input messages
         for message in request.messages:
@@ -674,15 +653,30 @@ async def chat_completions(
         if request.messages:
             request.messages[-1].content = policy_result.sanitized_prompt
 
+        # Classify intent (feature-flagged)
+        intent = {"label": "unknown", "confidence": 0.0, "signals": {}, "method": "disabled"}
+        try:
+            intent = await classify_intent(request.messages)
+            with start_span(
+                "router.intent",
+                **{
+                    "route.intent.label": intent.get("label"),
+                    "route.intent.confidence": intent.get("confidence"),
+                    "route.intent.method": intent.get("method"),
+                },
+            ):
+                try:
+                    ROUTER_INTENT_TOTAL.labels(intent.get("label", "unknown")).inc()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         # Route the request to the best provider/model
         print(f"DEBUG: About to call router.select_model with router type: {type(router)}")
         try:
-            provider_name, model_name, routing_reason = router.select_model(
-                messages=request.messages, user_id=user_id
-            )
-            print(
-                f"DEBUG: Router selected - provider: {provider_name}, model: {model_name}, reason: {routing_reason}"
-            )
+            provider_name, model_name, routing_reason = router.select_model(messages=request.messages, user_id=user_id)
+            print(f"DEBUG: Router selected - provider: {provider_name}, model: {model_name}, reason: {routing_reason}")
         except Exception as e:
             print(f"DEBUG: Router selection failed: {e}")
             raise
@@ -703,9 +697,7 @@ async def chat_completions(
         print(f"DEBUG: Successfully got provider: {type(provider).__name__}")
 
         # Estimate cost and check budget using ModelMuxer's cost tracker
-        active_cost_tracker = (
-            model_muxer.cost_tracker if model_muxer.enhanced_mode else cost_tracker
-        )
+        active_cost_tracker = model_muxer.cost_tracker if model_muxer.enhanced_mode else cost_tracker
         print(f"DEBUG: About to estimate cost with cost_tracker: {type(active_cost_tracker)}")
         try:
             cost_estimate = active_cost_tracker.estimate_request_cost(
@@ -742,17 +734,13 @@ async def chat_completions(
         # Handle streaming vs non-streaming
         if request.stream:
             return StreamingResponse(
-                stream_chat_completion(
-                    provider, request, model_name, routing_reason, user_id, start_time
-                ),
+                stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time),
                 media_type="text/event-stream",  # Correct media type for SSE
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
             )
         else:
             # Make the request to the provider
-            print(
-                f"DEBUG: About to call provider.chat_completion with provider: {type(provider).__name__}"
-            )
+            print(f"DEBUG: About to call provider.chat_completion with provider: {type(provider).__name__}")
             print(f"DEBUG: Model name: {model_name}")
             print(f"DEBUG: Number of messages: {len(request.messages)}")
             print(f"DEBUG: Max tokens: {request.max_tokens}")
@@ -764,9 +752,7 @@ async def chat_completions(
                     from app.providers.registry import PROVIDERS
 
                     # Simple prompt join for adapters
-                    prompt_text = "\n".join(
-                        [msg.content for msg in request.messages if msg.content]
-                    )
+                    prompt_text = "\n".join([msg.content for msg in request.messages if msg.content])
                     adapter = PROVIDERS.get(provider_name)
                     if adapter is None:
                         raise RuntimeError(f"No adapter registered for provider: {provider_name}")
@@ -786,16 +772,14 @@ async def chat_completions(
                         adapter_resp.tokens_out,
                     )
                     response = ChatCompletionResponse(
-                        id=f"chatcmpl-adapter-{int(time.time()*1000)}",
+                        id=f"chatcmpl-adapter-{int(time.time() * 1000)}",
                         object="chat.completion",
                         created=int(datetime.now().timestamp()),
                         model=model_name,
                         choices=[
                             Choice(
                                 index=0,
-                                message=ChatMessage(
-                                    role="assistant", content=adapter_resp.output_text, name=None
-                                ),
+                                message=ChatMessage(role="assistant", content=adapter_resp.output_text, name=None),
                                 finish_reason="stop",
                             )
                         ],
@@ -810,6 +794,9 @@ async def chat_completions(
                             routing_reason=routing_reason,
                             estimated_cost=estimated_cost,
                             response_time_ms=adapter_resp.latency_ms,
+                            intent_label=intent.get("label"),
+                            intent_confidence=float(intent.get("confidence", 0.0)),
+                            intent_signals=intent.get("signals"),
                         ),
                     )
                 else:
@@ -821,8 +808,7 @@ async def chat_completions(
                         **{
                             k: v
                             for k, v in request.dict().items()
-                            if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
-                            and v is not None
+                            if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
                         },
                     )
                 print(f"DEBUG: Successfully got response from provider: {type(response)}")
@@ -831,8 +817,14 @@ async def chat_completions(
                 print(f"DEBUG: Provider exception type: {type(provider_exc).__name__}")
                 raise
 
-            # Update routing reason in metadata
+            # Update routing reason in metadata and attach intent
             response.router_metadata.routing_reason = routing_reason
+            try:
+                response.router_metadata.intent_label = intent.get("label")
+                response.router_metadata.intent_confidence = float(intent.get("confidence", 0.0))
+                response.router_metadata.intent_signals = intent.get("signals")
+            except Exception:
+                pass
 
             # Log the request using enhanced cost tracker if available
             if (
@@ -926,9 +918,7 @@ async def chat_completions(
         ) from e
 
 
-async def stream_chat_completion(
-    provider, request, model_name, routing_reason, user_id, start_time
-):
+async def stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time):
     """Handle streaming chat completion."""
     try:
         async for chunk in provider.stream_chat_completion(
@@ -939,8 +929,7 @@ async def stream_chat_completion(
             **{
                 k: v
                 for k, v in request.dict().items()
-                if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
-                and v is not None
+                if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
             },
         ):
             yield f"data: {json.dumps(chunk)}\n\n"
@@ -949,12 +938,8 @@ async def stream_chat_completion(
 
         # Log streaming request (with estimated tokens)
         response_time_ms = (time.time() - start_time) * 1000
-        estimated_tokens = cost_tracker.count_tokens(
-            request.messages, provider.provider_name, model_name
-        )
-        estimated_cost = cost_tracker.calculate_cost(
-            provider.provider_name, model_name, estimated_tokens, 100
-        )
+        estimated_tokens = cost_tracker.count_tokens(request.messages, provider.provider_name, model_name)
+        estimated_cost = cost_tracker.calculate_cost(provider.provider_name, model_name, estimated_tokens, 100)
 
         await db.log_request(
             user_id=user_id,
@@ -971,9 +956,7 @@ async def stream_chat_completion(
 
     except Exception:
         structlog.get_logger().exception("Exception in stream_chat_completion", exc_info=True)
-        error_chunk = {
-            "error": {"message": "An internal error occurred.", "type": "provider_error"}
-        }
+        error_chunk = {"error": {"message": "An internal error occurred.", "type": "provider_error"}}
         yield f"data: {json.dumps(error_chunk)}\n\n"
 
 
@@ -1107,9 +1090,7 @@ async def get_budget_status(
     try:
         # Get budget status from advanced cost tracker
         if hasattr(model_muxer, "advanced_cost_tracker") and model_muxer.advanced_cost_tracker:
-            budget_statuses = await model_muxer.advanced_cost_tracker.get_budget_status(
-                user_id, budget_type
-            )
+            budget_statuses = await model_muxer.advanced_cost_tracker.get_budget_status(user_id, budget_type)
 
             # Convert to response format
             response_budgets = []
@@ -1186,9 +1167,7 @@ async def set_budget(
             raise HTTPException(status_code=400, detail="budget_type and budget_limit are required")
 
         if budget_type not in ["daily", "weekly", "monthly", "yearly"]:
-            raise HTTPException(
-                status_code=400, detail="budget_type must be one of: daily, weekly, monthly, yearly"
-            )
+            raise HTTPException(status_code=400, detail="budget_type must be one of: daily, weekly, monthly, yearly")
 
         if not isinstance(budget_limit, int | float) or budget_limit <= 0:
             raise HTTPException(status_code=400, detail="budget_limit must be a positive number")
@@ -1322,9 +1301,7 @@ async def anthropic_messages(
             "content": [{"type": "text", "text": response.choices[0].message.content}],
             "model": response.router_metadata.selected_model,
             "stop_reason": (
-                "end_turn"
-                if response.choices[0].finish_reason == "stop"
-                else response.choices[0].finish_reason
+                "end_turn" if response.choices[0].finish_reason == "stop" else response.choices[0].finish_reason
             ),
             "stop_sequence": None,
             "usage": {
@@ -1401,9 +1378,7 @@ def main():
         port=config.port if hasattr(config, "port") else 8000,
         reload=config.debug if hasattr(config, "debug") else False,
         log_level=(
-            config.logging.level.lower()
-            if hasattr(config, "logging") and hasattr(config.logging, "level")
-            else "info"
+            config.logging.level.lower() if hasattr(config, "logging") and hasattr(config.logging, "level") else "info"
         ),
     )
 

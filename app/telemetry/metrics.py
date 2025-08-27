@@ -94,3 +94,10 @@ ROUTER_FALLBACKS = Counter(
     "Router fallbacks",
     ["route", "reason"],
 )
+
+# Intent classification metrics
+ROUTER_INTENT_TOTAL = Counter(
+    "llm_router_intent_total",
+    "Intent classifications by label",
+    ["label"],
+)
