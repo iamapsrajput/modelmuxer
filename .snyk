@@ -50,11 +50,6 @@ ignore:
         created: 2025-08-03T00:00:00.000Z
 
   # Hardcoded test placeholders - NOT real secrets
-  "python/HardcodedNonCryptoSecret":
-    - "app/providers/litellm_provider.py":
-        reason: Contains clearly marked test placeholder string, not a real secret - TEST-PLACEHOLDER-NOT-A-REAL-SECRET
-        expires: 2026-12-31T23:59:59.999Z
-        created: 2025-08-03T00:00:00.000Z
 
   # ML Dependencies with known vulnerabilities - acceptable risk for optional features
   "SNYK-PYTHON-TORCH-*":

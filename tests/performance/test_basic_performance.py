@@ -51,9 +51,9 @@ class TestPerformance:
         import asyncio
 
         from app.models import ChatMessage
-        from app.routing.heuristic_router import HeuristicRouter
+        from app.routing.heuristic_router import EnhancedHeuristicRouter
 
-        router = HeuristicRouter()
+        router = EnhancedHeuristicRouter()
         messages = [ChatMessage(role="user", content="What is the capital of France?", name=None)]
 
         # Test routing decision timing

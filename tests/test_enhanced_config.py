@@ -90,8 +90,6 @@ class TestProviderConfig:
             "COHERE_API_KEY",
             "GROQ_API_KEY",
             "TOGETHER_API_KEY",
-            "LITELLM_BASE_URL",
-            "LITELLM_API_KEY",
             "OPENAI_BASE_URL",
         ]
 

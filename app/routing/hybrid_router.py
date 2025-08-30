@@ -15,7 +15,7 @@ from ..core.exceptions import RoutingError
 from ..models import ChatMessage
 from .base_router import BaseRouter
 from .cascade_router import CascadeRouter
-from .heuristic_router import HeuristicRouter
+from .heuristic_router import EnhancedHeuristicRouter
 from .semantic_router_optional import OptionalSemanticRouter
 
 logger = structlog.get_logger(__name__)
@@ -43,7 +43,7 @@ class HybridRouter(BaseRouter):
 
         # Initialize sub-routers
         try:
-            self.heuristic_router = HeuristicRouter(self.config.get("heuristic", {}))
+            self.heuristic_router = EnhancedHeuristicRouter(self.config.get("heuristic", {}))
             logger.info("heuristic_router_initialized")
         except Exception as e:
             logger.warning("heuristic_router_init_failed", error=str(e))

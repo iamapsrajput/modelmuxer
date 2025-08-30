@@ -185,7 +185,7 @@ def main():
             print("  python budget_dashboard.py                    - Show dashboard")
             print("  python budget_dashboard.py set daily 1.0      - Set daily budget")
             print(
-                "  python budget_dashboard.py set weekly 5.0 litellm - Set weekly budget for litellm"
+                "  python budget_dashboard.py set weekly 5.0 openai - Set weekly budget for openai"
             )
             print("  python budget_dashboard.py help               - Show this help")
             return

@@ -2,7 +2,45 @@
 
 ## Overview
 
-ModelMuxer is an enterprise-grade LLM routing platform designed for production scale with intelligent request routing, cost optimization, and comprehensive monitoring.
+ModelMuxer is an enterprise-grade LLM routing platform designed for production
+scale with intelligent request routing, cost optimization, and comprehensive
+monitoring.
+
+## Routing Architecture: Direct Providers First
+
+ModelMuxer uses a direct-provider-only architecture that provides direct API
+connections for maximum reliability, performance, and control.
+
+### Primary Routing: Direct Providers
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Client    │───▶│  ModelMuxer │───▶│   Direct    │───▶│   Provider  │
+│  Request    │    │   Router    │    │  Provider   │    │     API     │
+│             │    │             │    │  Adapter    │    │  (OpenAI,   │
+└─────────────┘    └─────────────┘    └─────────────┘    │ Anthropic,  │
+                                                         │   etc.)     │
+                                                         └─────────────┘
+         │                │                │                │
+         ▼                ▼                ▼                ▼
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Intent     │    │  Cost       │    │  Circuit    │    │  Provider-  │
+│Classifier   │    │Estimation   │    │  Breaker    │    │  Specific   │
+│             │    │             │    │             │    │  Error      │
+└─────────────┘    └─────────────┘    └─────────────┘    │  Handling   │
+                                                         └─────────────┘
+```
+
+**Benefits:**
+
+- **Lower latency**: No proxy overhead, direct API connections
+- **Provider-specific error handling**: Tailored retry logic and circuit
+  breakers
+- **Enhanced observability**: Detailed telemetry and metrics per provider
+- **Cost optimization**: Direct pricing and real-time cost tracking
+- **Better control**: Fine-grained configuration and monitoring
+- **Reduced complexity**: Fewer moving parts in the critical path
+
 
 ## System Architecture
 
@@ -166,3 +204,4 @@ Dashboard Updates → Alert Processing → Reporting
 - Distributed tracing
 - Error tracking and alerting
 - Business metrics dashboards
+

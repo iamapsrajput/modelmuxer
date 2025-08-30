@@ -42,9 +42,6 @@ class ProviderConfig(BaseSettings):
     # Together AI
     together_api_key: str | None = Field(default=None, env="TOGETHER_API_KEY")
 
-    # LiteLLM Proxy
-    litellm_base_url: str | None = Field(default=None, env="LITELLM_BASE_URL")
-    litellm_api_key: str | None = Field(default=None, env="LITELLM_API_KEY")
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
@@ -67,21 +64,16 @@ class ProviderConfig(BaseSettings):
             self.together_api_key,
         ]
 
-        # LiteLLM only needs base URL (API key is optional)
-        litellm_configured = (self.litellm_base_url or app_settings.api.litellm_base_url) and not (
-            self.litellm_base_url or ""
-        ).startswith("your-")
 
         configured_providers = [
             p for p in providers if p and not p.startswith("your-") and not p.endswith("-here")
         ]
 
-        if not configured_providers and not litellm_configured:
+        if not configured_providers:
             raise ValueError(
                 "At least one LLM provider API key must be configured. "
                 "Set one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, MISTRAL_API_KEY, "
                 "GOOGLE_API_KEY, COHERE_API_KEY, GROQ_API_KEY, TOGETHER_API_KEY, "
-                "or configure LITELLM_BASE_URL for LiteLLM proxy"
             )
 
         return True

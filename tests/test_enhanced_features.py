@@ -49,11 +49,11 @@ else:
 
 print()
 print("=== Setting Provider-Specific Budget ===")
-# Set a low budget for LiteLLM provider specifically
+# Set a low budget for OpenAI provider specifically
 provider_budget = {
     "budget_type": "daily",
     "budget_limit": 0.01,  # Very low budget
-    "provider": "litellm",
+    "provider": "openai",
     "alert_thresholds": [25.0, 50.0, 75.0, 90.0],
 }
 

@@ -1,103 +1,160 @@
-from __future__ import annotations
+"""
+Prometheus metrics for ModelMuxer telemetry.
 
+This module provides metrics collection for monitoring application performance,
+routing decisions, and system health. Uses graceful fallbacks when prometheus_client
+is not available.
+"""
+
+import logging
 from typing import Any
 
-try:
-    from prometheus_client import Counter, Histogram
-except Exception:  # pragma: no cover
+logger = logging.getLogger(__name__)
 
-    class _Noop:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
+try:
+    from prometheus_client import Counter, Histogram, Gauge, Summary
+except ImportError:
+    logger.warning("prometheus_client not available - using no-op metrics")
+
+    class _NoopMetric:
+        def __init__(self, *args, **kwargs):
             pass
 
-        def labels(self, *args: Any, **kwargs: Any) -> "_Noop":
+        def labels(self, *args, **kwargs):
             return self
 
-        def inc(self, *args: Any, **kwargs: Any) -> None:
+        def inc(self, amount=1):
             pass
 
-        def observe(self, *args: Any, **kwargs: Any) -> None:
+        def observe(self, value):
             pass
 
-    Counter = _Noop  # type: ignore[assignment]
-    Histogram = _Noop  # type: ignore[assignment]
+        def set(self, value):
+            pass
 
+        def time(self):
+            return _NoopContext()
 
-LLM_REQUESTS = Counter(
-    "llm_requests_total",
-    "Total LLM adapter requests",
-    ["provider", "model", "outcome"],
+    class _NoopContext:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    Counter = Histogram = Gauge = Summary = _NoopMetric
+
+# Request metrics
+REQUESTS_TOTAL = Counter("modelmuxer_requests_total", "Total number of requests", ["method", "endpoint", "status"])
+
+REQUEST_DURATION = Histogram(
+    "modelmuxer_request_duration_seconds",
+    "Request duration in seconds",
+    ["method", "endpoint"],
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0, 100.0],
 )
 
-LLM_LATENCY = Histogram(
-    "llm_request_latency_ms",
-    "LLM adapter request latency in milliseconds",
-    ["provider", "model"],
+# Router metrics
+ROUTER_REQUESTS = Counter("modelmuxer_router_requests_total", "Total router requests by route type", ["route"])
+
+ROUTER_DECISION_LATENCY = Histogram(
+    "modelmuxer_router_decision_latency_ms",
+    "Router decision latency in milliseconds",
+    ["route"],
+    buckets=[1, 5, 10, 25, 50, 100, 250, 500, 1000],
+)
+
+ROUTER_FALLBACKS = Counter(
+    "modelmuxer_router_fallbacks_total", "Router fallback events by route and reason", ["route", "reason"]
+)
+
+ROUTER_INTENT_TOTAL = Counter("modelmuxer_router_intent_total", "Intent classification results", ["label"])
+
+# Cost estimation and budget metrics
+LLM_ROUTER_COST_ESTIMATE_USD_SUM = Counter(
+    "modelmuxer_router_cost_estimate_usd_sum",
+    "Total estimated cost in USD for router decisions. The 'within_budget' label indicates whether the model estimate was within the configured budget threshold ('true') or exceeded it ('false'), enabling analysis of budget gating effectiveness.",
+    ["route", "model", "within_budget"],
+)
+
+LLM_ROUTER_ETA_MS_BUCKET = Histogram(
+    "modelmuxer_router_eta_ms_bucket",
+    "Estimated latency distribution in milliseconds",
+    ["route", "model"],
     buckets=[50, 100, 250, 500, 1000, 2000, 5000, 10000],
 )
 
-LLM_TOKENS_IN = Counter(
-    "llm_request_tokens_in_total",
-    "Total input tokens processed by provider adapter",
-    ["provider", "model"],
+LLM_ROUTER_BUDGET_EXCEEDED_TOTAL = Counter(
+    "modelmuxer_router_budget_exceeded_total", "Total budget exceeded events by route and reason", ["route", "reason"]
 )
 
-LLM_TOKENS_OUT = Counter(
-    "llm_request_tokens_out_total",
-    "Total output tokens processed by provider adapter",
+LLM_ROUTER_DOWN_ROUTE_TOTAL = Counter(
+    "modelmuxer_router_down_route_total",
+    "Total down-routing events from expensive to cheaper models",
+    ["route", "from_model", "to_model"],
+)
+
+LLM_ROUTER_UNPRICED_MODELS_SKIPPED = Counter(
+    "modelmuxer_router_unpriced_models_skipped_total",
+    "Total unpriced models skipped during routing",
+    ["route"],
+)
+
+LLM_ROUTER_SELECTED_COST_ESTIMATE_USD = Counter(
+    "modelmuxer_router_selected_cost_estimate_usd_sum",
+    "Estimated cost for selected model",
+    ["route", "model"],
+)
+
+# Provider metrics
+PROVIDER_REQUESTS = Counter(
+    "modelmuxer_provider_requests_total", "Provider requests by provider and model", ["provider", "model"]
+)
+
+PROVIDER_LATENCY = Histogram(
+    "modelmuxer_provider_latency_seconds",
+    "Provider response latency in seconds",
     ["provider", "model"],
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0],
+)
+
+PROVIDER_ERRORS = Counter(
+    "modelmuxer_provider_errors_total", "Provider errors by provider and error type", ["provider", "error_type"]
+)
+
+# Cache metrics
+CACHE_HITS = Counter("modelmuxer_cache_hits_total", "Cache hits by cache type", ["cache_type"])
+
+CACHE_MISSES = Counter("modelmuxer_cache_misses_total", "Cache misses by cache type", ["cache_type"])
+
+# System metrics
+ACTIVE_CONNECTIONS = Gauge("modelmuxer_active_connections", "Number of active connections")
+
+MEMORY_USAGE = Gauge("modelmuxer_memory_usage_bytes", "Memory usage in bytes")
+
+# Health check metrics
+HEALTH_CHECK_STATUS = Gauge(
+    "modelmuxer_health_check_status", "Health check status (1=healthy, 0=unhealthy)", ["component"]
+)
+
+# Cost tracking metrics
+COST_TOTAL_USD = Counter("modelmuxer_cost_total_usd", "Total cost in USD by provider and model", ["provider", "model"])
+
+TOKENS_TOTAL = Counter(
+    "modelmuxer_tokens_total",
+    "Total tokens by provider and model",
+    ["provider", "model", "type"],  # type: input/output
 )
 
 # Policy metrics
 POLICY_VIOLATIONS = Counter(
-    "policy_violations_total",
+    "modelmuxer_policy_violations_total",
     "Policy violations by type",
-    ["type"],
+    ["type"]
 )
 
 POLICY_REDACTIONS = Counter(
-    "policy_redactions_total",
-    "PII redaction counts by type",
-    ["pii_type"],
-)
-
-# HTTP metrics
-HTTP_REQUESTS = Counter(
-    "http_requests_total",
-    "HTTP requests",
-    ["route", "method", "status"],
-)
-
-HTTP_LATENCY = Histogram(
-    "http_request_latency_ms",
-    "HTTP request latency (ms)",
-    ["route", "method"],
-    buckets=[50, 100, 250, 500, 1000, 2000, 5000, 10000],
-)
-
-# Router metrics
-ROUTER_REQUESTS = Counter(
-    "llm_router_requests_total",
-    "Router decisions",
-    ["route"],
-)
-
-ROUTER_DECISION_LATENCY = Histogram(
-    "llm_router_decision_latency_ms",
-    "Router decision latency (ms)",
-    ["route"],
-    buckets=[5, 10, 25, 50, 100, 250, 500, 1000],
-)
-
-ROUTER_FALLBACKS = Counter(
-    "llm_router_fallbacks_total",
-    "Router fallbacks",
-    ["route", "reason"],
-)
-
-# Intent classification metrics
-ROUTER_INTENT_TOTAL = Counter(
-    "llm_router_intent_total",
-    "Intent classifications by label",
-    ["label"],
+    "modelmuxer_policy_redactions_total",
+    "Policy redactions by PII type",
+    ["pii_type"]
 )

@@ -41,16 +41,22 @@ class APIKeysSettings(BaseSettings):
         description="Groq API key for Groq models.",
         validation_alias=AliasChoices("GROQ_API_KEY", "API_GROQ_API_KEY"),
     )
-    litellm_base_url: HttpUrl | None = Field(
+    google_api_key: str | None = Field(
         default=None,
-        description="Base URL for LiteLLM proxy when used as a provider.",
-        validation_alias=AliasChoices("LITELLM_BASE_URL", "API_LITELLM_BASE_URL"),
+        description="Google API key for Gemini models.",
+        validation_alias=AliasChoices("GOOGLE_API_KEY", "API_GOOGLE_API_KEY"),
     )
-    litellm_api_key: str | None = Field(
+    cohere_api_key: str | None = Field(
         default=None,
-        description="API key for LiteLLM proxy if required by the proxy.",
-        validation_alias=AliasChoices("LITELLM_API_KEY", "API_LITELLM_API_KEY"),
+        description="Cohere API key for Command models.",
+        validation_alias=AliasChoices("COHERE_API_KEY", "API_COHERE_API_KEY"),
     )
+    together_api_key: str | None = Field(
+        default=None,
+        description="Together AI API key for Together models.",
+        validation_alias=AliasChoices("TOGETHER_API_KEY", "API_TOGETHER_API_KEY"),
+    )
+
     api_keys: list[str] = Field(
         default_factory=list,
         description="Comma-separated list of allowed API keys for the built-in API key auth.",
@@ -233,13 +239,8 @@ class FeatureFlagsSettings(BaseSettings):
         description="Enable cascade routing strategy.",
         validation_alias=AliasChoices("ENABLE_CASCADE_ROUTING", "FEATURE_ENABLE_CASCADE_ROUTING"),
     )
-    enable_litellm: bool = Field(
-        default=True,
-        description="Enable LiteLLM provider integration if configured.",
-        validation_alias=AliasChoices("ENABLE_LITELLM", "FEATURE_ENABLE_LITELLM"),
-    )
     provider_adapters_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Enable the new provider adapters invocation path (feature-gated).",
         validation_alias=AliasChoices("PROVIDER_ADAPTERS_ENABLED"),
     )
@@ -257,6 +258,11 @@ class FeatureFlagsSettings(BaseSettings):
         default=False,
         description="Enable test mode to disable external calls and use stubs.",
         validation_alias=AliasChoices("TEST_MODE"),
+    )
+    show_deprecation_warnings: bool = Field(
+        default=True,
+        description="Show deprecation warnings for legacy features (can be disabled in long-lived deployments). Planned removal: v2.0.0",
+        validation_alias=AliasChoices("SHOW_DEPRECATION_WARNINGS", "FEATURE_SHOW_DEPRECATION_WARNINGS"),
     )
 
 
@@ -360,6 +366,11 @@ class RouterSettings(BaseSettings):
         description="Maximum length for simple queries used in routing heuristics.",
         validation_alias=AliasChoices("SIMPLE_QUERY_MAX_LENGTH", "ROUTER_SIMPLE_QUERY_MAX_LENGTH"),
     )
+    simple_query_threshold: float = Field(
+        default=0.2,
+        description="Threshold for detecting simple queries in routing heuristics.",
+        validation_alias=AliasChoices("SIMPLE_QUERY_THRESHOLD", "ROUTER_SIMPLE_QUERY_THRESHOLD"),
+    )
 
     # Intent classifier controls
     intent_classifier_enabled: bool = Field(
@@ -390,8 +401,77 @@ class RouterSettings(BaseSettings):
         return value
 
 
+class PricingSettings(BaseSettings):
+    """Cost estimation and pricing configuration.
+
+    Controls price table loading, latency priors, and estimator defaults.
+    """
+
+    price_table_path: str = Field(
+        default="./scripts/data/prices.json",
+        description="Path to the price table JSON file containing model pricing data.",
+        validation_alias=AliasChoices("PRICE_TABLE_PATH", "PRICING_PRICE_TABLE_PATH"),
+    )
+    latency_priors_window_s: int = Field(
+        default=1800,
+        description="Time window in seconds for latency priors measurements (default: 30 minutes).",
+        validation_alias=AliasChoices("LATENCY_PRIORS_WINDOW_S", "PRICING_LATENCY_WINDOW"),
+    )
+    estimator_default_tokens_in: int = Field(
+        default=400,
+        description="Default input token count for cost estimation when not provided.",
+        validation_alias=AliasChoices("ESTIMATOR_DEFAULT_TOKENS_IN", "PRICING_DEFAULT_TOKENS_IN"),
+    )
+    estimator_default_tokens_out: int = Field(
+        default=300,
+        description="Default output token count for cost estimation when not provided.",
+        validation_alias=AliasChoices("ESTIMATOR_DEFAULT_TOKENS_OUT", "PRICING_DEFAULT_TOKENS_OUT"),
+    )
+    min_tokens_in_floor: int = Field(
+        default=50,
+        description="Minimum token floor for input token estimation to avoid very low values.",
+        validation_alias=AliasChoices("PRICING_MIN_TOKENS_IN_FLOOR", "MIN_TOKENS_IN_FLOOR"),
+    )
+
+    @field_validator(
+        "latency_priors_window_s", "estimator_default_tokens_in", "estimator_default_tokens_out", "min_tokens_in_floor"
+    )
+    @classmethod
+    def _validate_positive(cls, value: int) -> int:  # type: ignore[override]
+        if value <= 0:
+            raise ValueError("Value must be > 0")
+        return value
+
+
+class RouterThresholds(BaseSettings):
+    """Router budget and threshold configuration.
+
+    Controls budget constraints and routing decision thresholds.
+    """
+
+    max_estimated_usd_per_request: float = Field(
+        default=0.08,
+        description="Maximum estimated USD cost per request before budget exceeded error.",
+        validation_alias=AliasChoices("MAX_ESTIMATED_USD_PER_REQUEST", "ROUTER_MAX_USD_PER_REQUEST"),
+    )
+
+    @field_validator("max_estimated_usd_per_request")
+    @classmethod
+    def _validate_positive(cls, value: float) -> float:  # type: ignore[override]
+        if value < 0:
+            raise ValueError("Budget threshold must be >= 0")
+        return value
+
+
 class ProviderPricingSettings(BaseSettings):
-    """Per-provider pricing configuration (per million tokens)."""
+    """
+    Per-provider pricing configuration (per million tokens).
+
+    DEPRECATED: This class is deprecated and will be removed in a future major release.
+    Pricing is now managed centrally in scripts/data/prices.json for better maintainability
+    and consistency across deployments. These environment variables are ignored in favor
+    of the centralized price table.
+    """
 
     openai_gpt4o_input_price: float = Field(
         default=0.005,
@@ -454,6 +534,60 @@ class ProviderPricingSettings(BaseSettings):
         validation_alias=AliasChoices("MISTRAL_SMALL_OUTPUT_PRICE"),
     )
 
+    # Additional OpenAI model pricing
+    openai_gpt4_input_price: float = Field(
+        default=0.03,
+        description="OpenAI GPT-4 input price per million tokens.",
+        validation_alias=AliasChoices("OPENAI_GPT4_INPUT_PRICE"),
+    )
+    openai_gpt4_output_price: float = Field(
+        default=0.06,
+        description="OpenAI GPT-4 output price per million tokens.",
+        validation_alias=AliasChoices("OPENAI_GPT4_OUTPUT_PRICE"),
+    )
+    openai_o1_input_price: float = Field(
+        default=0.015,
+        description="OpenAI O1 input price per million tokens.",
+        validation_alias=AliasChoices("OPENAI_O1_INPUT_PRICE"),
+    )
+    openai_o1_output_price: float = Field(
+        default=0.06,
+        description="OpenAI O1 output price per million tokens.",
+        validation_alias=AliasChoices("OPENAI_O1_OUTPUT_PRICE"),
+    )
+
+    # Additional Anthropic model pricing
+    anthropic_opus_input_price: float = Field(
+        default=0.015,
+        description="Anthropic Claude-3 Opus input price per million tokens.",
+        validation_alias=AliasChoices("ANTHROPIC_OPUS_INPUT_PRICE"),
+    )
+    anthropic_opus_output_price: float = Field(
+        default=0.075,
+        description="Anthropic Claude-3 Opus output price per million tokens.",
+        validation_alias=AliasChoices("ANTHROPIC_OPUS_OUTPUT_PRICE"),
+    )
+    anthropic_sonnet35_input_price: float = Field(
+        default=0.003,
+        description="Anthropic Claude-3.5 Sonnet input price per million tokens.",
+        validation_alias=AliasChoices("ANTHROPIC_SONNET35_INPUT_PRICE"),
+    )
+    anthropic_sonnet35_output_price: float = Field(
+        default=0.015,
+        description="Anthropic Claude-3.5 Sonnet output price per million tokens.",
+        validation_alias=AliasChoices("ANTHROPIC_SONNET35_OUTPUT_PRICE"),
+    )
+    anthropic_haiku35_input_price: float = Field(
+        default=0.0001,
+        description="Anthropic Claude-3.5 Haiku input price per million tokens.",
+        validation_alias=AliasChoices("ANTHROPIC_HAIKU35_INPUT_PRICE"),
+    )
+    anthropic_haiku35_output_price: float = Field(
+        default=0.0005,
+        description="Anthropic Claude-3.5 Haiku output price per million tokens.",
+        validation_alias=AliasChoices("ANTHROPIC_HAIKU35_OUTPUT_PRICE"),
+    )
+
 
 class ProviderAdapterSettings(BaseSettings):
     """Resilience settings for provider adapters (timeouts, retries, circuit breaker)."""
@@ -498,6 +632,16 @@ class ProviderAdapterSettings(BaseSettings):
         return value
 
 
+class GoogleProviderSettings(BaseSettings):
+    """Google-specific provider settings."""
+
+    default_safety: bool = Field(
+        default=False,
+        description="Whether to apply default safety settings for Google Gemini models.",
+        validation_alias=AliasChoices("GOOGLE_DEFAULT_SAFETY", "PROVIDERS_GOOGLE_DEFAULT_SAFETY"),
+    )
+
+
 class ProviderEndpointsSettings(BaseSettings):
     """Base URLs and per-provider API keys if needed (dup keys are allowed for clarity)."""
 
@@ -521,6 +665,21 @@ class ProviderEndpointsSettings(BaseSettings):
         description="Groq base URL (optional).",
         validation_alias=AliasChoices("GROQ_BASE_URL"),
     )
+    google_base_url: AnyUrl | None = Field(
+        default=None,
+        description="Google Gemini API base URL (optional).",
+        validation_alias=AliasChoices("GOOGLE_BASE_URL"),
+    )
+    cohere_base_url: AnyUrl | None = Field(
+        default=None,
+        description="Cohere API base URL (optional).",
+        validation_alias=AliasChoices("COHERE_BASE_URL"),
+    )
+    together_base_url: AnyUrl | None = Field(
+        default=None,
+        description="Together AI base URL (optional).",
+        validation_alias=AliasChoices("TOGETHER_BASE_URL"),
+    )
 
 
 class Settings(BaseSettings):
@@ -539,9 +698,12 @@ class Settings(BaseSettings):
     features: FeatureFlagsSettings = FeatureFlagsSettings()
     server: ServerSettings = ServerSettings()
     router: RouterSettings = RouterSettings()
-    pricing: ProviderPricingSettings = ProviderPricingSettings()
+    pricing: PricingSettings = PricingSettings()
+    router_thresholds: RouterThresholds = RouterThresholds()
+    provider_pricing: ProviderPricingSettings = ProviderPricingSettings()
     providers: ProviderAdapterSettings = ProviderAdapterSettings()
     endpoints: ProviderEndpointsSettings = ProviderEndpointsSettings()
+    google: GoogleProviderSettings = GoogleProviderSettings()
     policy: PolicySettings = PolicySettings()
 
 
@@ -551,7 +713,7 @@ settings = Settings()
 
 def get_provider_pricing() -> dict[str, dict[str, dict[str, float]]]:
     """Helper to return pricing map in the legacy structure used by cost tracker and router."""
-    p = settings.pricing
+    p = settings.provider_pricing
     return {
         "openai": {
             "gpt-4o": {"input": p.openai_gpt4o_input_price, "output": p.openai_gpt4o_output_price},
@@ -563,15 +725,37 @@ def get_provider_pricing() -> dict[str, dict[str, dict[str, float]]]:
                 "input": p.openai_gpt35_input_price,
                 "output": p.openai_gpt35_output_price,
             },
+            "gpt-4": {"input": p.openai_gpt4_input_price, "output": p.openai_gpt4_output_price},
+            "o1": {"input": p.openai_o1_input_price, "output": p.openai_o1_output_price},
         },
         "anthropic": {
             "claude-3-sonnet-20240229": {
                 "input": p.anthropic_sonnet_input_price,
                 "output": p.anthropic_sonnet_output_price,
             },
+            "claude-3-sonnet": {
+                "input": p.anthropic_sonnet_input_price,
+                "output": p.anthropic_sonnet_output_price,
+            },
             "claude-3-haiku-20240307": {
                 "input": p.anthropic_haiku_input_price,
                 "output": p.anthropic_haiku_output_price,
+            },
+            "claude-3-opus-20240229": {
+                "input": p.anthropic_opus_input_price,
+                "output": p.anthropic_opus_output_price,
+            },
+            "claude-3-5-sonnet-latest": {
+                "input": p.anthropic_sonnet35_input_price,
+                "output": p.anthropic_sonnet35_output_price,
+            },
+            "claude-3-5-sonnet-20241022": {
+                "input": p.anthropic_sonnet35_input_price,
+                "output": p.anthropic_sonnet35_output_price,
+            },
+            "claude-3-5-haiku-20241022": {
+                "input": p.anthropic_haiku35_input_price,
+                "output": p.anthropic_haiku35_output_price,
             },
         },
         "mistral": {

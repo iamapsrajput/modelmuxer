@@ -5,7 +5,8 @@ LLM Provider implementations for ModelMuxer.
 
 This package contains the abstract base provider interface and concrete
 implementations for multiple LLM providers including OpenAI, Anthropic,
-Mistral, Google, Cohere, Groq, Together AI, and LiteLLM proxy.
+Mistral, Google, Cohere, Groq, and Together AI. Both legacy LLMProvider
+classes and new LLMProviderAdapter classes are available.
 """
 
 from .anthropic_provider import AnthropicProvider
@@ -13,10 +14,18 @@ from .base import AuthenticationError, LLMProvider, ProviderError, RateLimitErro
 from .cohere_provider import CohereProvider
 from .google_provider import GoogleProvider
 from .groq_provider import GroqProvider
-from .litellm_provider import LiteLLMProvider
 from .mistral_provider import MistralProvider
 from .openai_provider import OpenAIProvider
 from .together_provider import TogetherProvider
+
+# New adapter classes (LLMProviderAdapter pattern)
+from .openai import OpenAIAdapter
+from .anthropic import AnthropicAdapter
+from .mistral import MistralAdapter
+from .groq import GroqAdapter
+from .google import GoogleAdapter
+from .cohere import CohereAdapter
+from .together import TogetherAdapter
 
 __all__ = [
     # Base classes and exceptions
@@ -24,7 +33,7 @@ __all__ = [
     "ProviderError",
     "RateLimitError",
     "AuthenticationError",
-    # Provider implementations
+    # Legacy provider implementations
     "OpenAIProvider",
     "AnthropicProvider",
     "MistralProvider",
@@ -32,5 +41,12 @@ __all__ = [
     "CohereProvider",
     "GroqProvider",
     "TogetherProvider",
-    "LiteLLMProvider",
+    # New adapter classes
+    "OpenAIAdapter",
+    "AnthropicAdapter",
+    "MistralAdapter",
+    "GroqAdapter",
+    "GoogleAdapter",
+    "CohereAdapter",
+    "TogetherAdapter",
 ]
