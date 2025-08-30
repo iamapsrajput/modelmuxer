@@ -41,12 +41,14 @@ from .models import (
     RouterMetadata,
     ChatMessage,
 )
-from .providers import AnthropicProvider, LiteLLMProvider, MistralProvider, OpenAIProvider
 from .providers.base import AuthenticationError, ProviderError, RateLimitError
-from .router import router
+from .providers.registry import get_provider_registry
+from .router import HeuristicRouter
+from app.core.exceptions import BudgetExceededError
+from app.core.validation_helpers import validate_model_format, reject_proxy_style_model
 from app.policy.rules import enforce_policies  # policy integration
 from app.telemetry.tracing import init_tracing, start_span, get_trace_id
-from app.telemetry.metrics import HTTP_REQUESTS, HTTP_LATENCY
+from app.telemetry.metrics import REQUESTS_TOTAL, REQUEST_DURATION, LLM_ROUTER_BUDGET_EXCEEDED_TOTAL
 from app.telemetry.logging import configure_json_logging
 
 try:  # optional dependency in test/basic envs
@@ -113,14 +115,14 @@ try:
     # Optional routing imports (can fail without breaking enhanced mode)
     try:
         from .routing.cascade_router import CascadeRouter
-        from .routing.heuristic_router import HeuristicRouter
+        from .routing.heuristic_router import EnhancedHeuristicRouter
         from .routing.hybrid_router import HybridRouter
         from .routing.semantic_router import SemanticRouter
 
         ROUTING_FEATURES_AVAILABLE = True
     except ImportError:
         CascadeRouter = None
-        HeuristicRouter = None
+        EnhancedHeuristicRouter = None
         HybridRouter = None
         SemanticRouter = None
         ROUTING_FEATURES_AVAILABLE = False
@@ -149,8 +151,11 @@ ENHANCED_MODE = (
     and enhanced_config is not None
 )
 
-# Provider instances
-providers: dict[str, Any] = {}
+# Global providers registry is now managed in app.providers.registry
+# Use get_provider_registry() to access provider adapters
+
+# Global router instance
+router = None
 
 
 class ModelMuxer:
@@ -171,7 +176,7 @@ class ModelMuxer:
         self.config = enhanced_config if enhanced_mode and enhanced_config else app_settings
 
         # Initialize components
-        self.providers: dict[str, Any] = {}
+        # Note: providers are now managed through the registry system
         self.routers: dict[str, Any] = {}
         self.cache: Any = None
         self.embedding_manager: Any = None
@@ -301,7 +306,7 @@ class ModelMuxer:
         try:
             # Initialize different router types
             if hasattr(self.config.routing, "heuristic") and self.config.routing.heuristic.enabled:
-                self.routers["heuristic"] = HeuristicRouter(self.config.routing.heuristic.dict())
+                self.routers["heuristic"] = EnhancedHeuristicRouter(self.config.routing.heuristic.dict())
 
             if hasattr(self.config.routing, "semantic") and self.config.routing.semantic.enabled:
                 self.routers["semantic"] = SemanticRouter(
@@ -367,7 +372,7 @@ class ModelMuxer:
 
             self.health_checker = HealthChecker(
                 check_interval=self.config.monitoring.health_check_interval,
-                providers=self.providers,
+                providers=get_provider_registry,
             )
 
             if logger:
@@ -412,64 +417,55 @@ async def lifespan(app: FastAPI):
     await db.init_database()
     # Database initialized (logged via structlog if available)
 
-    # Initialize providers with API keys from centralized settings
-    # OpenAI
-    openai_key = app_settings.api.openai_api_key
-    if openai_key and not openai_key.startswith("your-") and not openai_key.endswith("-here"):
-        try:
-            providers["openai"] = OpenAIProvider(api_key=openai_key)
-            # OpenAI provider initialized (logged via structlog if available)
-        except Exception as e:  # nosec B110
-            logger.error("OpenAI provider failed to initialize", error=str(e))
-            # OpenAI provider failed to initialize (logged via structlog)
+    # Initialize providers through the registry system
+    # The registry automatically detects and initializes providers based on available API keys
+    current_providers = get_provider_registry()
 
-    # Anthropic
-    anthropic_key = app_settings.api.anthropic_api_key
-    if anthropic_key and not anthropic_key.startswith("your-") and not anthropic_key.endswith("-here"):
-        try:
-            providers["anthropic"] = AnthropicProvider(api_key=anthropic_key)
-            # Anthropic provider initialized (logged via structlog if available)
-        except Exception:  # nosec B110
-            # Anthropic provider failed to initialize (logged via structlog if available)
-            pass
+    if not current_providers:
+        error_msg = (
+            "No providers initialized! ModelMuxer requires at least one configured provider. "
+            "Please ensure you have valid API keys configured in your environment."
+        )
+        logger.error(
+            error_msg,
+            extra={
+                "provider_config_help": {
+                    "openai": "Set OPENAI_API_KEY=sk-... for GPT models",
+                    "anthropic": "Set ANTHROPIC_API_KEY=sk-ant-... for Claude models",
+                    "mistral": "Set MISTRAL_API_KEY=... for Mistral models",
+                    "google": "Set GOOGLE_API_KEY=... for Gemini models",
+                    "groq": "Set GROQ_API_KEY=gsk_... for Groq models",
+                    "together": "Set TOGETHER_API_KEY=... for Together AI models",
+                    "cohere": "Set COHERE_API_KEY=... for Cohere models",
+                },
+                "note": "API keys should not contain placeholder text like 'your-key-here'",
+            },
+        )
 
-    # Mistral
-    mistral_key = app_settings.api.mistral_api_key
-    if mistral_key and not mistral_key.startswith("your-") and not mistral_key.endswith("-here"):
-        try:
-            providers["mistral"] = MistralProvider(api_key=mistral_key)
-            # Mistral provider initialized (logged via structlog if available)
-        except Exception:  # nosec B110
-            # Mistral provider failed to initialize (logged via structlog if available)
-            pass
+        # Hard fail in production mode if no providers are available
+        if app_settings.features.mode == "production":
+            from app.core.exceptions import ConfigurationError
 
-    # LiteLLM Proxy
-    litellm_base_url = str(app_settings.api.litellm_base_url) if app_settings.api.litellm_base_url else None
-    litellm_api_key = app_settings.api.litellm_api_key
-    if litellm_base_url:
-        try:
-            # LiteLLM can work with or without API key depending on proxy configuration
-            providers["litellm"] = LiteLLMProvider(
-                base_url=litellm_base_url,
-                api_key=litellm_api_key,
-                custom_models={},  # Can be configured via environment or config file
-            )
-            # LiteLLM provider initialized (logged via structlog if available)
-            if logger:
-                logger.info("litellm_provider_initialized", base_url=litellm_base_url)
-        except Exception as e:  # nosec B110
-            if logger:
-                logger.error("LiteLLM provider failed to initialize", error=str(e))
-            # LiteLLM provider failed to initialize (logged via structlog if available)
+            raise ConfigurationError(error_msg)
+    else:
+        logger.info(f"Initialized {len(current_providers)} providers: {list(current_providers.keys())}")
 
-    if not providers:
-        # No providers initialized! Check your API keys.
-        # Make sure you have valid API keys in your .env file:
-        # - OPENAI_API_KEY=sk-...
-        # - ANTHROPIC_API_KEY=sk-ant-...
-        # - MISTRAL_API_KEY=...
-        # (Keys should not contain placeholder text like 'your-key-here')
-        pass
+    # Initialize router with provider registry function
+    global router
+    router = HeuristicRouter(provider_registry_fn=get_provider_registry)
+
+    # Validate price table completeness for router preferences
+    try:
+        router._validate_model_keys()
+        logger.info("Router configuration validation passed")
+    except Exception as e:
+        error_msg = f"Router configuration validation failed: {e}"
+        logger.error(error_msg)
+        if app_settings.features.mode == "production":
+            logger.error("Router configuration errors are not allowed in production mode")
+            raise RuntimeError(f"Startup validation failed: {error_msg}") from e
+        else:
+            logger.warning("Router configuration issues detected - continuing in non-production mode")
 
     # Router ready with providers (logged via structlog if available)
 
@@ -477,9 +473,19 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     # Shutting down ModelMuxer (logged via structlog if available)
-    for provider in providers.values():
-        if hasattr(provider, "client"):
-            await provider.client.aclose()
+
+    # Clean up provider registry adapters
+    try:
+        from app.providers.registry import cleanup_provider_registry
+
+        current_registry = get_provider_registry()
+        logger.info(f"Starting cleanup of {len(current_registry)} provider adapters")
+        await cleanup_provider_registry()
+        logger.info("Provider registry cleanup completed successfully")
+    except Exception as e:
+        if logger:
+            logger.warning("Failed to cleanup provider registry", error=str(e))
+
     # Cleanup complete (logged via structlog if available)
 
 
@@ -627,8 +633,9 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
 
     try:
         # DEBUG: Check providers at request time
-        print(f"DEBUG: Global providers dict at request time: {list(providers.keys())}")
-        print(f"DEBUG: ModelMuxer providers dict at request time: {list(model_muxer.providers.keys())}")
+        current_registry = get_provider_registry()
+        if app_settings.server.debug:
+            logger.debug(f"Provider registry at request time: {list(current_registry.keys())}")
 
         # Sanitize input messages
         for message in request.messages:
@@ -652,22 +659,60 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
         if request.messages:
             request.messages[-1].content = policy_result.sanitized_prompt
 
+        # Validate model name format (reject proxy-style prefixes)
+        validate_model_format(request.model)
+
         # Intent classification is now handled in the router core
 
         # Route the request to the best provider/model
-        print(f"DEBUG: About to call router.select_model with router type: {type(router)}")
+        if app_settings.server.debug:
+            logger.debug(f"About to call router.select_model with router type: {type(router)}")
         try:
-            provider_name, model_name, routing_reason, intent_metadata = await router.select_model(
-                messages=request.messages, user_id=user_id
+            provider_name, model_name, routing_reason, intent_metadata, estimate_metadata = await router.select_model(
+                messages=request.messages, user_id=user_id, max_tokens=request.max_tokens
             )
-            print(f"DEBUG: Router selected - provider: {provider_name}, model: {model_name}, reason: {routing_reason}")
+            if app_settings.server.debug:
+                logger.debug(
+                    f"Router selected - provider: {provider_name}, model: {model_name}, reason: {routing_reason}"
+                )
+                logger.debug(f"Cost estimate: ${estimate_metadata['usd']:.4f}, ETA: {estimate_metadata['eta_ms']}ms")
+        except BudgetExceededError as e:
+            if app_settings.server.debug:
+                logger.debug(f"Budget exceeded: {e}")
+            # Record budget exceeded metric
+            LLM_ROUTER_BUDGET_EXCEEDED_TOTAL.labels("chat", "budget_exceeded").inc()
+
+            # Special case for no_pricing reason
+            if e.reason == "no_pricing":
+                raise HTTPException(
+                    status_code=402,
+                    detail=ErrorResponse.create(
+                        message=f"Budget exceeded: {e.message}",
+                        error_type="budget_exceeded",
+                        code="no_pricing",
+                        details={"limit": e.limit, "estimate": None},
+                    ).dict(),
+                )
+            else:
+                raise HTTPException(
+                    status_code=402,
+                    detail=ErrorResponse.create(
+                        message=f"Budget exceeded: {e.message}",
+                        error_type="budget_exceeded",
+                        code="insufficient_budget",
+                        details={"limit": e.limit, "estimate": e.estimates[0][1] if e.estimates else 0.0},
+                    ).dict(),
+                )
         except Exception as e:
-            print(f"DEBUG: Router selection failed: {e}")
+            if app_settings.server.debug:
+                logger.debug(f"Router selection failed: {e}")
             raise
 
-        # Check if provider is available
-        if provider_name not in providers:
-            print(f"DEBUG: Provider {provider_name} not found in providers dict!")
+        # Get provider adapter from registry
+        provider_registry = get_provider_registry()
+        if provider_name not in provider_registry:
+            if app_settings.server.debug:
+                logger.debug(f"Provider {provider_name} not found in provider registry!")
             raise HTTPException(
                 status_code=503,
                 detail=ErrorResponse.create(
@@ -677,70 +722,65 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
                 ).dict(),
             )
 
-        provider = providers[provider_name]
-        print(f"DEBUG: Successfully got provider: {type(provider).__name__}")
+        provider = provider_registry[provider_name]
+        if app_settings.server.debug:
+            logger.debug(f"Successfully got provider adapter for: {provider_name}")
 
-        # Estimate cost and check budget using ModelMuxer's cost tracker
-        active_cost_tracker = model_muxer.cost_tracker if model_muxer.enhanced_mode else cost_tracker
-        print(f"DEBUG: About to estimate cost with cost_tracker: {type(active_cost_tracker)}")
-        try:
-            cost_estimate = active_cost_tracker.estimate_request_cost(
-                messages=request.messages,
-                provider=provider_name,
-                model=model_name,
-                max_tokens=request.max_tokens,
-            )
-            print(f"DEBUG: Cost estimate successful: {cost_estimate}")
-        except Exception as cost_exc:
-            print(f"DEBUG: Cost estimation failed: {cost_exc}")
-            print(f"DEBUG: Cost exception type: {type(cost_exc).__name__}")
-            raise
+        # Use router's cost estimate from estimate_metadata when available
+        # Skip redundant cost estimation since router already provides accurate estimates
+        router_cost_estimate = estimate_metadata.get("usd")
+        if app_settings.server.debug:
+            logger.debug(f"Router cost estimate: ${router_cost_estimate:.4f}")
 
-        print(f"DEBUG: About to check budget for user: {user_id}")
-        try:
-            budget_check = await db.check_budget(user_id, cost_estimate["estimated_cost"])
-            print(f"DEBUG: Budget check result: {budget_check}")
-        except Exception as budget_exc:
-            print(f"DEBUG: Budget check failed: {budget_exc}")
-            print(f"DEBUG: Budget exception type: {type(budget_exc).__name__}")
-            raise
+        # Only fall back to cost tracker if router estimate is not available
+        cost_estimate = router_cost_estimate
+        if cost_estimate is None:
+            active_cost_tracker = model_muxer.cost_tracker if model_muxer.enhanced_mode else cost_tracker
+            if app_settings.server.debug:
+                logger.debug(
+                    f"Router estimate not available, falling back to cost_tracker: {type(active_cost_tracker)}"
+                )
+            try:
+                cost_estimate = active_cost_tracker.estimate_request_cost(
+                    messages=request.messages,
+                    provider=provider_name,
+                    model=model_name,
+                    max_tokens=request.max_tokens,
+                )
+                if app_settings.server.debug:
+                    logger.debug(f"Cost tracker estimate: ${cost_estimate:.4f}")
+            except Exception as cost_exc:
+                if app_settings.server.debug:
+                    logger.debug(f"Cost estimation failed: {cost_exc}")
+                    logger.debug(f"Cost exception type: {type(cost_exc).__name__}")
+                # Continue without cost tracking if it fails
+                cost_estimate = 0.0
 
-        if not budget_check["allowed"]:
-            raise HTTPException(
-                status_code=402,
-                detail=ErrorResponse.create(
-                    message=f"Budget exceeded: {budget_check['reason']}",
-                    error_type="budget_exceeded",
-                    code="insufficient_budget",
-                ).dict(),
-            )
+        # Note: Latency priors will be updated after actual provider invocation
+        # to use measured round-trip time instead of estimate
 
         # Handle streaming vs non-streaming
         if request.stream:
             return StreamingResponse(
-                stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time),
+                stream_chat_completion(provider_name, request, model_name, routing_reason, user_id, start_time),
                 media_type="text/event-stream",  # Correct media type for SSE
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
             )
         else:
             # Make the request to the provider
-            print(f"DEBUG: About to call provider.chat_completion with provider: {type(provider).__name__}")
-            print(f"DEBUG: Model name: {model_name}")
-            print(f"DEBUG: Number of messages: {len(request.messages)}")
-            print(f"DEBUG: Max tokens: {request.max_tokens}")
-            print(f"DEBUG: Temperature: {request.temperature}")
+            if app_settings.server.debug:
+                logger.debug(f"About to call router.invoke_via_adapter with provider: {provider_name}")
+                logger.debug(f"Model name: {model_name}")
+                logger.debug(f"Number of messages: {len(request.messages)}")
+                logger.debug(f"Max tokens: {request.max_tokens}")
+                logger.debug(f"Temperature: {request.temperature}")
 
             try:
                 if app_settings.features.provider_adapters_enabled:
-                    # Use unified adapter path
-                    from app.providers.registry import PROVIDERS
-
-                    # Simple prompt join for adapters
+                    # Use router's unified adapter interface for consistency
                     prompt_text = "\n".join([msg.content for msg in request.messages if msg.content])
-                    adapter = PROVIDERS.get(provider_name)
-                    if adapter is None:
-                        raise RuntimeError(f"No adapter registered for provider: {provider_name}")
-                    adapter_resp = await adapter.invoke(
+                    adapter_resp = await router.invoke_via_adapter(
+                        provider=provider_name,
                         model=model_name,
                         prompt=prompt_text,
                         temperature=request.temperature or app_settings.router.temperature_default,
@@ -749,12 +789,16 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
                     if adapter_resp.error:
                         raise ProviderError(adapter_resp.error)
                     # Build ChatCompletionResponse
-                    estimated_cost = cost_tracker.calculate_cost(
-                        provider_name,
-                        model_name,
-                        adapter_resp.tokens_in,
-                        adapter_resp.tokens_out,
-                    )
+                    # Use router's cost estimate when available, otherwise calculate from actual tokens
+                    if cost_estimate is not None:
+                        estimated_cost = cost_estimate
+                    else:
+                        estimated_cost = cost_tracker.calculate_cost(
+                            provider_name,
+                            model_name,
+                            adapter_resp.tokens_in,
+                            adapter_resp.tokens_out,
+                        )
                     response = ChatCompletionResponse(
                         id=f"chatcmpl-adapter-{int(time.time() * 1000)}",
                         object="chat.completion",
@@ -781,32 +825,57 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
                             intent_label=intent_metadata.get("label"),
                             intent_confidence=float(intent_metadata.get("confidence", 0.0)),
                             intent_signals=intent_metadata.get("signals"),
+                            estimated_cost_usd=estimate_metadata.get("usd"),
+                            estimated_eta_ms=estimate_metadata.get("eta_ms"),
+                            estimated_tokens_in=estimate_metadata.get("tokens_in"),
+                            estimated_tokens_out=estimate_metadata.get("tokens_out"),
+                            direct_providers_only=True,
                         ),
                     )
                 else:
-                    response = await provider.chat_completion(
-                        messages=request.messages,
+                    # Use router's adapter interface for consistent invocation
+                    prompt_text = "\n".join([msg.content for msg in request.messages if msg.content])
+
+                    # Measure actual provider latency
+                    provider_start_time = time.perf_counter()
+                    response = await router.invoke_via_adapter(
+                        provider=provider_name,
                         model=model_name,
+                        prompt=prompt_text,
                         max_tokens=request.max_tokens,
                         temperature=request.temperature,
-                        **{
-                            k: v
-                            for k, v in request.dict().items()
-                            if k not in ["messages", "model", "max_tokens", "temperature", "stream"] and v is not None
-                        },
                     )
-                print(f"DEBUG: Successfully got response from provider: {type(response)}")
+                    provider_latency_ms = int((time.perf_counter() - provider_start_time) * 1000)
+
+                    # Update latency priors with actual measured latency (only on success)
+                    try:
+                        # Normalize key to match estimator convention
+                        latency_key = f"{provider_name}:{model_name}"
+                        router.record_latency(latency_key, provider_latency_ms)
+                    except Exception as e:
+                        if app_settings.server.debug:
+                            logger.debug(f"Failed to update latency priors: {e}")
+                        # Continue without latency tracking if it fails
+
+                if app_settings.server.debug:
+                    logger.debug(f"Successfully got response from provider: {type(response)}")
             except Exception as provider_exc:
-                print(f"DEBUG: Provider call failed: {provider_exc}")
-                print(f"DEBUG: Provider exception type: {type(provider_exc).__name__}")
+                if app_settings.server.debug:
+                    logger.debug(f"Provider call failed: {provider_exc}")
+                    logger.debug(f"Provider exception type: {type(provider_exc).__name__}")
                 raise
 
             # Update routing reason in metadata and attach intent
             response.router_metadata.routing_reason = routing_reason
+            response.router_metadata.direct_providers_only = True
             try:
                 response.router_metadata.intent_label = intent_metadata.get("label")
                 response.router_metadata.intent_confidence = float(intent_metadata.get("confidence", 0.0))
                 response.router_metadata.intent_signals = intent_metadata.get("signals")
+                response.router_metadata.estimated_cost_usd = estimate_metadata.get("usd")
+                response.router_metadata.estimated_eta_ms = estimate_metadata.get("eta_ms")
+                response.router_metadata.estimated_tokens_in = estimate_metadata.get("tokens_in")
+                response.router_metadata.estimated_tokens_out = estimate_metadata.get("tokens_out")
             except Exception:
                 pass
 
@@ -841,7 +910,19 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
                     success=True,
                 )
 
-            return response
+            # Convert response to JSONResponse to add X-Route-Decision header
+            response_dict = response.dict()
+            json_response = JSONResponse(content=response_dict)
+
+            # Add X-Route-Decision header with routing information
+            routing_decision = f"{provider_name}:{model_name}"
+            json_response.headers["X-Route-Decision"] = routing_decision
+
+            # Add cost estimate header when debug mode is enabled
+            if settings.server.debug and estimate_metadata.get("usd") is not None:
+                json_response.headers["X-Route-Estimate-USD"] = f"{estimate_metadata['usd']:.6f}"
+
+            return json_response
 
     except ProviderError as e:
         # Log failed request
@@ -902,9 +983,13 @@ async def chat_completions(request: ChatCompletionRequest, user_info: dict[str, 
         ) from e
 
 
-async def stream_chat_completion(provider, request, model_name, routing_reason, user_id, start_time):
+async def stream_chat_completion(provider_name, request, model_name, routing_reason, user_id, start_time):
     """Handle streaming chat completion."""
     try:
+        # Get provider from registry
+        provider_registry = get_provider_registry()
+        provider = provider_registry[provider_name]
+
         async for chunk in provider.stream_chat_completion(
             messages=request.messages,
             model=model_name,
@@ -920,14 +1005,24 @@ async def stream_chat_completion(provider, request, model_name, routing_reason, 
 
         yield "data: [DONE]\n\n"
 
-        # Log streaming request (with estimated tokens)
+        # Update latency priors with actual measured latency (only on success)
         response_time_ms = (time.time() - start_time) * 1000
-        estimated_tokens = cost_tracker.count_tokens(request.messages, provider.provider_name, model_name)
-        estimated_cost = cost_tracker.calculate_cost(provider.provider_name, model_name, estimated_tokens, 100)
+        try:
+            # Normalize key to match estimator convention
+            latency_key = f"{provider_name}:{model_name}"
+            router.record_latency(latency_key, int(response_time_ms))
+        except Exception as e:
+            if app_settings.server.debug:
+                logger.debug(f"Failed to update latency priors: {e}")
+            # Continue without latency tracking if it fails
+
+        # Log streaming request (with estimated tokens)
+        estimated_tokens = cost_tracker.count_tokens(request.messages, provider_name, model_name)
+        estimated_cost = cost_tracker.calculate_cost(provider_name, model_name, estimated_tokens, 100)
 
         await db.log_request(
             user_id=user_id,
-            provider=provider.provider_name,
+            provider=provider_name,
             model=model_name,
             messages=[msg.dict() for msg in request.messages],
             input_tokens=estimated_tokens,
@@ -980,7 +1075,8 @@ async def get_providers(user_info: dict[str, Any] = Depends(get_authenticated_us
     """Get available providers and their models."""
     provider_info = {}
 
-    for name, provider in providers.items():
+    provider_registry = get_provider_registry()
+    for name, provider in provider_registry.items():
         provider_info[name] = {
             "name": name,
             "models": provider.get_supported_models(),
@@ -993,13 +1089,22 @@ async def get_providers(user_info: dict[str, Any] = Depends(get_authenticated_us
 @app.get("/v1/models")
 async def list_models(user_info: dict[str, Any] = Depends(get_authenticated_user)):
     """List all available models across providers."""
+    from app.core.costing import load_price_table
+
     models = []
 
-    # Get pricing data
-    pricing = settings.get_provider_pricing()
+    # Load pricing data directly from price table
+    price_table = load_price_table(app_settings.pricing.price_table_path)
 
-    for provider, provider_models in pricing.items():
-        for model, costs in provider_models.items():
+    for model_key, price in price_table.items():
+        # Parse model key as "provider:model"
+        if ":" in model_key:
+            provider, model = model_key.split(":", 1)
+
+            # Skip models with separator characters to prevent proxy-style model names
+            if ":" in model or "/" in model:
+                continue
+
             models.append(
                 {
                     "id": f"{provider}/{model}",
@@ -1007,9 +1112,9 @@ async def list_models(user_info: dict[str, Any] = Depends(get_authenticated_user
                     "provider": provider,
                     "model": model,
                     "pricing": {
-                        "input": costs["input"],
-                        "output": costs["output"],
-                        "unit": "per_million_tokens",
+                        "input": price.input_per_1k_usd,
+                        "output": price.output_per_1k_usd,
+                        "unit": "per_1k_tokens",
                     },
                 }
             )
@@ -1118,7 +1223,12 @@ async def get_budget_status(
 
     except Exception as e:
         logger.error("budget_status_error", error=str(e), user_id=user_id)
-        raise HTTPException(status_code=500, detail="Failed to retrieve budget status") from e
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse.create(
+                message="Failed to retrieve budget status", error_type="internal_error", code="budget_retrieval_failed"
+            ).dict(),
+        ) from e
 
 
 @app.post("/v1/analytics/budgets")
@@ -1148,13 +1258,34 @@ async def set_budget(
         budget_limit = request.get("budget_limit")
 
         if not budget_type or budget_limit is None:
-            raise HTTPException(status_code=400, detail="budget_type and budget_limit are required")
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponse.create(
+                    message="budget_type and budget_limit are required",
+                    error_type="invalid_request",
+                    code="missing_parameters",
+                ).dict(),
+            )
 
         if budget_type not in ["daily", "weekly", "monthly", "yearly"]:
-            raise HTTPException(status_code=400, detail="budget_type must be one of: daily, weekly, monthly, yearly")
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponse.create(
+                    message="budget_type must be one of: daily, weekly, monthly, yearly",
+                    error_type="invalid_request",
+                    code="invalid_budget_type",
+                ).dict(),
+            )
 
         if not isinstance(budget_limit, int | float) or budget_limit <= 0:
-            raise HTTPException(status_code=400, detail="budget_limit must be a positive number")
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponse.create(
+                    message="budget_limit must be a positive number",
+                    error_type="invalid_request",
+                    code="invalid_budget_limit",
+                ).dict(),
+            )
 
         provider = request.get("provider")
         model = request.get("model")
@@ -1182,13 +1313,25 @@ async def set_budget(
                 },
             }
         else:
-            raise HTTPException(status_code=500, detail="Budget tracking not initialized")
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse.create(
+                    message="Budget tracking not initialized",
+                    error_type="internal_error",
+                    code="budget_not_initialized",
+                ).dict(),
+            )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error("set_budget_error", error=str(e), user_id=user_id)
-        raise HTTPException(status_code=500, detail="Failed to set budget") from e
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse.create(
+                message="Failed to set budget", error_type="internal_error", code="budget_set_failed"
+            ).dict(),
+        ) from e
 
 
 @app.post("/v1/chat/completions/enhanced")
@@ -1256,10 +1399,15 @@ async def anthropic_messages(
 
                 converted_messages.append(ChatMessage(role=msg["role"], content=content_text))
 
+        model_name = body.get("model", "claude-3-5-sonnet-20241022")
+
+        # Validate model name format (reject proxy-style prefixes)
+        validate_model_format(model_name)
+
         # Create OpenAI format request
         openai_request = ChatCompletionRequest(
             messages=converted_messages,
-            model=body.get("model", "claude-3-5-sonnet-20241022"),
+            model=model_name,
             max_tokens=body.get("max_tokens", 1000),
             temperature=body.get("temperature", 0.7),
             stream=body.get("stream", False),

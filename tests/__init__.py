@@ -1,17 +1,13 @@
 # ModelMuxer (c) 2025 Ajay Rajput
 # Licensed under Business Source License 1.1 – see LICENSE for details.
-
 """
-ModelMuxer Test Suite
+Test package for ModelMuxer.
 
-This package contains comprehensive tests for the ModelMuxer LLM routing engine,
-including unit tests, integration tests, and end-to-end tests.
-
-Test Categories:
-- Unit tests: Individual component testing
-- Integration tests: Multi-component interaction testing
-- End-to-end tests: Full system workflow testing
-- Performance tests: Load and stress testing
+This package contains comprehensive test suites for:
+- Unit tests for individual components
+- Integration tests for end-to-end functionality
+- Direct provider routing tests
+- Performance and observability tests
 """
 
 __version__ = "1.0.0"

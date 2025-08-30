@@ -91,7 +91,7 @@ async def classify_intent(messages: list[ChatMessage]) -> dict[str, Any]:
     # Cheap LLM adapter path (optional, stubbed for now)
     # Keep deterministic fallback even when LLM not available
     try:
-        # Placeholder: integrate with adapters (e.g., litellm/openai/mistral) if desired
+        # Placeholder: integrate with adapters (e.g., openai/anthropic/mistral) if desired
         # For Phase 1, rely on heuristics to avoid network and preserve determinism.
         label, conf, feats = _heuristic_classify(text)
         return {"label": label, "confidence": round(float(conf), 3), "signals": feats, "method": "heuristic"}

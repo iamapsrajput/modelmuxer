@@ -1,7 +1,7 @@
 # ModelMuxer (c) 2025 Ajay Rajput
 # Licensed under Business Source License 1.1 – see LICENSE for details.
 
-.PHONY: help install install-dev test test-unit test-integration lint format clean run docker-build docker-run license-check license-headers license-compliance security-scan
+.PHONY: help install install-dev test test-unit test-integration lint format clean run docker-build docker-run license-check license-headers license-compliance security-scan validate-direct-providers test-direct validate-architecture benchmark-direct
 
 # Default target
 help:
@@ -14,6 +14,10 @@ help:
 	@echo "  test            - Run all tests"
 	@echo "  test-unit       - Run unit tests only"
 	@echo "  test-integration - Run integration tests only"
+	@echo "  validate-direct-providers - Run comprehensive direct provider validation"
+	@echo "  test-direct     - Run direct provider tests only"
+	@echo "  validate-architecture - Validate architecture compliance"
+	@echo "  benchmark-direct - Run performance benchmarks"
 	@echo "  lint            - Run linting and type checking"
 	@echo "  format          - Format code with black and isort"
 	@echo "  security-scan   - Run security scans"
@@ -61,6 +65,31 @@ test-unit:
 # Run integration tests only
 test-integration:
 	poetry run pytest tests/ -v -m "integration"
+
+# Comprehensive direct provider validation
+validate-direct-providers:
+	@echo "🔍 Running comprehensive direct provider validation..."
+	poetry run python scripts/validate_direct_provider_architecture.py
+	poetry run pytest tests/test_comprehensive_direct_provider_validation.py -v
+	@echo "✅ Direct provider validation complete"
+
+# Quick direct provider tests
+test-direct:
+	@echo "🧪 Running direct provider tests..."
+	poetry run pytest tests/direct/ -v -m direct
+	@echo "✅ Direct provider tests complete"
+
+# Architecture validation only
+validate-architecture:
+	@echo "🏗️ Validating architecture..."
+	poetry run pytest tests/test_comprehensive_direct_provider_validation.py::TestArchitectureValidation -v
+	@echo "✅ Architecture validation complete"
+
+# Performance benchmarking
+benchmark-direct:
+	@echo "⚡ Running performance benchmarks..."
+	poetry run pytest tests/test_comprehensive_direct_provider_validation.py::TestPerformanceAndMetrics -v
+	@echo "✅ Performance benchmarks complete"
 
 # Run linting and type checking
 lint:

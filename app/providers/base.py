@@ -231,9 +231,7 @@ class LLMProvider(ABC):
                 return False
 
             # Use the first available model for health check
-            await self.chat_completion(
-                messages=test_messages, model=models[0], max_tokens=1, temperature=0.0
-            )
+            await self.chat_completion(messages=test_messages, model=models[0], max_tokens=1, temperature=0.0)
             return True
         except Exception:
             return False
@@ -241,9 +239,151 @@ class LLMProvider(ABC):
 
 # ===================== New Adapter Interface =====================
 from dataclasses import dataclass
+import asyncio
+import random
 import time
 
 from app.settings import settings
+
+
+# ===================== Shared Utilities =====================
+
+
+def estimate_tokens(text: str) -> int:
+    """Simple token estimation (roughly 4 characters per token)."""
+    return max(len(text) // 4, 1)
+
+
+def normalize_finish_reason(provider: str, finish_reason: str | None) -> str:
+    """Normalize provider-specific finish reasons to standard format.
+
+    Args:
+        provider: Provider name (e.g., 'google', 'cohere', 'together')
+        finish_reason: Provider-specific finish reason
+
+    Returns:
+        Normalized finish reason: 'stop', 'length', 'content_filter', or 'stop' as default
+    """
+    if not finish_reason:
+        return "stop"
+
+    # Provider-specific mappings
+    mappings = {
+        "google": {
+            "STOP": "stop",
+            "MAX_TOKENS": "length",
+            "SAFETY": "content_filter",
+            "RECITATION": "content_filter",
+        },
+        "cohere": {
+            "COMPLETE": "stop",
+            "MAX_TOKENS": "length",
+            "ERROR": "content_filter",
+            "ERROR_TOXIC": "content_filter",
+        },
+        "together": {
+            "stop": "stop",
+            "length": "length",
+            "content_filter": "content_filter",
+        },
+        "openai": {
+            "stop": "stop",
+            "length": "length",
+            "content_filter": "content_filter",
+        },
+        "anthropic": {
+            "end_turn": "stop",
+            "max_tokens": "length",
+            "content_filter": "content_filter",
+        },
+    }
+
+    provider_mapping = mappings.get(provider.lower(), {})
+    return provider_mapping.get(finish_reason, "stop")
+
+
+def _is_retryable_error(provider: str, status_code: int | None, payload: dict | None) -> bool:
+    """Determine if a provider-level error is retryable based on status code and payload.
+
+    Args:
+        provider: Provider name (e.g., 'google', 'cohere', 'together')
+        status_code: HTTP status code if available
+        payload: Response payload containing error information
+
+    Returns:
+        True if the error is retryable, False otherwise
+    """
+    # HTTP status code based retry logic
+    if status_code:
+        if status_code == 429 or status_code >= 500:
+            return True
+        if status_code in (400, 401, 403, 404):
+            return False
+
+    # Provider-specific payload error analysis
+    if not payload or "error" not in payload:
+        return False
+
+    error_data = payload["error"]
+    error_code = error_data.get("code", "")
+    error_msg = error_data.get("message", "").lower()
+
+    # Provider-specific retryable error patterns
+    provider_patterns = {
+        "google": {
+            "codes": {"quota_exceeded", "resource_exhausted", "unavailable", "internal"},
+            "keywords": {"quota", "rate limit", "unavailable", "internal", "temporary"},
+        },
+        "cohere": {
+            "codes": {"rate_limit", "overloaded", "server_error", "internal_error"},
+            "keywords": {"rate limit", "overloaded", "server", "internal", "temporary"},
+        },
+        "together": {
+            "codes": {"rate_limit", "overloaded", "server_error", "internal_error"},
+            "keywords": {"rate limit", "overloaded", "server", "internal", "temporary", "retry"},
+        },
+        "openai": {
+            "codes": {"rate_limit_exceeded", "server_error", "internal_error"},
+            "keywords": {"rate limit", "server", "internal", "temporary"},
+        },
+        "anthropic": {
+            "codes": {"rate_limit", "server_error", "internal_error"},
+            "keywords": {"rate limit", "server", "internal", "temporary"},
+        },
+    }
+
+    patterns = provider_patterns.get(provider.lower(), {"codes": set(), "keywords": set()})
+
+    # Check error code
+    if error_code in patterns["codes"]:
+        return True
+
+    # Check error message keywords
+    if any(keyword in error_msg for keyword in patterns["keywords"]):
+        return True
+
+    return False
+
+
+# Standard User-Agent for all provider adapters
+USER_AGENT = "ModelMuxer/1.0.0"
+
+
+async def with_retries(coro_factory, *, max_attempts: int, base_s: float, retry_on: tuple[type[Exception], ...]):
+    """Reusable retry and backoff logic for provider adapters."""
+    attempt = 0
+    last_err = None
+    while attempt < max_attempts:
+        attempt += 1
+        try:
+            return await coro_factory(attempt)
+        except retry_on as e:
+            last_err = e
+            if attempt >= max_attempts:
+                break
+            delay = base_s * (2 ** (attempt - 1)) + random.uniform(0, base_s)
+            await asyncio.sleep(delay)
+    raise last_err
 
 
 @dataclass
@@ -268,17 +408,19 @@ class ProviderResponse:
 class SimpleCircuitBreaker:
     """Minimal circuit breaker for adapters."""
 
-    def __init__(self) -> None:
+    def __init__(self, fail_threshold: int | None = None, cooldown_sec: int | None = None) -> None:
         self.failures = 0
         self.open_until: float = 0.0
+        self.fail_threshold = fail_threshold or settings.providers.circuit_fail_threshold
+        self.cooldown_sec = cooldown_sec or settings.providers.circuit_cooldown_sec
 
     def is_open(self) -> bool:
         return time.time() < self.open_until
 
     def on_failure(self) -> None:
         self.failures += 1
-        if self.failures >= settings.providers.circuit_fail_threshold:
-            self.open_until = time.time() + settings.providers.circuit_cooldown_sec
+        if self.failures >= self.fail_threshold:
+            self.open_until = time.time() + self.cooldown_sec
 
     def on_success(self) -> None:
         self.failures = 0
@@ -286,9 +428,105 @@ class SimpleCircuitBreaker:
 
 
 class LLMProviderAdapter(ABC):
-    """Abstract provider adapter with a unified invoke() method."""
+    """Abstract provider adapter with a unified invoke() method and lifecycle management."""
 
     @abstractmethod
     async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:
         """Invoke the provider synchronously and return standardized response."""
         raise NotImplementedError
+
+    @abstractmethod
+    async def aclose(self) -> None:
+        """Close the adapter's HTTP client and clean up resources."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_supported_models(self) -> list[str]:
+        """Get the list of models supported by this provider."""
+        raise NotImplementedError
+
+    async def chat_completion(
+        self,
+        messages: list[ChatMessage],
+        model: str,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        stream: bool = False,
+        **kwargs: Any,
+    ) -> ChatCompletionResponse:
+        """
+        Chat completion shim that calls invoke() internally.
+        
+        This provides compatibility with the legacy chat_completion interface
+        while using the unified invoke() method internally.
+        """
+        # Convert messages to prompt text
+        prompt_text = " ".join([msg.content for msg in messages if msg.content])
+        
+        # Call the unified invoke method
+        provider_response = await self.invoke(
+            model=model,
+            prompt=prompt_text,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs
+        )
+        
+        # Convert ProviderResponse to ChatCompletionResponse
+        if provider_response.error:
+            raise ProviderError(provider_response.error)
+        
+        return ChatCompletionResponse(
+            id=str(uuid.uuid4()),
+            object="chat.completion",
+            created=int(datetime.now().timestamp()),
+            model=model,
+            choices=[
+                Choice(
+                    index=0,
+                    message=ChatMessage(role="assistant", content=provider_response.output_text),
+                    finish_reason="stop",
+                )
+            ],
+            usage=Usage(
+                prompt_tokens=provider_response.tokens_in,
+                completion_tokens=provider_response.tokens_out,
+                total_tokens=provider_response.tokens_in + provider_response.tokens_out,
+            ),
+            router_metadata=RouterMetadata(
+                selected_provider=self.__class__.__name__.replace("Adapter", "").lower(),
+                selected_model=model,
+                routing_reason="adapter_invoke",
+                request_id=str(uuid.uuid4()),
+            ),
+        )
+
+    async def stream_chat_completion(
+        self,
+        messages: list[ChatMessage],
+        model: str,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[str, None]:
+        """
+        Streaming chat completion shim that calls invoke() internally.
+        
+        Note: This is a simplified implementation that calls invoke() and yields
+        the result. Real streaming would require adapter-specific implementation.
+        """
+        # For now, call the regular chat completion and yield chunks
+        response = await self.chat_completion(
+            messages=messages,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stream=False,  # Force non-streaming for the underlying call
+            **kwargs
+        )
+        
+        # Simulate streaming by yielding the response in chunks
+        import json
+        response_dict = response.dict()
+        yield f"data: {json.dumps(response_dict)}\n\n"
+        yield "data: [DONE]\n\n"
