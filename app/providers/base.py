@@ -231,7 +231,9 @@ class LLMProvider(ABC):
                 return False
 
             # Use the first available model for health check
-            await self.chat_completion(messages=test_messages, model=models[0], max_tokens=1, temperature=0.0)
+            await self.chat_completion(
+                messages=test_messages, model=models[0], max_tokens=1, temperature=0.0
+            )
             return True
         except Exception:
             return False
@@ -369,7 +371,9 @@ def _is_retryable_error(provider: str, status_code: int | None, payload: dict | 
 USER_AGENT = "ModelMuxer/1.0.0"
 
 
-async def with_retries(coro_factory, *, max_attempts: int, base_s: float, retry_on: tuple[type[Exception], ...]):
+async def with_retries(
+    coro_factory, *, max_attempts: int, base_s: float, retry_on: tuple[type[Exception], ...]
+):
     """Reusable retry and backoff logic for provider adapters."""
     attempt = 0
     last_err = None
@@ -456,26 +460,26 @@ class LLMProviderAdapter(ABC):
     ) -> ChatCompletionResponse:
         """
         Chat completion shim that calls invoke() internally.
-        
+
         This provides compatibility with the legacy chat_completion interface
         while using the unified invoke() method internally.
         """
         # Convert messages to prompt text
         prompt_text = " ".join([msg.content for msg in messages if msg.content])
-        
+
         # Call the unified invoke method
         provider_response = await self.invoke(
             model=model,
             prompt=prompt_text,
             temperature=temperature,
             max_tokens=max_tokens,
-            **kwargs
+            **kwargs,
         )
-        
+
         # Convert ProviderResponse to ChatCompletionResponse
         if provider_response.error:
             raise ProviderError(provider_response.error)
-        
+
         return ChatCompletionResponse(
             id=str(uuid.uuid4()),
             object="chat.completion",
@@ -511,7 +515,7 @@ class LLMProviderAdapter(ABC):
     ) -> AsyncGenerator[str, None]:
         """
         Streaming chat completion shim that calls invoke() internally.
-        
+
         Note: This is a simplified implementation that calls invoke() and yields
         the result. Real streaming would require adapter-specific implementation.
         """
@@ -522,11 +526,12 @@ class LLMProviderAdapter(ABC):
             max_tokens=max_tokens,
             temperature=temperature,
             stream=False,  # Force non-streaming for the underlying call
-            **kwargs
+            **kwargs,
         )
-        
+
         # Simulate streaming by yielding the response in chunks
         import json
+
         response_dict = response.dict()
         yield f"data: {json.dumps(response_dict)}\n\n"
         yield "data: [DONE]\n\n"

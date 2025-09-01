@@ -39,16 +39,22 @@ class TestRouterBudgetIntegration:
             "openai:gpt-4o-mini": {"input_per_1k_usd": 0.15, "output_per_1k_usd": 0.60},
             "openai:gpt-3.5-turbo": {"input_per_1k_usd": 0.50, "output_per_1k_usd": 1.50},
             "anthropic:claude-3-sonnet": {"input_per_1k_usd": 3.00, "output_per_1k_usd": 15.00},
-            "anthropic:claude-3-haiku-20240307": {"input_per_1k_usd": 0.25, "output_per_1k_usd": 1.25},
-            "anthropic:claude-3-5-sonnet-20241022": {"input_per_1k_usd": 3.00, "output_per_1k_usd": 15.00},
+            "anthropic:claude-3-haiku-20240307": {
+                "input_per_1k_usd": 0.25,
+                "output_per_1k_usd": 1.25,
+            },
+            "anthropic:claude-3-5-sonnet-20241022": {
+                "input_per_1k_usd": 3.00,
+                "output_per_1k_usd": 15.00,
+            },
             # Other models
             "mistral:mistral-small": {"input_per_1k_usd": 0.14, "output_per_1k_usd": 0.42},
         }
 
         # Create temporary price table file
-        self.temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
-        json.dump(self.price_data, self.temp_file)
-        self.temp_file.close()
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as temp_file:
+            self.temp_file = temp_file
+        Path(self.temp_file.name).write_text(json.dumps(self.price_data))
 
         # Create test prices dict
         self.prices = {
@@ -57,8 +63,12 @@ class TestRouterBudgetIntegration:
             "openai:gpt-4o-mini": Price(input_per_1k_usd=0.15, output_per_1k_usd=0.60),
             "openai:gpt-3.5-turbo": Price(input_per_1k_usd=0.50, output_per_1k_usd=1.50),
             "anthropic:claude-3-sonnet": Price(input_per_1k_usd=3.00, output_per_1k_usd=15.00),
-            "anthropic:claude-3-haiku-20240307": Price(input_per_1k_usd=0.25, output_per_1k_usd=1.25),
-            "anthropic:claude-3-5-sonnet-20241022": Price(input_per_1k_usd=3.00, output_per_1k_usd=15.00),
+            "anthropic:claude-3-haiku-20240307": Price(
+                input_per_1k_usd=0.25, output_per_1k_usd=1.25
+            ),
+            "anthropic:claude-3-5-sonnet-20241022": Price(
+                input_per_1k_usd=3.00, output_per_1k_usd=15.00
+            ),
             # Other models
             "mistral:mistral-small": Price(input_per_1k_usd=0.14, output_per_1k_usd=0.42),
         }
@@ -95,7 +105,9 @@ class TestRouterBudgetIntegration:
         assert estimate.usd is not None and estimate.usd <= 0.50  # Should be affordable
 
         # Mock provider availability via registry function
-        with patch("app.providers.registry.get_provider_registry", return_value={"mistral": MagicMock()}):
+        with patch(
+            "app.providers.registry.get_provider_registry", return_value={"mistral": MagicMock()}
+        ):
             result = await self.router.select_model(messages=messages, max_tokens=300)
 
             provider, model, reasoning, intent_metadata, estimate_metadata = result
@@ -111,7 +123,9 @@ class TestRouterBudgetIntegration:
         assert estimate.usd is not None and estimate.usd > 0.50  # Should be too expensive
 
         # Mock provider availability with only expensive models
-        with patch("app.providers.registry.get_provider_registry", return_value={"openai": MagicMock()}):
+        with patch(
+            "app.providers.registry.get_provider_registry", return_value={"openai": MagicMock()}
+        ):
             # Override model preferences to only include expensive models
             original_preferences = self.router.model_preferences
             self.router.model_preferences = {
@@ -133,7 +147,8 @@ class TestRouterBudgetIntegration:
 
         # Mock provider availability for multiple providers
         with patch(
-            "app.providers.registry.get_provider_registry", return_value={"openai": MagicMock(), "mistral": MagicMock()}
+            "app.providers.registry.get_provider_registry",
+            return_value={"openai": MagicMock(), "mistral": MagicMock()},
         ):
             # Set model preferences to include both expensive and cheap models
             self.router.model_preferences = {
@@ -156,7 +171,9 @@ class TestRouterBudgetIntegration:
         messages = [ChatMessage(role="user", content="Hello, how are you?")]
 
         # Mock provider availability with only expensive models
-        with patch("app.providers.registry.get_provider_registry", return_value={"openai": MagicMock()}):
+        with patch(
+            "app.providers.registry.get_provider_registry", return_value={"openai": MagicMock()}
+        ):
             # Override model preferences to only include expensive models
             original_preferences = self.router.model_preferences
             self.router.model_preferences = {
@@ -225,7 +242,9 @@ class TestRouterBudgetIntegration:
         messages = [ChatMessage(role="user", content="Hello, how are you?")]
 
         # Mock provider availability
-        with patch("app.providers.registry.get_provider_registry", return_value={"mistral": MagicMock()}):
+        with patch(
+            "app.providers.registry.get_provider_registry", return_value={"mistral": MagicMock()}
+        ):
             # Initial latency stats should be defaults
             initial_stats = self.latency_priors.get("mistral:mistral-small")
             assert initial_stats["p95"] == 800  # Default
@@ -263,14 +282,14 @@ class TestRouterEstimatorIntegration:
         import tempfile
         import json
 
-        self.temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as temp_file:
+            self.temp_file = temp_file
         price_data = {
             "openai:gpt-4o": {"input_per_1k_usd": 2.50, "output_per_1k_usd": 10.00},
             "openai:gpt-4o-mini": {"input_per_1k_usd": 0.15, "output_per_1k_usd": 0.60},
             "mistral:mistral-small": {"input_per_1k_usd": 0.14, "output_per_1k_usd": 0.42},
         }
-        json.dump(price_data, self.temp_file)
-        self.temp_file.close()
+        Path(self.temp_file.name).write_text(json.dumps(price_data))
 
         # Create router with test components, patching price table path for deterministic behavior
         with patch.object(self.settings.pricing, "price_table_path", self.temp_file.name):
@@ -297,7 +316,9 @@ class TestRouterEstimatorIntegration:
             )
 
             # Mock provider availability
-            with patch("app.providers.registry.get_provider_registry", return_value={"openai": MagicMock()}):
+            with patch(
+                "app.providers.registry.get_provider_registry", return_value={"openai": MagicMock()}
+            ):
                 await self.router.select_model(messages=messages, max_tokens=300)
 
                 # Check that estimator was called with correct model key
@@ -321,7 +342,9 @@ class TestRouterEstimatorIntegration:
             )
 
             # Mock provider availability
-            with patch("app.providers.registry.get_provider_registry", return_value={"openai": MagicMock()}):
+            with patch(
+                "app.providers.registry.get_provider_registry", return_value={"openai": MagicMock()}
+            ):
                 await self.router.select_model(
                     messages=messages,
                     max_tokens=500,  # Different max_tokens
@@ -339,16 +362,26 @@ class TestRouterEstimatorIntegration:
         def mock_estimate_side_effect(model_key, tokens_in, tokens_out):
             if "unknown" in model_key:
                 raise Exception("Estimator failed")
-            return MagicMock(usd=0.05, eta_ms=800, model_key=model_key, tokens_in=tokens_in, tokens_out=tokens_out)
+            return MagicMock(
+                usd=0.05,
+                eta_ms=800,
+                model_key=model_key,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+            )
 
         with patch.object(self.estimator, "estimate", side_effect=mock_estimate_side_effect):
             # Mock provider availability
-            with patch("app.providers.registry.get_provider_registry", return_value={"openai": MagicMock()}):
+            with patch(
+                "app.providers.registry.get_provider_registry", return_value={"openai": MagicMock()}
+            ):
                 # Should still work (fallback to default behavior)
                 result = await self.router.select_model(messages=messages, max_tokens=300)
 
                 # Should return a result (fallback behavior)
-                assert len(result) == 5  # provider, model, reasoning, intent_metadata, estimate_metadata
+                assert (
+                    len(result) == 5
+                )  # provider, model, reasoning, intent_metadata, estimate_metadata
 
 
 class TestEndToEndBudgetFlow:
@@ -387,7 +420,8 @@ class TestEndToEndBudgetFlow:
 
         with patch("app.main.HeuristicRouter", return_value=mock_router):
             response = self.client.post(
-                "/v1/chat/completions", json={"messages": [{"role": "user", "content": "Hello"}], "max_tokens": 1000}
+                "/v1/chat/completions",
+                json={"messages": [{"role": "user", "content": "Hello"}], "max_tokens": 1000},
             )
 
             # Assert strict 402 status code for budget exceeded
@@ -404,13 +438,17 @@ class TestEndToEndBudgetFlow:
         mock_router = MagicMock()
         mock_router.select_model = AsyncMock(
             side_effect=BudgetExceededError(
-                "No models have pricing; update PRICE_TABLE_PATH", limit=0.08, estimates=[], reason="no_pricing"
+                "No models have pricing; update PRICE_TABLE_PATH",
+                limit=0.08,
+                estimates=[],
+                reason="no_pricing",
             )
         )
 
         with patch("app.main.HeuristicRouter", return_value=mock_router):
             response = self.client.post(
-                "/v1/chat/completions", json={"messages": [{"role": "user", "content": "Hello"}], "max_tokens": 1000}
+                "/v1/chat/completions",
+                json={"messages": [{"role": "user", "content": "Hello"}], "max_tokens": 1000},
             )
 
             # Assert 402 status code for budget exceeded
@@ -431,7 +469,13 @@ class TestEndToEndBudgetFlow:
                 "gpt-4o-mini",
                 "Selected for cost efficiency",
                 {"label": "general", "confidence": 0.8},
-                {"usd": 0.05, "eta_ms": 800, "tokens_in": 400, "tokens_out": 300, "model_key": "openai:gpt-4o-mini"},
+                {
+                    "usd": 0.05,
+                    "eta_ms": 800,
+                    "tokens_in": 400,
+                    "tokens_out": 300,
+                    "model_key": "openai:gpt-4o-mini",
+                },
             )
         )
 
@@ -466,9 +510,13 @@ class TestEndToEndBudgetFlow:
                     intent_signals={},
                 ),
             )
-            with patch("app.providers.registry.get_provider_registry", return_value={"openai": mock_provider}):
+            with patch(
+                "app.providers.registry.get_provider_registry",
+                return_value={"openai": mock_provider},
+            ):
                 response = self.client.post(
-                    "/v1/chat/completions", json={"messages": [{"role": "user", "content": "Hello"}], "max_tokens": 300}
+                    "/v1/chat/completions",
+                    json={"messages": [{"role": "user", "content": "Hello"}], "max_tokens": 300},
                 )
 
                 assert response.status_code == 200
@@ -486,7 +534,13 @@ class TestEndToEndBudgetFlow:
                 "gpt-4o-mini",
                 "Selected for cost efficiency",
                 {"label": "general", "confidence": 0.8},
-                {"usd": 0.05, "eta_ms": 800, "tokens_in": 400, "tokens_out": 300, "model_key": "openai:gpt-4o-mini"},
+                {
+                    "usd": 0.05,
+                    "eta_ms": 800,
+                    "tokens_in": 400,
+                    "tokens_out": 300,
+                    "model_key": "openai:gpt-4o-mini",
+                },
             )
         )
         mock_router.record_latency = MagicMock()
@@ -522,7 +576,10 @@ class TestEndToEndBudgetFlow:
                     intent_signals={},
                 ),
             )
-            with patch("app.providers.registry.get_provider_registry", return_value={"openai": mock_provider}):
+            with patch(
+                "app.providers.registry.get_provider_registry",
+                return_value={"openai": mock_provider},
+            ):
                 response = self.client.post(
                     "/v1/chat/completions",
                     json={"messages": [{"role": "user", "content": "Hello"}], "max_tokens": 300},
@@ -535,7 +592,7 @@ class TestEndToEndBudgetFlow:
                 call_args = mock_router.record_latency.call_args[0]
                 assert call_args[0] == "openai:gpt-4o-mini"
                 # The latency might be 0 since it's a mock, so just check it's a number
-                assert isinstance(call_args[1], (int, float))
+                assert isinstance(call_args[1], int | float)
 
 
 class TestOfflineBudgetTesting:

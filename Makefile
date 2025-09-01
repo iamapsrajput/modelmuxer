@@ -99,7 +99,7 @@ lint:
 typecheck:
 	poetry run mypy app/
 
-test:
+test-quick:
 	poetry run pytest -q
 
 test-cov:

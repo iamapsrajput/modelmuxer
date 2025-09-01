@@ -63,6 +63,6 @@ def test_valid_model_formats_accepted():
 
         # Should not return 400 for invalid model format
         # (may return other errors like 401, 503, etc. which is expected)
-        assert response.status_code != 400 or "invalid_model_format" not in response.text, (
-            f"Valid model {valid_model} was incorrectly rejected for format reasons"
-        )
+        assert (
+            response.status_code != 400 or "invalid_model_format" not in response.text
+        ), f"Valid model {valid_model} was incorrectly rejected for format reasons"

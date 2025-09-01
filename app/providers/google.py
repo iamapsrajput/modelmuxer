@@ -26,7 +26,9 @@ from app.models import ChatMessage
 
 
 class GoogleAdapter(LLMProviderAdapter):
-    def __init__(self, api_key: str, base_url: str = "https://generativelanguage.googleapis.com/v1beta") -> None:
+    def __init__(
+        self, api_key: str, base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    ) -> None:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.circuit = SimpleCircuitBreaker(
@@ -71,12 +73,10 @@ class GoogleAdapter(LLMProviderAdapter):
             elif role == "user":
                 contents.append({"role": "user", "parts": [{"text": content}]})
             elif role == "assistant":
-                contents.append(
-                    {
-                        "role": "model",  # Google uses "model" instead of "assistant"
-                        "parts": [{"text": content}],
-                    }
-                )
+                contents.append({
+                    "role": "model",  # Google uses "model" instead of "assistant"
+                    "parts": [{"text": content}],
+                })
 
         result = {"contents": contents}
         if not contents:
@@ -84,9 +84,14 @@ class GoogleAdapter(LLMProviderAdapter):
             if isinstance(prompt, str) and prompt:
                 result["contents"] = [{"role": "user", "parts": [{"text": prompt}]}]
             else:
-                raise ValueError("Google payload requires at least one user message or non-empty prompt")
+                raise ValueError(
+                    "Google payload requires at least one user message or non-empty prompt"
+                )
         if system_instruction:
-            result["systemInstruction"] = {"role": "system", "parts": [{"text": system_instruction}]}
+            result["systemInstruction"] = {
+                "role": "system",
+                "parts": [{"text": system_instruction}],
+            }
 
         return result
 
@@ -100,11 +105,11 @@ class GoogleAdapter(LLMProviderAdapter):
                 if hasattr(msg, "role") and hasattr(msg, "content"):
                     # ChatMessage object - already validated by Pydantic
                     continue
-                elif isinstance(msg, dict):
+                if isinstance(msg, dict):
                     if "role" not in msg or "content" not in msg:
                         raise ValueError(f"message {i} must have 'role' and 'content' keys")
                 else:
-                    raise ValueError(f"message {i} must be a dict or ChatMessage object")
+                    raise TypeError(f"message {i} must be a dict or ChatMessage object")
 
         system = kwargs.get("system")
         if system is not None and not isinstance(system, str):
@@ -133,11 +138,15 @@ class GoogleAdapter(LLMProviderAdapter):
                         messages = kwargs.get("messages")
                         if messages:
                             # Convert messages to Google format
-                            google_payload = self._convert_messages_to_google_format(messages, prompt)
+                            google_payload = self._convert_messages_to_google_format(
+                                messages, prompt
+                            )
                         else:
                             # Validate prompt is non-empty
                             if not isinstance(prompt, str) or not prompt.strip():
-                                raise ValueError("Google payload requires a non-empty prompt or messages")
+                                raise ValueError(
+                                    "Google payload requires a non-empty prompt or messages"
+                                )
                             # Convert simple prompt to Google format
                             google_payload = self._convert_prompt_to_google_format(prompt)
 
@@ -160,7 +169,9 @@ class GoogleAdapter(LLMProviderAdapter):
                         if "max_tokens" in kwargs:
                             generation_config["maxOutputTokens"] = kwargs["max_tokens"]
                         else:
-                            generation_config["maxOutputTokens"] = settings.router.max_tokens_default
+                            generation_config["maxOutputTokens"] = (
+                                settings.router.max_tokens_default
+                            )
 
                         # Google-specific sampling parameters
                         if "top_p" in kwargs:
@@ -177,10 +188,22 @@ class GoogleAdapter(LLMProviderAdapter):
                             google_payload["safetySettings"] = kwargs["safety_settings"]
                         elif settings.google.default_safety:
                             google_payload["safetySettings"] = [
-                                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                                {
+                                    "category": "HARM_CATEGORY_HARASSMENT",
+                                    "threshold": "BLOCK_MEDIUM_AND_ABOVE",
+                                },
+                                {
+                                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                                    "threshold": "BLOCK_MEDIUM_AND_ABOVE",
+                                },
+                                {
+                                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                                    "threshold": "BLOCK_MEDIUM_AND_ABOVE",
+                                },
+                                {
+                                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                                    "threshold": "BLOCK_MEDIUM_AND_ABOVE",
+                                },
                             ]
 
                         # Add stop sequences if provided
@@ -198,7 +221,9 @@ class GoogleAdapter(LLMProviderAdapter):
                         url = f"{self.base_url}/models/{model}:generateContent"
                         params = {"key": self.api_key}
 
-                        resp = await self._client.post(url, json=google_payload, headers=headers, params=params)
+                        resp = await self._client.post(
+                            url, json=google_payload, headers=headers, params=params
+                        )
 
                         # Handle HTTP status errors for retry logic
                         try:
@@ -207,9 +232,11 @@ class GoogleAdapter(LLMProviderAdapter):
                             code = e.response.status_code
                             if code == 429 or code >= 500:
                                 # signal retry
-                                raise httpx.RequestError(f"retryable status: {code}", request=resp.request)
+                                raise httpx.RequestError(
+                                    f"retryable status: {code}", request=resp.request
+                                ) from e
                             # non-retryable -> propagate
-                            raise
+                            raise  # noqa: B904
 
                         data = resp.json()
 
@@ -221,12 +248,18 @@ class GoogleAdapter(LLMProviderAdapter):
                             is_retryable = _is_retryable_error("google", resp.status_code, data)
 
                             if is_retryable:
-                                raise httpx.RequestError(f"Google retryable error: {error_msg}", request=resp.request)
+                                raise httpx.RequestError(
+                                    f"Google retryable error: {error_msg}", request=resp.request
+                                )
                             else:
                                 self.circuit.on_failure()
                                 latency_ms = int((time.perf_counter() - start) * 1000)
-                                PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="error").inc()
-                                PROVIDER_LATENCY.labels(provider=provider, model=model).observe(latency_ms)
+                                PROVIDER_REQUESTS.labels(
+                                    provider=provider, model=model, outcome="error"
+                                ).inc()
+                                PROVIDER_LATENCY.labels(provider=provider, model=model).observe(
+                                    latency_ms
+                                )
                                 # Return ProviderResponse with error to let callers decide on fallbacks - adapter contract
                                 return ProviderResponse(
                                     output_text="",
@@ -244,9 +277,15 @@ class GoogleAdapter(LLMProviderAdapter):
                             if "content" in candidate and "parts" in candidate["content"]:
                                 parts = candidate["content"]["parts"]
                                 # Handle mixed tool parts - only extract text parts
-                                content = "".join(p["text"] for p in parts if isinstance(p, dict) and p.get("text"))
+                                content = "".join(
+                                    p["text"]
+                                    for p in parts
+                                    if isinstance(p, dict) and p.get("text")
+                                )
                                 # Store non-text parts for downstream handling
-                                non_text_parts = [p for p in parts if isinstance(p, dict) and not p.get("text")]
+                                non_text_parts = [
+                                    p for p in parts if isinstance(p, dict) and not p.get("text")
+                                ]
                                 if non_text_parts:
                                     data["_non_text_parts"] = non_text_parts
 
@@ -268,7 +307,11 @@ class GoogleAdapter(LLMProviderAdapter):
                             usage_metadata = data["usageMetadata"]
                             in_tokens = int(usage_metadata.get("promptTokenCount", 0))
                             out_tokens = int(usage_metadata.get("candidatesTokenCount", 0))
-                        elif "candidates" in data and data["candidates"] and "usageMetadata" in data["candidates"][0]:
+                        elif (
+                            "candidates" in data
+                            and data["candidates"]
+                            and "usageMetadata" in data["candidates"][0]
+                        ):
                             # Check alternate location for usage metadata
                             usage_metadata = data["candidates"][0]["usageMetadata"]
                             in_tokens = int(usage_metadata.get("promptTokenCount", 0))
@@ -277,10 +320,16 @@ class GoogleAdapter(LLMProviderAdapter):
                         latency_ms = int((time.perf_counter() - start) * 1000)
 
                         # Metrics
-                        PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="success").inc()
+                        PROVIDER_REQUESTS.labels(
+                            provider=provider, model=model, outcome="success"
+                        ).inc()
                         PROVIDER_LATENCY.labels(provider=provider, model=model).observe(latency_ms)
-                        TOKENS_TOTAL.labels(provider=provider, model=model, type="input").inc(in_tokens)
-                        TOKENS_TOTAL.labels(provider=provider, model=model, type="output").inc(out_tokens)
+                        TOKENS_TOTAL.labels(provider=provider, model=model, type="input").inc(
+                            in_tokens
+                        )
+                        TOKENS_TOTAL.labels(provider=provider, model=model, type="output").inc(
+                            out_tokens
+                        )
 
                         self.circuit.on_success()
                         return ProviderResponse(

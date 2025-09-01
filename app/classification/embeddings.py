@@ -8,6 +8,7 @@ embeddings used in prompt classification and semantic routing.
 """
 
 import hashlib
+import operator
 from pathlib import Path
 from typing import Any
 
@@ -77,7 +78,7 @@ class EmbeddingManager:
             Numpy array containing the embedding
         """
         if not text.strip():
-            return np.zeros(self.embedding_dim)
+            return np.zeros(self.embedding_dim or 0)
 
         cache_key = self._get_cache_key(text)
 
@@ -91,18 +92,16 @@ class EmbeddingManager:
             cache_path = self._get_cache_path(cache_key)
             if cache_path.exists():
                 try:
-                    with open(cache_path, "rb") as f:
-                        data = f.read()
+                    data = Path(cache_path).read_bytes()
 
                     # Try secure deserialization first, fallback to pickle for legacy data
                     try:
                         embedding = secure_serializer.deserialize(data)
                     except ValueError:
                         # Legacy pickle format fallback
-                        import pickle  # nosec B403 - controlled legacy fallback
+                        import pickle  # noqa: S403 - controlled legacy fallback
 
-                        with open(cache_path, "rb") as f:
-                            embedding = pickle.load(f)  # nosec B301 - controlled legacy fallback
+                        embedding = pickle.loads(data)  # noqa: S301 - controlled legacy fallback
 
                     # Store in memory cache
                     self.memory_cache[cache_key] = embedding
@@ -125,9 +124,8 @@ class EmbeddingManager:
             if self.enable_cache:
                 try:
                     cache_path = self._get_cache_path(cache_key)
-                    with open(cache_path, "wb") as f:
-                        data = secure_serializer.serialize(embedding)
-                        f.write(data)
+                    data = secure_serializer.serialize(embedding)
+                    Path(cache_path).write_bytes(data)
                     self.cache_stats["disk_saves"] += 1
                 except Exception as e:
                     logger.warning("failed_to_save_embedding_cache", error=str(e))
@@ -157,7 +155,7 @@ class EmbeddingManager:
 
         for i, text in enumerate(texts):
             if not text.strip():
-                cached_embeddings[i] = np.zeros(self.embedding_dim)
+                cached_embeddings[i] = np.zeros(self.embedding_dim or 0)
                 continue
 
             cache_key = self._get_cache_key(text)
@@ -173,18 +171,16 @@ class EmbeddingManager:
                 cache_path = self._get_cache_path(cache_key)
                 if cache_path.exists():
                     try:
-                        with open(cache_path, "rb") as f:
-                            data = f.read()
+                        data = Path(cache_path).read_bytes()
 
                         # Try secure deserialization first, fallback to pickle for legacy data
                         try:
                             embedding = secure_serializer.deserialize(data)
                         except ValueError:
                             # Legacy pickle format fallback
-                            import pickle  # nosec B403 - controlled legacy fallback
+                            import pickle  # noqa: S403 - controlled legacy fallback
 
-                            with open(cache_path, "rb") as f:
-                                embedding = pickle.load(f)  # nosec B301 - controlled legacy fallback
+                            embedding = pickle.loads(data)  # noqa: S301 - controlled legacy fallback
 
                         cached_embeddings[i] = embedding
                         self.memory_cache[cache_key] = embedding
@@ -216,9 +212,8 @@ class EmbeddingManager:
                     if self.enable_cache:
                         try:
                             cache_path = self._get_cache_path(cache_key)
-                            with open(cache_path, "wb") as f:
-                                data = secure_serializer.serialize(embedding)
-                                f.write(data)
+                            data = secure_serializer.serialize(embedding)
+                            Path(cache_path).write_bytes(data)
                             self.cache_stats["disk_saves"] += 1
                         except Exception as e:
                             logger.warning("failed_to_save_embedding_cache", error=str(e))
@@ -266,7 +261,7 @@ class EmbeddingManager:
     def _euclidean_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
         """Calculate euclidean similarity (inverse of distance) between two embeddings."""
         distance = np.linalg.norm(embedding1 - embedding2)
-        return 1.0 / (1.0 + distance)  # Convert distance to similarity
+        return float(1.0 / (1.0 + distance))  # Convert distance to similarity
 
     async def find_most_similar(
         self, query_text: str, candidate_texts: list[str], top_k: int = 5
@@ -296,7 +291,7 @@ class EmbeddingManager:
             similarities.append((text, similarity))
 
         # Sort by similarity and return top k
-        similarities.sort(key=lambda x: x[1], reverse=True)
+        similarities.sort(key=operator.itemgetter(1), reverse=True)
         return similarities[:top_k]
 
     def cluster_embeddings(

@@ -41,7 +41,6 @@ def test_streaming_request(content):
             stream=True,  # Important for streaming
             timeout=30,
         ) as response:
-
             print(f"Status Code: {response.status_code}")
             print(f"Content-Type: {response.headers.get('content-type', 'Unknown')}")
 
@@ -170,9 +169,9 @@ def main():
     non_streaming_success = test_non_streaming_for_comparison(test_query)
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("TEST SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Streaming:     {'✅ PASS' if streaming_success else '❌ FAIL'}")
     print(f"Non-Streaming: {'✅ PASS' if non_streaming_success else '❌ FAIL'}")
 

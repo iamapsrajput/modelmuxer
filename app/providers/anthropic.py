@@ -53,14 +53,24 @@ class AnthropicAdapter(LLMProviderAdapter):
                         # Build messages with optional system prompt
                         messages = []
                         if kwargs.get("system"):
-                            messages.append({"role": "system", "content": [{"type": "text", "text": kwargs["system"]}]})
-                        messages.append({"role": "user", "content": [{"type": "text", "text": prompt}]})
+                            messages.append({
+                                "role": "system",
+                                "content": [{"type": "text", "text": kwargs["system"]}],
+                            })
+                        messages.append({
+                            "role": "user",
+                            "content": [{"type": "text", "text": prompt}],
+                        })
 
                         payload = {
                             "model": model,
-                            "max_tokens": kwargs.get("max_tokens", settings.router.max_tokens_default),
+                            "max_tokens": kwargs.get(
+                                "max_tokens", settings.router.max_tokens_default
+                            ),
                             "messages": messages,
-                            "temperature": kwargs.get("temperature", settings.router.temperature_default),
+                            "temperature": kwargs.get(
+                                "temperature", settings.router.temperature_default
+                            ),
                         }
                         headers = {
                             "x-api-key": self.api_key,
@@ -68,18 +78,20 @@ class AnthropicAdapter(LLMProviderAdapter):
                             "Content-Type": "application/json",
                             "User-Agent": f"{USER_AGENT} (Anthropic)",
                         }
-                        resp = await self._client.post(f"{self.base_url}/v1/messages", json=payload, headers=headers)
+                        resp = await self._client.post(
+                            f"{self.base_url}/v1/messages", json=payload, headers=headers
+                        )
 
                         # Handle HTTP status errors for retry logic
                         try:
                             resp.raise_for_status()
                         except httpx.HTTPStatusError as e:
                             # Retry 429/5xx errors by re-raising as RequestError
-                            if e.response.status_code in {429} or e.response.status_code >= 500:
+                            if e.response.status_code == 429 or e.response.status_code >= 500:
                                 raise httpx.RequestError(
                                     f"Retryable HTTP error: {e.response.status_code}",
                                     request=e.request,
-                                )
+                                ) from e
                             # Non-retryable errors (401, 403, 404) are handled by outer exception handler
                             raise
 
@@ -88,13 +100,17 @@ class AnthropicAdapter(LLMProviderAdapter):
                         text = ""
                         parts = data.get("content", [])
                         text = "".join(
-                            p.get("text", "") for p in parts if isinstance(p, dict) and p.get("type") == "text"
+                            p.get("text", "")
+                            for p in parts
+                            if isinstance(p, dict) and p.get("type") == "text"
                         )
 
                         # Extract and normalize finish reason
                         finish_reason = "stop"  # default
                         if data.get("stop_reason"):
-                            finish_reason = normalize_finish_reason("anthropic", data["stop_reason"])
+                            finish_reason = normalize_finish_reason(
+                                "anthropic", data["stop_reason"]
+                            )
                         data["_parsed_finish_reason"] = finish_reason
 
                         usage = data.get("usage", {})
@@ -103,10 +119,16 @@ class AnthropicAdapter(LLMProviderAdapter):
                         latency_ms = int((time.perf_counter() - start) * 1000)
 
                         # Metrics
-                        PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="success").inc()
+                        PROVIDER_REQUESTS.labels(
+                            provider=provider, model=model, outcome="success"
+                        ).inc()
                         PROVIDER_LATENCY.labels(provider=provider, model=model).observe(latency_ms)
-                        TOKENS_TOTAL.labels(provider=provider, model=model, type="input").inc(in_tokens)
-                        TOKENS_TOTAL.labels(provider=provider, model=model, type="output").inc(out_tokens)
+                        TOKENS_TOTAL.labels(provider=provider, model=model, type="input").inc(
+                            in_tokens
+                        )
+                        TOKENS_TOTAL.labels(provider=provider, model=model, type="output").inc(
+                            out_tokens
+                        )
 
                         self.circuit.on_success()
                         return ProviderResponse(

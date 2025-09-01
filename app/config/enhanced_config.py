@@ -42,7 +42,6 @@ class ProviderConfig(BaseSettings):
     # Together AI
     together_api_key: str | None = Field(default=None, env="TOGETHER_API_KEY")
 
-
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
     def validate_at_least_one_provider(self) -> bool:
@@ -63,7 +62,6 @@ class ProviderConfig(BaseSettings):
             self.groq_api_key,
             self.together_api_key,
         ]
-
 
         configured_providers = [
             p for p in providers if p and not p.startswith("your-") and not p.endswith("-here")

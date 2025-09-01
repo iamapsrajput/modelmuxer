@@ -14,7 +14,9 @@ from pydantic import BaseModel, Field, validator
 class ChatMessage(BaseModel):
     """Individual chat message in a conversation."""
 
-    role: Literal["system", "user", "assistant"] = Field(..., description="The role of the message author")
+    role: Literal["system", "user", "assistant"] = Field(
+        ..., description="The role of the message author"
+    )
     content: str = Field(..., description="The content of the message")
     name: str | None = Field(None, description="Optional name of the message author")
 
@@ -67,12 +69,18 @@ class RouterMetadata(BaseModel):
     intent_signals: dict[str, Any] | None = Field(None, description="Raw feature signals")
     # Estimate metadata fields
     estimated_cost_usd: float | None = Field(None, description="Estimated cost from router in USD")
-    estimated_eta_ms: int | None = Field(None, description="Estimated response time in milliseconds")
+    estimated_eta_ms: int | None = Field(
+        None, description="Estimated response time in milliseconds"
+    )
     # Estimated token fields for downstream telemetry
     estimated_tokens_in: int | None = Field(None, description="Estimated input tokens from router")
-    estimated_tokens_out: int | None = Field(None, description="Estimated output tokens from router")
+    estimated_tokens_out: int | None = Field(
+        None, description="Estimated output tokens from router"
+    )
     # Direct provider routing flag
-    direct_providers_only: bool | None = Field(None, description="Whether direct providers only mode is enabled")
+    direct_providers_only: bool | None = Field(
+        None, description="Whether direct providers only mode is enabled"
+    )
 
 
 class ChatResponse(BaseModel):
@@ -144,11 +152,11 @@ class ErrorResponse(BaseModel):
         details: dict[str, Any] | None = None,
     ) -> "ErrorResponse":
         """Create a standardized error response."""
-        error_data = {"message": message, "type": error_type}
+        error_data: dict[str, Any] = {"message": message, "type": error_type}
         if code:
             error_data["code"] = code
-        if details:
-            error_data.update(details)
+        if details is not None:
+            error_data["details"] = details
         return cls(error=error_data)
 
 
@@ -167,7 +175,9 @@ class BudgetRequest(BaseModel):
     budget_limit: float = Field(..., gt=0, description="Budget limit in USD")
     provider: str | None = Field(None, description="Specific provider (optional)")
     model: str | None = Field(None, description="Specific model (optional)")
-    alert_thresholds: list[float] | None = Field([50.0, 80.0, 95.0], description="Alert thresholds as percentages")
+    alert_thresholds: list[float] | None = Field(
+        [50.0, 80.0, 95.0], description="Alert thresholds as percentages"
+    )
 
     @validator("alert_thresholds")
     def validate_thresholds(cls, v: list[float] | None) -> list[float] | None:

@@ -32,7 +32,9 @@ class TestHeuristicRouter(unittest.TestCase):
         self.assertEqual(analysis["task_type"], "code")
 
         # Test with inline code
-        messages = [ChatMessage(role="user", content="Use the `print()` function in Python", name=None)]
+        messages = [
+            ChatMessage(role="user", content="Use the `print()` function in Python", name=None)
+        ]
         analysis = self.router.analyze_prompt(messages)
         self.assertTrue(analysis["has_code"])
 
@@ -44,7 +46,11 @@ class TestHeuristicRouter(unittest.TestCase):
     def test_complexity_detection(self) -> None:
         """Test complexity detection in prompts."""
         # Test complex analysis request
-        messages = [ChatMessage(role="user", content="Analyze the algorithm complexity and explain the trade-offs")]
+        messages = [
+            ChatMessage(
+                role="user", content="Analyze the algorithm complexity and explain the trade-offs"
+            )
+        ]
         analysis = self.router.analyze_prompt(messages)
         self.assertTrue(analysis["has_complexity"])
         self.assertEqual(analysis["task_type"], "complex")
@@ -74,7 +80,11 @@ class TestHeuristicRouter(unittest.TestCase):
 
     async def test_model_selection_code(self) -> None:
         """Test model selection for code-related prompts."""
-        messages = [ChatMessage(role="user", content="Write a Python function to implement binary search", name=None)]
+        messages = [
+            ChatMessage(
+                role="user", content="Write a Python function to implement binary search", name=None
+            )
+        ]
         provider, model, reason, _, _ = await self.router.select_model(messages)
 
         # Should select a high-quality model for code
@@ -108,8 +118,12 @@ class TestHeuristicRouter(unittest.TestCase):
         """Test analysis with multiple messages."""
         messages = [
             ChatMessage(role="user", content="I need help with programming", name=None),
-            ChatMessage(role="assistant", content="I'd be happy to help! What programming language?"),
-            ChatMessage(role="user", content="Python. Can you write a function to reverse a string?"),
+            ChatMessage(
+                role="assistant", content="I'd be happy to help! What programming language?"
+            ),
+            ChatMessage(
+                role="user", content="Python. Can you write a function to reverse a string?"
+            ),
         ]
 
         analysis = self.router.analyze_prompt(messages)
@@ -121,11 +135,15 @@ class TestHeuristicRouter(unittest.TestCase):
         messages = [ChatMessage(role="user", content="Explain quantum computing", name=None)]
 
         # Test with very low budget
-        provider, model, reason, _, _ = await self.router.select_model(messages, budget_constraint=0.0001)
+        provider, model, reason, _, _ = await self.router.select_model(
+            messages, budget_constraint=0.0001
+        )
         self.assertIn(provider, ["mistral", "openai", "groq"])  # Should select cheapest option
 
         # Test with normal budget
-        provider, model, reason, _, _ = await self.router.select_model(messages, budget_constraint=0.01)
+        provider, model, reason, _, _ = await self.router.select_model(
+            messages, budget_constraint=0.01
+        )
         # Should allow more expensive models
         self.assertIn(provider, ["openai", "anthropic", "mistral", "groq"])
 

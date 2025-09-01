@@ -28,7 +28,9 @@ from app.providers.base import ProviderResponse
 class MockProviderAdapter:
     """Mock provider adapter for testing."""
 
-    def __init__(self, provider_name: str, success_rate: float = 1.0, error_type: Optional[str] = None):
+    def __init__(
+        self, provider_name: str, success_rate: float = 1.0, error_type: str | None = None
+    ):
         self.provider_name = provider_name
         self.success_rate = success_rate
         self.error_type = error_type
@@ -41,7 +43,12 @@ class MockProviderAdapter:
 
         if self.circuit_open:
             return ProviderResponse(
-                output_text="", tokens_in=0, tokens_out=0, latency_ms=0, raw={}, error="circuit_open"
+                output_text="",
+                tokens_in=0,
+                tokens_out=0,
+                latency_ms=0,
+                raw={},
+                error="circuit_open",
             )
 
         # Guard against division by zero
@@ -92,7 +99,9 @@ def direct_providers_only_mode(monkeypatch):
     yield
 
     # Cleanup - restore original values
-    monkeypatch.setattr(settings.features, "provider_adapters_enabled", original_provider_adapters_enabled)
+    monkeypatch.setattr(
+        settings.features, "provider_adapters_enabled", original_provider_adapters_enabled
+    )
     monkeypatch.setattr(settings.features, "test_mode", original_test_mode)
 
 
@@ -114,8 +123,14 @@ def deterministic_price_table(tmp_path):
         "openai:gpt-4o": {"input_per_1k_usd": 0.005, "output_per_1k_usd": 0.015},
         "openai:gpt-4o-mini": {"input_per_1k_usd": 0.00015, "output_per_1k_usd": 0.0006},
         "openai:gpt-3.5-turbo": {"input_per_1k_usd": 0.0005, "output_per_1k_usd": 0.0015},
-        "anthropic:claude-3-5-sonnet-20241022": {"input_per_1k_usd": 0.003, "output_per_1k_usd": 0.015},
-        "anthropic:claude-3-haiku-20240307": {"input_per_1k_usd": 0.00025, "output_per_1k_usd": 0.00125},
+        "anthropic:claude-3-5-sonnet-20241022": {
+            "input_per_1k_usd": 0.003,
+            "output_per_1k_usd": 0.015,
+        },
+        "anthropic:claude-3-haiku-20240307": {
+            "input_per_1k_usd": 0.00025,
+            "output_per_1k_usd": 0.00125,
+        },
         "anthropic:claude-3-opus-20240229": {"input_per_1k_usd": 0.015, "output_per_1k_usd": 0.075},
         "mistral:mistral-large-latest": {"input_per_1k_usd": 0.007, "output_per_1k_usd": 0.024},
         "mistral:mistral-medium-latest": {"input_per_1k_usd": 0.0027, "output_per_1k_usd": 0.0081},
@@ -129,9 +144,18 @@ def deterministic_price_table(tmp_path):
         "cohere:command-r-plus": {"input_per_1k_usd": 0.003, "output_per_1k_usd": 0.015},
         "cohere:command-r": {"input_per_1k_usd": 0.0005, "output_per_1k_usd": 0.0025},
         "cohere:command": {"input_per_1k_usd": 0.00015, "output_per_1k_usd": 0.0006},
-        "together:meta-llama/Llama-3.1-8B-Instruct": {"input_per_1k_usd": 0.0002, "output_per_1k_usd": 0.0002},
-        "together:meta-llama/Llama-3.1-70B-Instruct": {"input_per_1k_usd": 0.0009, "output_per_1k_usd": 0.0009},
-        "together:microsoft/DialoGPT-medium": {"input_per_1k_usd": 0.0001, "output_per_1k_usd": 0.0001},
+        "together:meta-llama/Llama-3.1-8B-Instruct": {
+            "input_per_1k_usd": 0.0002,
+            "output_per_1k_usd": 0.0002,
+        },
+        "together:meta-llama/Llama-3.1-70B-Instruct": {
+            "input_per_1k_usd": 0.0009,
+            "output_per_1k_usd": 0.0009,
+        },
+        "together:microsoft/DialoGPT-medium": {
+            "input_per_1k_usd": 0.0001,
+            "output_per_1k_usd": 0.0001,
+        },
     }
 
     price_file = tmp_path / "test_price_table.json"
@@ -215,11 +239,10 @@ def direct_router(deterministic_price_table, mock_provider_registry, monkeypatch
 
     # Override the price table with the test data
     router.price_table = load_price_table(deterministic_price_table)
-    router.estimator.price_table = router.price_table
+    router.estimator.prices = router.price_table
 
-    # Override the direct model preferences after router initialization
-    # (the __init__ method sets them from model_preferences, so we need to override)
-    router.direct_model_preferences = {
+    # Override the model preferences after router initialization to ensure determinism in tests
+    router.model_preferences = {
         "code": [
             ("anthropic", "claude-3-5-sonnet-20241022"),
             ("openai", "gpt-4o"),
@@ -267,11 +290,10 @@ def budget_constrained_router(deterministic_price_table, mock_provider_registry,
 
     # Override the price table with the test data
     router.price_table = load_price_table(deterministic_price_table)
-    router.estimator.price_table = router.price_table
+    router.estimator.prices = router.price_table
 
-    # Override the direct model preferences after router initialization
-    # (the __init__ method sets them from model_preferences, so we need to override)
-    router.direct_model_preferences = {
+    # Override the model preferences after router initialization to ensure determinism in tests
+    router.model_preferences = {
         "code": [
             ("anthropic", "claude-3-5-sonnet-20241022"),
             ("openai", "gpt-4o"),
@@ -311,7 +333,9 @@ def code_messages():
 def complex_messages():
     """Sample messages for complex reasoning tasks."""
     return [
-        ChatMessage(role="user", content="Explain the implications of quantum computing on cryptography"),
+        ChatMessage(
+            role="user", content="Explain the implications of quantum computing on cryptography"
+        ),
         ChatMessage(
             role="assistant",
             content="Quantum computing poses significant challenges to current cryptographic systems...",
@@ -419,3 +443,23 @@ def mock_telemetry():
             "cost_sum_labeled": mock_cost_sum_labeled,
             "budget_exceeded_labeled": mock_budget_exceeded_labeled,
         }
+
+
+@pytest.fixture
+def deterministic_env(monkeypatch):
+    """Provide a deterministic environment for comprehensive tests."""
+    monkeypatch.setenv("PROVIDER_ADAPTERS_ENABLED", "1")
+    # Price table
+    from app.core.costing import Price
+
+    with patch(
+        "app.router.load_price_table",
+        return_value={
+            "openai:gpt-4o": Price(input_per_1k_usd=0.0005, output_per_1k_usd=0.0015),
+            "openai:gpt-4o-mini": Price(input_per_1k_usd=0.00015, output_per_1k_usd=0.0006),
+            "anthropic:claude-3-haiku-20240307": Price(
+                input_per_1k_usd=0.00025, output_per_1k_usd=0.00125
+            ),
+        },
+    ):
+        yield

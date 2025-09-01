@@ -57,7 +57,9 @@ provider_budget = {
     "alert_thresholds": [25.0, 50.0, 75.0, 90.0],
 }
 
-response = requests.post("http://localhost:8000/v1/analytics/budgets", headers=headers, json=provider_budget)
+response = requests.post(
+    "http://localhost:8000/v1/analytics/budgets", headers=headers, json=provider_budget
+)
 
 if response.status_code == 200:
     print("Provider-specific budget set successfully!")
@@ -73,7 +75,9 @@ if response.status_code == 200:
     data = response.json()
     print(f"Total budgets: {data['total_budgets']}")
     for i, budget in enumerate(data["budgets"]):
-        provider_info = f" (Provider: {budget['provider']})" if budget["provider"] else " (All Providers)"
+        provider_info = (
+            f" (Provider: {budget['provider']})" if budget["provider"] else " (All Providers)"
+        )
         print(f"Budget {i + 1}: {budget['budget_type']}{provider_info}")
         print(f"  Limit: ${budget['budget_limit']:.2f}")
         print(f"  Usage: ${budget['current_usage']:.6f} ({budget['usage_percentage']:.1f}%)")

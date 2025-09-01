@@ -177,7 +177,7 @@ class PIIProtectionTester:
 
         print(f"   Total tests: {total_tests}")
         print(f"   Successful: {successful_tests}")
-        print(f"   Success rate: {(successful_tests/total_tests)*100:.1f}%")
+        print(f"   Success rate: {(successful_tests / total_tests) * 100:.1f}%")
 
         pii_tests = [name for name in results if name != "safe"]
         pii_detected_count = sum(
@@ -187,7 +187,7 @@ class PIIProtectionTester:
         print("\n🔍 PII Detection Results:")
         print(f"   PII tests: {len(pii_tests)}")
         print(f"   PII detected: {pii_detected_count}")
-        print(f"   Detection rate: {(pii_detected_count/len(pii_tests))*100:.1f}%")
+        print(f"   Detection rate: {(pii_detected_count / len(pii_tests)) * 100:.1f}%")
 
         return results
 

@@ -21,7 +21,9 @@ def test_router_preferences_in_price_table():
     missing_keys = candidate_keys - price_table_keys
 
     # Assert that all router preference models are in the price table
-    assert not missing_keys, f"Router preference models missing from price table: {sorted(missing_keys)}"
+    assert (
+        not missing_keys
+    ), f"Router preference models missing from price table: {sorted(missing_keys)}"
 
     # Also verify that we have a reasonable number of models in preferences
     assert len(candidate_keys) > 0, "Router preferences should contain at least one model"
@@ -35,7 +37,7 @@ def test_price_table_json_valid():
 
     # Load and parse the price table
     price_table_path = settings.pricing.price_table_path
-    with open(price_table_path, "r") as f:
+    with open(price_table_path) as f:
         price_data = json.load(f)
 
     # Verify it's a dictionary
@@ -54,9 +56,9 @@ def test_price_table_json_valid():
         assert isinstance(pricing, dict), f"Pricing should be dict for {model_key}"
         assert "input_per_1k_usd" in pricing, f"Missing input_per_1k_usd for {model_key}"
         assert "output_per_1k_usd" in pricing, f"Missing output_per_1k_usd for {model_key}"
-        assert isinstance(pricing["input_per_1k_usd"], (int, float)), (
-            f"input_per_1k_usd should be numeric for {model_key}"
-        )
-        assert isinstance(pricing["output_per_1k_usd"], (int, float)), (
-            f"output_per_1k_usd should be numeric for {model_key}"
-        )
+        assert isinstance(
+            pricing["input_per_1k_usd"], int | float
+        ), f"input_per_1k_usd should be numeric for {model_key}"
+        assert isinstance(
+            pricing["output_per_1k_usd"], int | float
+        ), f"output_per_1k_usd should be numeric for {model_key}"

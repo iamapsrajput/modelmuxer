@@ -54,8 +54,12 @@ class MistralAdapter(LLMProviderAdapter):
                         payload = {
                             "model": model,
                             "messages": [{"role": "user", "content": prompt}],
-                            "temperature": kwargs.get("temperature", settings.router.temperature_default),
-                            "max_tokens": kwargs.get("max_tokens", settings.router.max_tokens_default),
+                            "temperature": kwargs.get(
+                                "temperature", settings.router.temperature_default
+                            ),
+                            "max_tokens": kwargs.get(
+                                "max_tokens", settings.router.max_tokens_default
+                            ),
                         }
                         headers = {
                             "Authorization": f"Bearer {self.api_key}",
@@ -71,13 +75,13 @@ class MistralAdapter(LLMProviderAdapter):
                             resp.raise_for_status()
                         except httpx.HTTPStatusError as e:
                             # Retry 429/5xx errors by re-raising as RequestError
-                            if e.response.status_code in {429} or e.response.status_code >= 500:
+                            if e.response.status_code == 429 or e.response.status_code >= 500:
                                 raise httpx.RequestError(
                                     f"Retryable HTTP error: {e.response.status_code}",
                                     request=e.request,
-                                )
+                                ) from e
                             # Non-retryable errors (401, 403, 404) are handled by outer exception handler
-                            raise
+                            raise  # noqa: B904
 
                         data = resp.json()
 
@@ -85,11 +89,17 @@ class MistralAdapter(LLMProviderAdapter):
                         if data.get("error"):
                             err = data["error"].get("message", "Provider returned an error")
                             if _is_retryable_error("mistral", resp.status_code, data):
-                                raise httpx.RequestError(f"Retryable provider error: {err}", request=resp.request)
+                                raise httpx.RequestError(
+                                    f"Retryable provider error: {err}", request=resp.request
+                                )
                             self.circuit.on_failure()
                             latency_ms = int((time.perf_counter() - start) * 1000)
-                            PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="error").inc()
-                            PROVIDER_LATENCY.labels(provider=provider, model=model).observe(latency_ms)
+                            PROVIDER_REQUESTS.labels(
+                                provider=provider, model=model, outcome="error"
+                            ).inc()
+                            PROVIDER_LATENCY.labels(provider=provider, model=model).observe(
+                                latency_ms
+                            )
                             return ProviderResponse(
                                 output_text="",
                                 tokens_in=0,
@@ -103,7 +113,9 @@ class MistralAdapter(LLMProviderAdapter):
 
                         # Extract and normalize finish reason
                         finish_reason = data["choices"][0].get("finish_reason")
-                        data["_parsed_finish_reason"] = normalize_finish_reason("openai", finish_reason)
+                        data["_parsed_finish_reason"] = normalize_finish_reason(
+                            "openai", finish_reason
+                        )
 
                         usage = data.get("usage", {})
                         in_tokens = int(usage.get("prompt_tokens", 0))
@@ -111,10 +123,16 @@ class MistralAdapter(LLMProviderAdapter):
                         latency_ms = int((time.perf_counter() - start) * 1000)
 
                         # Metrics
-                        PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="success").inc()
+                        PROVIDER_REQUESTS.labels(
+                            provider=provider, model=model, outcome="success"
+                        ).inc()
                         PROVIDER_LATENCY.labels(provider=provider, model=model).observe(latency_ms)
-                        TOKENS_TOTAL.labels(provider=provider, model=model, type="input").inc(in_tokens)
-                        TOKENS_TOTAL.labels(provider=provider, model=model, type="output").inc(out_tokens)
+                        TOKENS_TOTAL.labels(provider=provider, model=model, type="input").inc(
+                            in_tokens
+                        )
+                        TOKENS_TOTAL.labels(provider=provider, model=model, type="output").inc(
+                            out_tokens
+                        )
 
                         self.circuit.on_success()
                         return ProviderResponse(
@@ -152,4 +170,9 @@ class MistralAdapter(LLMProviderAdapter):
 
     def get_supported_models(self) -> list[str]:
         """Get the list of models supported by Mistral."""
-        return ["mistral-large-latest", "mistral-small-latest", "mistral-medium-latest", "codestral-latest"]
+        return [
+            "mistral-large-latest",
+            "mistral-small-latest",
+            "mistral-medium-latest",
+            "codestral-latest",
+        ]

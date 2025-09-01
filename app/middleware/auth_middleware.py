@@ -345,14 +345,12 @@ class AuthMiddleware:
 
         if user_id in self.users:
             user_info = self.users[user_id]
-            payload.update(
-                {
-                    "name": user_info["name"],
-                    "email": user_info["email"],
-                    "role": user_info["role"],
-                    "permissions": user_info["permissions"],
-                }
-            )
+            payload.update({
+                "name": user_info["name"],
+                "email": user_info["email"],
+                "role": user_info["role"],
+                "permissions": user_info["permissions"],
+            })
 
         if additional_claims:
             payload.update(additional_claims)

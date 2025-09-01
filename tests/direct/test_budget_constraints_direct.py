@@ -25,12 +25,21 @@ class TestBudgetConstraintsDirect:
         """Test budget gate with expensive models - should select affordable models."""
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
             # With 0.02 USD budget threshold, most models will be filtered out
             # Test that we get a BudgetExceededError for expensive models
             with pytest.raises(BudgetExceededError) as exc_info:
-                await budget_constrained_router.select_model(expensive_model_messages, budget_constraint=0.08)
+                await budget_constrained_router.select_model(
+                    expensive_model_messages, budget_constraint=0.08
+                )
 
             # Verify error structure
             assert "budget" in str(exc_info.value).lower()
@@ -44,7 +53,10 @@ class TestBudgetConstraintsDirect:
             budget_constrained_router,
             "direct_model_preferences",
             {
-                "simple": [("openai", "gpt-3.5-turbo"), ("together", "meta-llama/Llama-3.1-8B-Instruct")],
+                "simple": [
+                    ("openai", "gpt-3.5-turbo"),
+                    ("together", "meta-llama/Llama-3.1-8B-Instruct"),
+                ],
                 "complex": [
                     ("openai", "gpt-4o"),
                     ("anthropic", "claude-3-5-sonnet-20241022"),
@@ -55,11 +67,20 @@ class TestBudgetConstraintsDirect:
 
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
             # With 0.02 USD budget threshold, even 0.005 budget constraint should fail
             with pytest.raises(BudgetExceededError) as exc_info:
-                await budget_constrained_router.select_model(simple_messages, budget_constraint=0.005)
+                await budget_constrained_router.select_model(
+                    simple_messages, budget_constraint=0.005
+                )
 
             # Verify error structure
             assert "budget" in str(exc_info.value).lower()
@@ -70,7 +91,14 @@ class TestBudgetConstraintsDirect:
         """Test BudgetExceededError is raised when budget is exceeded."""
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
             with pytest.raises(BudgetExceededError) as exc_info:
                 await budget_constrained_router.select_model(
@@ -87,7 +115,9 @@ class TestBudgetConstraintsDirect:
             ]
             assert "budget" in str(exc_info.value).lower()
 
-    async def test_down_routing_behavior(self, direct_providers_only_mode, budget_constrained_router, complex_messages):
+    async def test_down_routing_behavior(
+        self, direct_providers_only_mode, budget_constrained_router, complex_messages
+    ):
         """Test router down-routes to cheaper models when budget constraints apply."""
         # Set up preferences with expensive model first, cheaper models later
         with (
@@ -107,7 +137,12 @@ class TestBudgetConstraintsDirect:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
@@ -121,13 +156,28 @@ class TestBudgetConstraintsDirect:
             # Verify error structure
             assert "budget" in str(exc_info.value).lower()
 
-    async def test_cost_estimation_integration(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_cost_estimation_integration(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test cost estimation integration with different token counts."""
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(
                 simple_messages,
                 max_tokens=100,  # Override max_tokens
             )
@@ -141,7 +191,9 @@ class TestBudgetConstraintsDirect:
             # Should have cost information
             assert estimate_metadata["usd"] > 0
 
-    async def test_cost_estimation_with_different_token_counts(self, direct_providers_only_mode, direct_router):
+    async def test_cost_estimation_with_different_token_counts(
+        self, direct_providers_only_mode, direct_router
+    ):
         """Test cost estimation with different input/output token counts."""
         # Test with different message lengths
         short_messages = [ChatMessage(role="user", content="Hi")]
@@ -149,14 +201,29 @@ class TestBudgetConstraintsDirect:
 
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
-            provider1, model1, reasoning1, intent_metadata1, estimate_metadata1 = await direct_router.select_model(
-                short_messages
-            )
-            provider2, model2, reasoning2, intent_metadata2, estimate_metadata2 = await direct_router.select_model(
-                long_messages
-            )
+            (
+                provider1,
+                model1,
+                reasoning1,
+                intent_metadata1,
+                estimate_metadata1,
+            ) = await direct_router.select_model(short_messages)
+            (
+                provider2,
+                model2,
+                reasoning2,
+                intent_metadata2,
+                estimate_metadata2,
+            ) = await direct_router.select_model(long_messages)
 
             # Long messages should have higher cost estimates
             short_cost = estimate_metadata1["usd"]
@@ -164,7 +231,9 @@ class TestBudgetConstraintsDirect:
 
             assert long_cost > short_cost, "Long messages should have higher cost estimates"
 
-    async def test_budget_error_scenarios(self, direct_providers_only_mode, budget_constrained_router, simple_messages):
+    async def test_budget_error_scenarios(
+        self, direct_providers_only_mode, budget_constrained_router, simple_messages
+    ):
         """Test various budget error scenarios."""
 
         # Test "no_pricing" scenario
@@ -173,7 +242,12 @@ class TestBudgetConstraintsDirect:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
@@ -190,7 +264,14 @@ class TestBudgetConstraintsDirect:
         # Test "no_affordable_available" scenario
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
             with pytest.raises(BudgetExceededError) as exc_info:
                 await budget_constrained_router.select_model(
@@ -211,7 +292,14 @@ class TestBudgetConstraintsDirect:
         """Test per-request budget constraint override vs default threshold."""
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
             # With 0.02 USD budget threshold, even 0.1 budget constraint should fail
             # because the router is not finding any models within budget
@@ -230,7 +318,14 @@ class TestBudgetConstraintsDirect:
         """Test budget metrics and telemetry integration."""
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
             # With 0.02 USD budget threshold, this should fail
             with pytest.raises(BudgetExceededError) as exc_info:
@@ -240,12 +335,23 @@ class TestBudgetConstraintsDirect:
             assert "budget" in str(exc_info.value).lower()
 
     async def test_budget_exceeded_metrics(
-        self, direct_providers_only_mode, budget_constrained_router, expensive_model_messages, mock_telemetry
+        self,
+        direct_providers_only_mode,
+        budget_constrained_router,
+        expensive_model_messages,
+        mock_telemetry,
     ):
         """Test budget exceeded metrics are recorded correctly."""
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
             try:
                 await budget_constrained_router.select_model(
@@ -273,14 +379,23 @@ class TestBudgetConstraintsDirect:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
             patch("app.core.costing.estimate_tokens", return_value=(0, 0)),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
 
             # Should handle zero token estimates gracefully
             # Note: The router may still use some minimum token values for safety
@@ -293,14 +408,25 @@ class TestBudgetConstraintsDirect:
         """Test budget constraint with max_tokens parameter override."""
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
             # Test with different max_tokens values - both should fail with 0.02 USD budget threshold
             with pytest.raises(BudgetExceededError) as exc_info1:
-                await budget_constrained_router.select_model(simple_messages, max_tokens=10, budget_constraint=0.01)
+                await budget_constrained_router.select_model(
+                    simple_messages, max_tokens=10, budget_constraint=0.01
+                )
 
             with pytest.raises(BudgetExceededError) as exc_info2:
-                await budget_constrained_router.select_model(simple_messages, max_tokens=1000, budget_constraint=0.01)
+                await budget_constrained_router.select_model(
+                    simple_messages, max_tokens=1000, budget_constraint=0.01
+                )
 
             # Verify error structure
             assert "budget" in str(exc_info1.value).lower()
@@ -312,11 +438,20 @@ class TestBudgetConstraintsDirect:
         """Test that reasoning includes budget-related information."""
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
             # With 0.02 USD budget threshold, this should fail
             with pytest.raises(BudgetExceededError) as exc_info:
-                await budget_constrained_router.select_model(complex_messages, budget_constraint=0.01)
+                await budget_constrained_router.select_model(
+                    complex_messages, budget_constraint=0.01
+                )
 
             # Verify error structure
             assert "budget" in str(exc_info.value).lower()
@@ -327,7 +462,14 @@ class TestBudgetConstraintsDirect:
         """Test budget constraints work correctly across different providers."""
         with patch(
             "app.core.intent.classify_intent",
-            new=AsyncMock(return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}),
+            new=AsyncMock(
+                return_value={
+                    "label": "chat_lite",
+                    "confidence": 0.9,
+                    "signals": {},
+                    "method": "heuristic",
+                }
+            ),
         ):
             results = []
 
@@ -340,7 +482,9 @@ class TestBudgetConstraintsDirect:
                         reasoning,
                         intent_metadata,
                         estimate_metadata,
-                    ) = await budget_constrained_router.select_model(simple_messages, budget_constraint=budget)
+                    ) = await budget_constrained_router.select_model(
+                        simple_messages, budget_constraint=budget
+                    )
                     results.append((budget, (provider, model)))
                 except BudgetExceededError:
                     results.append((budget, None))
@@ -348,7 +492,9 @@ class TestBudgetConstraintsDirect:
             # With 0.02 USD budget threshold, all budget constraints should fail
             # because the router is not finding any models within budget
             successful_results = [r for r in results if r[1] is not None]
-            assert len(successful_results) == 0, "All budget constraints should fail with 0.02 USD threshold"
+            assert (
+                len(successful_results) == 0
+            ), "All budget constraints should fail with 0.02 USD threshold"
 
     async def test_down_routing_metric(
         self, direct_providers_only_mode, budget_constrained_router, complex_messages, monkeypatch
@@ -373,7 +519,12 @@ class TestBudgetConstraintsDirect:
             with patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ):
                 # With 0.02 USD budget threshold, this should fail

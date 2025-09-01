@@ -7,6 +7,14 @@ import uuid
 from enum import Enum
 from typing import Any
 
+try:
+    from sqlalchemy.orm import Mapped
+
+    SQLALCHEMY_2_0_AVAILABLE = True
+except ImportError:
+    # Fallback for older SQLAlchemy versions
+    SQLALCHEMY_2_0_AVAILABLE = False
+
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -20,14 +28,29 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
+try:
+    import sqlalchemy.orm
 
-class Base(DeclarativeBase):
-    """Base class for all database models."""
+    _DeclarativeBase = getattr(sqlalchemy.orm, "DeclarativeBase", None)
 
-    pass
+    if _DeclarativeBase is not None:
+
+        class Base(_DeclarativeBase):
+            """Base class for all database models."""
+
+            pass
+
+    else:
+        raise ImportError("DeclarativeBase not available")
+
+except (ImportError, AttributeError):
+    # Fallback for older SQLAlchemy versions
+    from sqlalchemy.ext.declarative import declarative_base
+
+    Base = declarative_base()
 
 
 class PlanType(str, Enum):

@@ -86,7 +86,11 @@ def build_registry() -> Dict[str, object]:
         )
 
     if settings.api.groq_api_key and GroqAdapter is not None:
-        base_url = str(settings.endpoints.groq_base_url) if settings.endpoints.groq_base_url else "https://api.groq.com"
+        base_url = (
+            str(settings.endpoints.groq_base_url)
+            if settings.endpoints.groq_base_url
+            else "https://api.groq.com"
+        )
         registry["groq"] = GroqAdapter(
             api_key=settings.api.groq_api_key,
             base_url=base_url,
@@ -147,7 +151,7 @@ async def refresh_provider_registry() -> None:
             try:
                 await adapter.aclose()
             except Exception as e:
-                logger.warning(f"Failed to close {provider_name} during refresh: {e}")
+                logger.warning("Failed to close %s during refresh: %s", provider_name, e)
     PROVIDERS = build_registry()
 
 
@@ -182,9 +186,11 @@ async def cleanup_provider_registry() -> None:
         if isinstance(adapter, LLMProviderAdapter):
             try:
                 await adapter.aclose()
-                logger.debug(f"Successfully closed {provider_name} adapter")
+                logger.debug("Successfully closed %s adapter", provider_name)
             except Exception as e:
                 # Log but don't fail shutdown
-                logger.warning(f"Failed to close {provider_name} adapter: {e}")
+                logger.warning("Failed to close %s adapter: %s", provider_name, e)
         else:
-            logger.warning(f"Provider {provider_name} does not implement LLMProviderAdapter protocol")
+            logger.warning(
+                "Provider %s does not implement LLMProviderAdapter protocol", provider_name
+            )
