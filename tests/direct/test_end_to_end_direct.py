@@ -9,11 +9,36 @@ when using direct providers only, ensuring the entire system works correctly.
 
 import pytest
 import json
-from unittest.mock import patch, Mock, AsyncMock
+from unittest.mock import patch, Mock, AsyncMock, MagicMock
 from fastapi.testclient import TestClient
+
+# Apply mocks before importing the app
+# Mock the provider registry before any imports
+with patch("app.providers.registry.get_provider_registry") as mock_registry:
+    mock_provider = AsyncMock()
+    mock_provider.invoke = AsyncMock()
+    mock_registry.return_value = {"openai": mock_provider}
+
+# Mock the router before importing the app
+with patch("app.main.HeuristicRouter") as mock_router_cls:
+    mock_router = MagicMock()
+    mock_router.select_model = AsyncMock(return_value=("openai", "gpt-3.5-turbo", "test", {}, {}))
+    mock_router_cls.return_value = mock_router
 
 from app.models import ChatMessage
 from app.core.exceptions import BudgetExceededError
+
+# Import app after mocks are applied
+from app.main import app, get_authenticated_user
+
+
+# Mock authentication for all tests
+def mock_auth():
+    return {"user_id": "test-user", "api_key": "test-api-key"}
+
+
+# Override the authentication dependency for all tests
+app.dependency_overrides[get_authenticated_user] = mock_auth
 
 
 @pytest.mark.direct
@@ -28,7 +53,7 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             # Mock all required provider adapters
@@ -65,6 +90,10 @@ class TestEndToEndDirect:
 
                 response = client.post("/v1/chat/completions", json=request_data)
 
+                # Debug: Print response details
+                print(f"Response status: {response.status_code}")
+                print(f"Response body: {response.text}")
+
                 # Verify successful response
                 assert response.status_code == 200
                 response_data = response.json()
@@ -90,14 +119,16 @@ class TestEndToEndDirect:
                     "together",
                 ]
 
-    def test_api_response_format_openai_compatible(self, direct_providers_only_mode, simple_messages):
+    def test_api_response_format_openai_compatible(
+        self, direct_providers_only_mode, simple_messages
+    ):
         """Test that API responses maintain OpenAI-compatible format."""
         from app.main import app
 
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
@@ -152,14 +183,16 @@ class TestEndToEndDirect:
                 assert "completion_tokens" in usage
                 assert "total_tokens" in usage
 
-    def test_router_metadata_includes_direct_provider_info(self, direct_providers_only_mode, simple_messages):
+    def test_router_metadata_includes_direct_provider_info(
+        self, direct_providers_only_mode, simple_messages
+    ):
         """Test that router_metadata includes direct provider information."""
         from app.main import app
 
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
@@ -177,7 +210,10 @@ class TestEndToEndDirect:
 
                 mock_registry.return_value = {"groq": mock_adapter}
 
-            request_data = {"model": "llama3-8b-8192", "messages": [{"role": "user", "content": "Test message"}]}
+            request_data = {
+                "model": "llama3-8b-8192",
+                "messages": [{"role": "user", "content": "Test message"}],
+            }
 
             response = client.post("/v1/chat/completions", json=request_data)
 
@@ -200,14 +236,16 @@ class TestEndToEndDirect:
             assert router_metadata["direct_providers_only"] is True
             assert router_metadata["provider"] == "groq"
 
-    def test_token_usage_reporting_in_api_responses(self, direct_providers_only_mode, simple_messages):
+    def test_token_usage_reporting_in_api_responses(
+        self, direct_providers_only_mode, simple_messages
+    ):
         """Test token usage reporting in API responses."""
         from app.main import app
 
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
@@ -248,7 +286,7 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with (
@@ -286,14 +324,16 @@ class TestEndToEndDirect:
             assert "provider" in call_args.kwargs
             assert call_args.kwargs["provider"] == "google"
 
-    def test_database_logging_with_direct_provider_metadata(self, direct_providers_only_mode, simple_messages):
+    def test_database_logging_with_direct_provider_metadata(
+        self, direct_providers_only_mode, simple_messages
+    ):
         """Test database logging of requests with direct provider metadata."""
         from app.main import app
 
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with (
@@ -314,7 +354,10 @@ class TestEndToEndDirect:
 
                 mock_registry.return_value = {"cohere": mock_adapter}
 
-            request_data = {"model": "command-r", "messages": [{"role": "user", "content": "Test database logging"}]}
+            request_data = {
+                "model": "command-r",
+                "messages": [{"role": "user", "content": "Test database logging"}],
+            }
 
             response = client.post("/v1/chat/completions", json=request_data)
 
@@ -335,7 +378,7 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock the authentication method directly
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
@@ -378,7 +421,7 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock the authentication method directly
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
@@ -410,14 +453,16 @@ class TestEndToEndDirect:
                 # For rate limiting test, we'll just verify the request goes through
                 # since actual rate limiting would require more complex setup
 
-    def test_tenant_isolation_with_direct_providers(self, direct_providers_only_mode, simple_messages):
+    def test_tenant_isolation_with_direct_providers(
+        self, direct_providers_only_mode, simple_messages
+    ):
         """Test tenant isolation with direct providers."""
         from app.main import app
 
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
@@ -444,8 +489,12 @@ class TestEndToEndDirect:
             tenant1_headers = {"Authorization": "Bearer tenant1-key"}
             tenant2_headers = {"Authorization": "Bearer tenant2-key"}
 
-            response1 = client.post("/v1/chat/completions", json=request_data, headers=tenant1_headers)
-            response2 = client.post("/v1/chat/completions", json=request_data, headers=tenant2_headers)
+            response1 = client.post(
+                "/v1/chat/completions", json=request_data, headers=tenant1_headers
+            )
+            response2 = client.post(
+                "/v1/chat/completions", json=request_data, headers=tenant2_headers
+            )
 
             # Both should work independently
             assert response1.status_code == 200
@@ -458,13 +507,15 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with (
                 patch("app.providers.registry.get_provider_registry") as mock_registry,
                 patch("app.telemetry.metrics.ROUTER_REQUESTS", create=True) as mock_requests,
-                patch("app.telemetry.metrics.PROVIDER_REQUESTS", create=True) as mock_provider_requests,
+                patch(
+                    "app.telemetry.metrics.PROVIDER_REQUESTS", create=True
+                ) as mock_provider_requests,
             ):
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
@@ -501,7 +552,7 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with (
@@ -517,8 +568,8 @@ class TestEndToEndDirect:
                         latency_ms=160,
                         raw={"provider": "google", "model": "gemini-1.5-flash"},
                         error=None,
+                    )
                 )
-            )
 
             mock_registry.return_value = {"google": mock_adapter}
 
@@ -527,7 +578,10 @@ class TestEndToEndDirect:
             mock_span_context.set_attribute = Mock()
             mock_span.return_value.__enter__.return_value = mock_span_context
 
-            request_data = {"model": "gemini-1.5-flash", "messages": [{"role": "user", "content": "Test tracing"}]}
+            request_data = {
+                "model": "gemini-1.5-flash",
+                "messages": [{"role": "user", "content": "Test tracing"}],
+            }
 
             headers = {"Authorization": "Bearer test-key"}
             response = client.post("/v1/chat/completions", json=request_data, headers=headers)
@@ -562,28 +616,35 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
-            # Mock provider that fails
-            mock_adapter = Mock()
+                # Mock provider that fails
+                mock_adapter = Mock()
             mock_adapter.invoke = AsyncMock(
                 return_value=Mock(
-                    output_text="", tokens_in=0, tokens_out=0, latency_ms=0, raw={}, error="provider_error"
+                    output_text="",
+                    tokens_in=0,
+                    tokens_out=0,
+                    latency_ms=0,
+                    raw={},
+                    error="provider_error",
                 )
             )
 
             mock_registry.return_value = {"openai": mock_adapter}
 
-            request_data = {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "Test error handling"}]}
+            request_data = {
+                "model": "gpt-3.5-turbo",
+                "messages": [{"role": "user", "content": "Test error handling"}],
+            }
 
             headers = {"Authorization": "Bearer test-key"}
             response = client.post("/v1/chat/completions", json=request_data, headers=headers)
 
             # Should handle provider errors gracefully
             assert response.status_code in [500, 503]
-
 
     async def test_concurrent_request_handling(self, direct_providers_only_mode, simple_messages):
         """Test concurrent request handling with direct providers."""
@@ -592,7 +653,7 @@ class TestEndToEndDirect:
         import httpx
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
@@ -619,21 +680,26 @@ class TestEndToEndDirect:
 
             transport = httpx.ASGITransport(app=app)
             async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-                tasks = [client.post("/v1/chat/completions", json=request_data, headers=headers) for _ in range(5)]
+                tasks = [
+                    client.post("/v1/chat/completions", json=request_data, headers=headers)
+                    for _ in range(5)
+                ]
                 responses = await asyncio.gather(*tasks)
 
                 # All requests should succeed
                 for response in responses:
                     assert response.status_code == 200
 
-    def test_minimal_direct_provider_configuration(self, direct_providers_only_mode, simple_messages):
+    def test_minimal_direct_provider_configuration(
+        self, direct_providers_only_mode, simple_messages
+    ):
         """Test with minimal direct provider configuration."""
         from app.main import app
 
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
@@ -669,7 +735,7 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
@@ -687,14 +753,14 @@ class TestEndToEndDirect:
                 )
 
                 mock_registry.return_value = {
-                "openai": mock_adapter,
-                "anthropic": mock_adapter,
-                "mistral": mock_adapter,
-                "groq": mock_adapter,
-                "google": mock_adapter,
-                "cohere": mock_adapter,
-                "together": mock_adapter,
-            }
+                    "openai": mock_adapter,
+                    "anthropic": mock_adapter,
+                    "mistral": mock_adapter,
+                    "groq": mock_adapter,
+                    "google": mock_adapter,
+                    "cohere": mock_adapter,
+                    "together": mock_adapter,
+                }
 
             request_data = {
                 "model": "claude-3-haiku-20240307",
@@ -720,11 +786,15 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
-                mock_registry.return_value = {"openai": Mock(), "anthropic": Mock(), "mistral": Mock()}
+                mock_registry.return_value = {
+                    "openai": Mock(),
+                    "anthropic": Mock(),
+                    "mistral": Mock(),
+                }
 
             request_data = {
                 "model": "gpt-4o",  # Expensive model
@@ -741,21 +811,26 @@ class TestEndToEndDirect:
             assert "error" in error_data
             assert error_data["error"]["code"] == "budget_exceeded"
 
-    def test_service_unavailable_when_no_providers(self, direct_providers_only_mode, simple_messages):
+    def test_service_unavailable_when_no_providers(
+        self, direct_providers_only_mode, simple_messages
+    ):
         """Test 503 Service Unavailable when no providers are available."""
         from app.main import app
 
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
                 # Empty provider registry
                 mock_registry.return_value = {}
 
-            request_data = {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "No providers test"}]}
+            request_data = {
+                "model": "gpt-3.5-turbo",
+                "messages": [{"role": "user", "content": "No providers test"}],
+            }
 
             headers = {"Authorization": "Bearer test-key"}
             response = client.post("/v1/chat/completions", json=request_data, headers=headers)
@@ -770,13 +845,16 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
                 mock_registry.return_value = {}
 
-            request_data = {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "Error message test"}]}
+            request_data = {
+                "model": "gpt-3.5-turbo",
+                "messages": [{"role": "user", "content": "Error message test"}],
+            }
 
             headers = {"Authorization": "Bearer test-key"}
             response = client.post("/v1/chat/completions", json=request_data, headers=headers)
@@ -795,14 +873,16 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with (
                 patch("app.providers.registry.get_provider_registry") as mock_registry,
-                patch("app.router.HeuristicRouter.record_latency", create=True) as mock_record_latency,
+                patch(
+                    "app.router.HeuristicRouter.record_latency", create=True
+                ) as mock_record_latency,
             ):
-            mock_adapter = Mock()
+                mock_adapter = Mock()
             mock_adapter.invoke = AsyncMock(
                 return_value=Mock(
                     output_text="Latency recording test",
@@ -836,12 +916,12 @@ class TestEndToEndDirect:
         client = TestClient(app)
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.providers.registry.get_provider_registry") as mock_registry:
-            # Create adapters with different latencies
-            fast_adapter = Mock()
+                # Create adapters with different latencies
+                fast_adapter = Mock()
             fast_adapter.invoke = AsyncMock(
                 return_value=Mock(
                     output_text="Fast response",
@@ -889,15 +969,16 @@ class TestEndToEndDirect:
         import httpx
 
         # Mock authentication
-        with patch("app.auth.authenticate_request") as mock_auth:
+        with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             async def mock_streaming_invoke(model, prompt, **kwargs):
-            chunks = [
-                {"choices": [{"delta": {"content": "Hello"}}]},
-                {"choices": [{"delta": {"content": ", "}}]},
-                {"choices": [{"delta": {"content": "world!"}}]},
-            ]
+                chunks = [
+                    {"choices": [{"delta": {"content": "Hello"}}]},
+                    {"choices": [{"delta": {"content": ", "}}]},
+                    {"choices": [{"delta": {"content": "world!"}}]},
+                ]
+
             for chunk in chunks:
                 yield chunk
 

@@ -26,7 +26,7 @@ def test_without_ml():
 
     # Temporarily replace import
     builtins = sys.modules["builtins"]
-    builtins.__import__ = mock_import
+    builtins.__import__ = mock_import  # type: ignore[misc]
 
     try:
         from app.routing.semantic_router_optional import OptionalSemanticRouter
@@ -39,7 +39,7 @@ def test_without_ml():
         # Test a simple routing
         from app.models import ChatMessage
 
-        messages = [ChatMessage(role="user", content="Write a Python function")]
+        messages = [ChatMessage(role="user", content="Write a Python function", name=None)]
 
         # This should work even without ML
         import asyncio
@@ -58,7 +58,7 @@ def test_without_ml():
         return False
     finally:
         # Restore original import
-        builtins.__import__ = original_import
+        builtins.__import__ = original_import  # type: ignore[misc]
 
 
 def test_with_ml():
@@ -75,14 +75,14 @@ def test_with_ml():
         if router.use_ml_mode:
             print("✅ ML dependencies available and working")
             print(f"✅ Model: {router.model_name}")
-            print(f"✅ Embeddings dim: {router.encoder.get_sentence_embedding_dimension()}")
+            print(f"✅ Embeddings dim: {router.encoder.get_sentence_embedding_dimension() if router.encoder else 'N/A'}")
         else:
             print("⚠️  ML mode not available, using fallback")
 
         # Test routing
         from app.models import ChatMessage
 
-        messages = [ChatMessage(role="user", content="Analyze this complex system architecture")]
+        messages = [ChatMessage(role="user", content="Analyze this complex system architecture", name=None)]
 
         import asyncio
 

@@ -64,13 +64,11 @@ class HybridRouter(BaseRouter):
             self.cascade_router = None
 
         # Validate that at least one router is available
-        available_routers = sum(
-            [
-                1
-                for router in [self.heuristic_router, self.semantic_router, self.cascade_router]
-                if router is not None
-            ]
-        )
+        available_routers = sum([
+            1
+            for router in [self.heuristic_router, self.semantic_router, self.cascade_router]
+            if router is not None
+        ])
 
         if available_routers == 0:
             raise RoutingError("No sub-routers available for hybrid routing")

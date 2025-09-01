@@ -262,7 +262,9 @@ class TestEstimator:
             (),
             {
                 "pricing": type(
-                    "PricingSettings", (), {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300}
+                    "PricingSettings",
+                    (),
+                    {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300},
                 )()
             },
         )()
@@ -343,7 +345,9 @@ class TestEstimate:
 
     def test_estimate_creation(self):
         """Test creating an Estimate object."""
-        estimate = Estimate(usd=5.25, eta_ms=1200, model_key="openai:gpt-4o", tokens_in=1000, tokens_out=500)
+        estimate = Estimate(
+            usd=5.25, eta_ms=1200, model_key="openai:gpt-4o", tokens_in=1000, tokens_out=500
+        )
 
         assert estimate.usd == 5.25
         assert estimate.eta_ms == 1200
@@ -353,10 +357,12 @@ class TestEstimate:
 
     def test_estimate_immutability(self):
         """Test that Estimate objects are immutable."""
-        estimate = Estimate(usd=5.25, eta_ms=1200, model_key="openai:gpt-4o", tokens_in=1000, tokens_out=500)
+        estimate = Estimate(
+            usd=5.25, eta_ms=1200, model_key="openai:gpt-4o", tokens_in=1000, tokens_out=500
+        )
 
         # Should not be able to modify fields
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             estimate.usd = 10.0
 
 
@@ -375,7 +381,9 @@ class TestZeroPriceModel:
             (),
             {
                 "pricing": type(
-                    "PricingSettings", (), {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300}
+                    "PricingSettings",
+                    (),
+                    {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300},
                 )()
             },
         )()
@@ -410,7 +418,9 @@ class TestEstimateTokens:
             (),
             {
                 "pricing": type(
-                    "PricingSettings", (), {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300}
+                    "PricingSettings",
+                    (),
+                    {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300},
                 )()
             },
         )()
@@ -434,7 +444,9 @@ class TestEstimateTokens:
             (),
             {
                 "pricing": type(
-                    "PricingSettings", (), {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300}
+                    "PricingSettings",
+                    (),
+                    {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300},
                 )()
             },
         )()
@@ -455,7 +467,9 @@ class TestEstimateTokens:
             (),
             {
                 "pricing": type(
-                    "PricingSettings", (), {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300}
+                    "PricingSettings",
+                    (),
+                    {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300},
                 )()
             },
         )()
@@ -477,7 +491,9 @@ class TestEstimateTokens:
             (),
             {
                 "pricing": type(
-                    "PricingSettings", (), {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300}
+                    "PricingSettings",
+                    (),
+                    {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300},
                 )()
             },
         )()
@@ -501,7 +517,9 @@ class TestEstimateTokens:
             (),
             {
                 "pricing": type(
-                    "PricingSettings", (), {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300}
+                    "PricingSettings",
+                    (),
+                    {"estimator_default_tokens_in": 400, "estimator_default_tokens_out": 300},
                 )()
             },
         )()

@@ -18,11 +18,13 @@ class APIKeyAuth:
     """API key authentication handler."""
 
     def __init__(self) -> None:
-        # Load from centralized settings
-        from .settings import settings as app_settings
+        # Use the module-level settings (tests patch app.auth.settings)
+        app_settings = settings
 
-        allowed_keys = app_settings.api.api_keys
-        print(f"DEBUG: Loaded API keys from settings: {len(allowed_keys)} keys")
+        if hasattr(app_settings, "get_allowed_api_keys"):
+            allowed_keys = app_settings.get_allowed_api_keys()  # type: ignore[attr-defined]
+        else:
+            allowed_keys = app_settings.api.api_keys
 
         self.allowed_keys = set(allowed_keys)
         # Simple rate limiting storage (in production, use Redis)

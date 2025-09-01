@@ -1,8 +1,41 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any, AsyncIterator, Dict, Iterator, Optional
+from typing import (
+    Any,
+    AsyncIterator,
+    Iterator,
+    Optional,
+    Protocol,
+    runtime_checkable,
+    TYPE_CHECKING,
+)
 
+if TYPE_CHECKING:
+    # Only import for type checking to avoid runtime dependency issues
+    from opentelemetry import trace as trace_module
+    from opentelemetry.sdk.resources import Resource as OtelResource
+    from opentelemetry.sdk.trace import TracerProvider as OtelTracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor as OtelBatchSpanProcessor
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+        OTLPSpanExporter as OtelOTLPSpanExporter,
+    )
+    from opentelemetry.sdk.trace.sampling import (
+        ParentBased as OtelParentBased,
+        TraceIdRatioBased as OtelTraceIdRatioBased,
+    )
+    from opentelemetry.trace import Span as OtelSpan
+else:
+    trace_module = None
+    OtelResource = None
+    OtelTracerProvider = None
+    OtelBatchSpanProcessor = None
+    OtelOTLPSpanExporter = None
+    OtelParentBased = None
+    OtelTraceIdRatioBased = None
+    OtelSpan = None
+
+# Runtime imports with proper error handling
 try:
     from opentelemetry import trace
     from opentelemetry.sdk.resources import Resource
@@ -11,74 +44,142 @@ try:
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
     from opentelemetry.trace import get_current_span
-except Exception:  # pragma: no cover
-    trace = None  # type: ignore[assignment]
-    Resource = object  # type: ignore[assignment]
-    TracerProvider = object  # type: ignore[assignment]
-    BatchSpanProcessor = object  # type: ignore[assignment]
-    OTLPSpanExporter = object  # type: ignore[assignment]
-    ParentBased = object  # type: ignore[assignment]
-    TraceIdRatioBased = object  # type: ignore[assignment]
-    get_current_span = lambda: None  # type: ignore
+
+    OPENTELEMETRY_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    # Create proper stub objects that don't cause type issues
+    trace = None
+    Resource = None
+    TracerProvider = None
+    BatchSpanProcessor = None
+    OTLPSpanExporter = None
+    ParentBased = None
+    TraceIdRatioBased = None
+    get_current_span = None
+    OPENTELEMETRY_AVAILABLE = False
 
 
 def init_tracing(
-    service_name: str, sampling_ratio: float = 1.0, otlp_endpoint: Optional[str] = None
+    service_name: str, sampling_ratio: float = 1.0, otlp_endpoint: str | None = None
 ) -> None:
     """Initialize OpenTelemetry tracing with optional OTLP exporter."""
-    if trace is None:  # pragma: no cover
+    if not OPENTELEMETRY_AVAILABLE:
         return
+
+    # At this point we know OpenTelemetry is available and all imports succeeded
+    # The type checker may not understand this, but runtime guarantees these are not None
+    assert trace is not None
+    assert Resource is not None
+    assert TracerProvider is not None
+    assert BatchSpanProcessor is not None
+    assert OTLPSpanExporter is not None
+    assert ParentBased is not None
+    assert TraceIdRatioBased is not None
+
     resource = Resource.create({"service.name": service_name})
-    provider = TracerProvider(
-        resource=resource, sampler=ParentBased(TraceIdRatioBased(float(sampling_ratio)))
-    )
+    sampler = ParentBased(TraceIdRatioBased(float(sampling_ratio)))
+    provider = TracerProvider(resource=resource, sampler=sampler)
+
     if otlp_endpoint:
         exporter = OTLPSpanExporter(endpoint=str(otlp_endpoint), insecure=True)
-        provider.add_span_processor(BatchSpanProcessor(exporter))
+        processor = BatchSpanProcessor(exporter)
+        provider.add_span_processor(processor)
+
     trace.set_tracer_provider(provider)
 
 
+@runtime_checkable
+class SpanProtocol(Protocol):
+    def set_attribute(self, key: str, value: object) -> None: ...
+    def add_event(self, name: str, attributes: dict[str, object] | None = None) -> None: ...
+
+
 @contextmanager
-def start_span(name: str, **attrs: Dict[str, Any]) -> Iterator[Any]:
+def start_span(name: str, **attrs: Any) -> Iterator[SpanProtocol | None]:
     """Synchronous context manager for creating spans."""
-    if trace is None:  # pragma: no cover
+    if not OPENTELEMETRY_AVAILABLE or trace is None:
         yield None
         return
+
     tracer = trace.get_tracer("modelmuxer")
     with tracer.start_as_current_span(name) as span:
+        # Set attributes on the span
         for k, v in attrs.items():
             if v is not None:
                 try:
                     span.set_attribute(k, v)
                 except Exception:
                     pass
-        yield span
+
+        # Create a wrapper that implements SpanProtocol
+        class SpanWrapper:
+            def __init__(self, otel_span: Any) -> None:
+                self._span = otel_span
+
+            def set_attribute(self, key: str, value: object) -> None:
+                try:
+                    self._span.set_attribute(key, value)
+                except Exception:
+                    pass
+
+            def add_event(self, name: str, attributes: dict[str, object] | None = None) -> None:
+                try:
+                    self._span.add_event(name, attributes or {})
+                except Exception:
+                    pass
+
+        yield SpanWrapper(span)
 
 
 @asynccontextmanager
-async def start_span_async(name: str, **attrs: Dict[str, Any]) -> AsyncIterator[Any]:
+async def start_span_async(name: str, **attrs: Any) -> AsyncIterator[SpanProtocol | None]:
     """Asynchronous context manager for creating spans."""
-    if trace is None:  # pragma: no cover
+    if not OPENTELEMETRY_AVAILABLE or trace is None:
         yield None
         return
+
     tracer = trace.get_tracer("modelmuxer")
     with tracer.start_as_current_span(name) as span:
+        # Set attributes on the span
         for k, v in attrs.items():
             if v is not None:
                 try:
                     span.set_attribute(k, v)
                 except Exception:
                     pass
-        yield span
+
+        # Create a wrapper that implements SpanProtocol
+        class SpanWrapper:
+            def __init__(self, otel_span: Any) -> None:
+                self._span = otel_span
+
+            def set_attribute(self, key: str, value: object) -> None:
+                try:
+                    self._span.set_attribute(key, value)
+                except Exception:
+                    pass
+
+            def add_event(self, name: str, attributes: dict[str, object] | None = None) -> None:
+                try:
+                    self._span.add_event(name, attributes or {})
+                except Exception:
+                    pass
+
+        yield SpanWrapper(span)
 
 
-def get_trace_id() -> Optional[str]:
+def get_trace_id() -> str | None:
     """Return current trace id in hex, if any."""
+    if not OPENTELEMETRY_AVAILABLE or get_current_span is None:
+        return None
+
     try:
         span = get_current_span()
-        ctx = span.get_span_context() if span else None
-        if ctx and getattr(ctx, "trace_id", 0):
+        if span is None:
+            return None
+        ctx = span.get_span_context()
+        if ctx and hasattr(ctx, "trace_id") and ctx.trace_id:
             return f"{ctx.trace_id:032x}"
     except Exception:  # pragma: no cover
-        return None
+        pass
     return None

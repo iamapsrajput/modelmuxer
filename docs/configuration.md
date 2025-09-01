@@ -311,7 +311,6 @@ This provides:
 - **Improved Observability**: Detailed telemetry and error handling
 - **Cost Optimization**: Direct cost tracking and budget management
 
-
 ## Environment-Specific Configurations
 
 ### Development

@@ -50,7 +50,9 @@ class TestHeuristicRouterScope:
         messages = [ChatMessage(role="user", content="Hello")]
 
         # Mock classify_intent to raise an exception
-        with patch("app.router.classify_intent", side_effect=Exception("Intent classification failed")):
+        with patch(
+            "app.router.classify_intent", side_effect=Exception("Intent classification failed")
+        ):
             # Mock analyze_prompt to work normally
             with patch.object(
                 self.router,

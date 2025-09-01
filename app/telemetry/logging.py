@@ -5,11 +5,16 @@ import logging
 from typing import Any, Dict
 
 try:
-    from opentelemetry.trace import get_current_span
-except Exception:  # pragma: no cover
+    from opentelemetry.trace import get_current_span as otel_get_current_span
+except ImportError:  # pragma: no cover
+    otel_get_current_span = None
 
-    def get_current_span():  # type: ignore
-        return None
+
+def get_current_span():
+    """Get the current OpenTelemetry span, or None if not available."""
+    if otel_get_current_span is not None:
+        return otel_get_current_span()
+    return None
 
 
 class JsonLogFormatter(logging.Formatter):

@@ -49,7 +49,7 @@ class SecureSerializer:
             return obj
         elif isinstance(obj, datetime | date):
             return {"__type__": "datetime", "__value__": obj.isoformat()}
-        elif NUMPY_AVAILABLE and isinstance(obj, np.ndarray):
+        elif NUMPY_AVAILABLE and np is not None and isinstance(obj, np.ndarray):
             return {
                 "__type__": "numpy_array",
                 "__value__": obj.tolist(),
@@ -89,8 +89,11 @@ class SecureSerializer:
                         "numpy_not_available", message="Cannot restore numpy array without numpy"
                     )
                     return value
-                array = np.array(value, dtype=obj["__dtype__"])
-                return array.reshape(obj["__shape__"])
+                if np is not None:
+                    array = np.array(value, dtype=obj["__dtype__"])
+                    return array.reshape(obj["__shape__"])
+                else:
+                    return value
             elif obj_type == "object":
                 # For simple objects, we can't fully restore them
                 # Return as a dict with metadata

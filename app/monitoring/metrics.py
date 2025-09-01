@@ -13,64 +13,119 @@ from typing import Any
 
 import structlog
 
-# Optional prometheus imports
+# Type-safe Prometheus imports with proper protocols
+from typing import Protocol
+
+
+class CounterProtocol(Protocol):
+    def inc(self, amount: float = 1.0) -> None: ...
+    def labels(self, **labelkwargs: Any) -> "CounterProtocol": ...
+
+
+class GaugeProtocol(Protocol):
+    def set(self, value: float) -> None: ...
+    def labels(self, **labelkwargs: Any) -> "GaugeProtocol": ...
+
+
+class HistogramProtocol(Protocol):
+    def observe(self, amount: float) -> None: ...
+    def labels(self, **labelkwargs: Any) -> "HistogramProtocol": ...
+
+
+class InfoProtocol(Protocol):
+    def info(self, val: dict[str, str]) -> None: ...
+
+
+class RegistryProtocol(Protocol):
+    pass
+
+
+# Try to import Prometheus client
 try:
-    from prometheus_client import CollectorRegistry, Gauge, Histogram, Info
-    from prometheus_client import Counter as PrometheusCounter
+    from prometheus_client import CollectorRegistry as _CollectorRegistry
+    from prometheus_client import Counter as _PrometheusCounter
+    from prometheus_client import Gauge as _Gauge
+    from prometheus_client import Histogram as _Histogram
+    from prometheus_client import Info as _Info
 
     PROMETHEUS_AVAILABLE = True
+
+    # Create factory functions that return the actual Prometheus objects
+    def create_counter(
+        name: str, documentation: str, labelnames: list[str], registry: Any
+    ) -> CounterProtocol:
+        return _PrometheusCounter(name, documentation, labelnames, registry=registry)
+
+    def create_gauge(
+        name: str, documentation: str, labelnames: list[str] | None = None, registry: Any = None
+    ) -> GaugeProtocol:
+        if labelnames is None:
+            return _Gauge(name, documentation, registry=registry)
+        return _Gauge(name, documentation, labelnames, registry=registry)
+
+    def create_histogram(
+        name: str, documentation: str, labelnames: list[str], buckets: list[float], registry: Any
+    ) -> HistogramProtocol:
+        return _Histogram(name, documentation, labelnames, buckets=buckets, registry=registry)
+
+    def create_info(name: str, documentation: str, registry: Any) -> InfoProtocol:
+        return _Info(name, documentation, registry=registry)
+
+    def create_registry() -> Any:
+        return _CollectorRegistry()
+
 except ImportError:
     PROMETHEUS_AVAILABLE = False
 
-    # Create dummy classes that do nothing
+    # Create dummy implementations that match the protocols
     class DummyCounter:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
+        def inc(self, amount: float = 1.0) -> None:
             pass
 
-        def inc(self, *args: Any, **kwargs: Any) -> None:
-            pass
-
-        def labels(self, *args: Any, **kwargs: Any) -> "DummyCounter":
+        def labels(self, **labelkwargs: Any) -> "DummyCounter":
             return self
 
     class DummyGauge:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
+        def set(self, value: float) -> None:
             pass
 
-        def set(self, *args: Any, **kwargs: Any) -> None:
-            pass
-
-        def labels(self, *args: Any, **kwargs: Any) -> "DummyGauge":
+        def labels(self, **labelkwargs: Any) -> "DummyGauge":
             return self
 
     class DummyHistogram:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
+        def observe(self, amount: float) -> None:
             pass
 
-        def observe(self, *args: Any, **kwargs: Any) -> None:
-            pass
-
-        def labels(self, *args: Any, **kwargs: Any) -> "DummyHistogram":
+        def labels(self, **labelkwargs: Any) -> "DummyHistogram":
             return self
 
     class DummyInfo:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
+        def info(self, val: dict[str, str]) -> None:
             pass
 
-        def info(self, *args: Any, **kwargs: Any) -> None:
-            pass
+    class DummyRegistry:
+        pass
 
-    class DummyCollectorRegistry:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            pass
+    def create_counter(
+        name: str, documentation: str, labelnames: list[str], registry: Any
+    ) -> CounterProtocol:
+        return DummyCounter()
 
-    # Assign dummy classes when Prometheus is not available
-    # Using type ignore for compatibility with prometheus_client types
-    PrometheusCounter = DummyCounter  # type: ignore[misc,assignment]
-    Gauge = DummyGauge  # type: ignore[misc,assignment]
-    Histogram = DummyHistogram  # type: ignore[misc,assignment]
-    Info = DummyInfo  # type: ignore[misc,assignment]
-    CollectorRegistry = DummyCollectorRegistry  # type: ignore[misc,assignment]
+    def create_gauge(
+        name: str, documentation: str, labelnames: list[str] | None = None, registry: Any = None
+    ) -> GaugeProtocol:
+        return DummyGauge()
+
+    def create_histogram(
+        name: str, documentation: str, labelnames: list[str], buckets: list[float], registry: Any
+    ) -> HistogramProtocol:
+        return DummyHistogram()
+
+    def create_info(name: str, documentation: str, registry: Any) -> InfoProtocol:
+        return DummyInfo()
+
+    def create_registry() -> Any:
+        return DummyRegistry()
 
 
 logger = structlog.get_logger(__name__)
@@ -84,8 +139,8 @@ class MetricsCollector:
     request metrics, provider performance, routing decisions, and system health.
     """
 
-    def __init__(self, registry: CollectorRegistry | None = None):
-        self.registry = registry or CollectorRegistry()
+    def __init__(self, registry: Any = None):
+        self.registry = registry or create_registry()
 
         if not PROMETHEUS_AVAILABLE:
             logger.warning(
@@ -93,15 +148,17 @@ class MetricsCollector:
                 message="Metrics collection disabled - prometheus-client not installed",
             )
 
+        # Initialize metrics using factory functions for type safety
+
         # Request metrics
-        self.request_total = PrometheusCounter(
+        self.request_total = create_counter(
             "modelmuxer_requests_total",
             "Total number of requests",
             ["method", "endpoint", "status_code", "user_id"],
             registry=self.registry,
         )
 
-        self.request_duration = Histogram(
+        self.request_duration = create_histogram(
             "modelmuxer_request_duration_seconds",
             "Request duration in seconds",
             ["method", "endpoint"],
@@ -110,14 +167,14 @@ class MetricsCollector:
         )
 
         # Provider metrics
-        self.provider_requests = PrometheusCounter(
+        self.provider_requests = create_counter(
             "modelmuxer_provider_requests_total",
             "Total requests per provider",
             ["provider", "model", "status"],
             registry=self.registry,
         )
 
-        self.provider_duration = Histogram(
+        self.provider_duration = create_histogram(
             "modelmuxer_provider_duration_seconds",
             "Provider response duration",
             ["provider", "model"],
@@ -125,14 +182,14 @@ class MetricsCollector:
             registry=self.registry,
         )
 
-        self.provider_tokens = PrometheusCounter(
+        self.provider_tokens = create_counter(
             "modelmuxer_provider_tokens_total",
             "Total tokens processed by provider",
             ["provider", "model", "type"],  # token type: input/output
             registry=self.registry,
         )
 
-        self.provider_cost = PrometheusCounter(
+        self.provider_cost = create_counter(
             "modelmuxer_provider_cost_total",
             "Total cost by provider",
             ["provider", "model"],
@@ -140,14 +197,14 @@ class MetricsCollector:
         )
 
         # Routing metrics
-        self.routing_decisions = PrometheusCounter(
+        self.routing_decisions = create_counter(
             "modelmuxer_routing_decisions_total",
             "Routing decisions by strategy",
             ["strategy", "selected_provider", "selected_model"],
             registry=self.registry,
         )
 
-        self.routing_confidence = Histogram(
+        self.routing_confidence = create_histogram(
             "modelmuxer_routing_confidence",
             "Routing decision confidence scores",
             ["strategy"],
@@ -156,14 +213,14 @@ class MetricsCollector:
         )
 
         # Classification metrics
-        self.classification_results = PrometheusCounter(
+        self.classification_results = create_counter(
             "modelmuxer_classification_total",
             "Classification results by category",
             ["category", "method"],
             registry=self.registry,
         )
 
-        self.classification_confidence = Histogram(
+        self.classification_confidence = create_histogram(
             "modelmuxer_classification_confidence",
             "Classification confidence scores",
             ["category"],
@@ -172,7 +229,7 @@ class MetricsCollector:
         )
 
         # Rate limiting metrics
-        self.rate_limit_hits = PrometheusCounter(
+        self.rate_limit_hits = create_counter(
             "modelmuxer_rate_limit_hits_total",
             "Rate limit violations",
             ["user_id", "limit_type"],
@@ -180,7 +237,7 @@ class MetricsCollector:
         )
 
         # Cache metrics
-        self.cache_operations = PrometheusCounter(
+        self.cache_operations = create_counter(
             "modelmuxer_cache_operations_total",
             "Cache operations",
             ["operation", "result"],  # operation: get/set/delete, result: hit/miss/success/error
@@ -188,19 +245,19 @@ class MetricsCollector:
         )
 
         # System metrics
-        self.active_connections = Gauge(
+        self.active_connections = create_gauge(
             "modelmuxer_active_connections", "Number of active connections", registry=self.registry
         )
 
-        self.memory_usage = Gauge(
+        self.memory_usage = create_gauge(
             "modelmuxer_memory_usage_bytes",
             "Memory usage in bytes",
-            ["type"],  # memory type: rss/vms/shared
+            labelnames=["type"],  # memory type: rss/vms/shared
             registry=self.registry,
         )
 
         # Error metrics
-        self.errors_total = PrometheusCounter(
+        self.errors_total = create_counter(
             "modelmuxer_errors_total",
             "Total errors by type",
             ["error_type", "endpoint", "provider"],
@@ -208,15 +265,15 @@ class MetricsCollector:
         )
 
         # Health metrics
-        self.provider_health = Gauge(
+        self.provider_health = create_gauge(
             "modelmuxer_provider_health",
             "Provider health status (1=healthy, 0=unhealthy)",
-            ["provider"],
+            labelnames=["provider"],
             registry=self.registry,
         )
 
         # System info
-        self.system_info = Info(
+        self.system_info = create_info(
             "modelmuxer_system_info", "System information", registry=self.registry
         )
 
@@ -224,7 +281,7 @@ class MetricsCollector:
         # =====================================
 
         # Cascade routing metrics
-        self.cascade_steps_total = Histogram(
+        self.cascade_steps_total = create_histogram(
             "modelmuxer_cascade_steps_total",
             "Number of cascade steps per request",
             ["cascade_type", "final_provider"],
@@ -232,7 +289,7 @@ class MetricsCollector:
             registry=self.registry,
         )
 
-        self.cost_per_request = Histogram(
+        self.cost_per_request = create_histogram(
             "modelmuxer_cost_per_request",
             "Cost per request in USD",
             ["provider", "model", "routing_strategy"],
@@ -240,7 +297,7 @@ class MetricsCollector:
             registry=self.registry,
         )
 
-        self.quality_score_distribution = Histogram(
+        self.quality_score_distribution = create_histogram(
             "modelmuxer_quality_score_distribution",
             "Distribution of response quality scores",
             ["provider", "model"],
@@ -248,7 +305,7 @@ class MetricsCollector:
             registry=self.registry,
         )
 
-        self.confidence_score_distribution = Histogram(
+        self.confidence_score_distribution = create_histogram(
             "modelmuxer_confidence_score_distribution",
             "Distribution of confidence scores",
             ["provider", "model"],
@@ -257,36 +314,36 @@ class MetricsCollector:
         )
 
         # Budget and cost tracking
-        self.budget_utilization_ratio = Gauge(
+        self.budget_utilization_ratio = create_gauge(
             "modelmuxer_budget_utilization_ratio",
             "Budget utilization percentage",
-            ["user_id", "budget_type", "provider"],
+            labelnames=["user_id", "budget_type", "provider"],
             registry=self.registry,
         )
 
-        self.active_users = Gauge(
+        self.active_users = create_gauge(
             "modelmuxer_active_users",
             "Number of active users in last 24h",
             registry=self.registry,
         )
 
         # Cache performance
-        self.cache_hit_ratio = Gauge(
+        self.cache_hit_ratio = create_gauge(
             "modelmuxer_cache_hit_ratio",
             "Cache hit percentage",
-            ["cache_type"],
+            labelnames=["cache_type"],
             registry=self.registry,
         )
 
         # Multi-tenancy metrics
-        self.organization_requests = PrometheusCounter(
+        self.organization_requests = create_counter(
             "modelmuxer_organization_requests_total",
             "Total requests per organization",
             ["org_id", "plan_type"],
             registry=self.registry,
         )
 
-        self.organization_cost = PrometheusCounter(
+        self.organization_cost = create_counter(
             "modelmuxer_organization_cost_total",
             "Total cost per organization",
             ["org_id", "plan_type"],
@@ -294,14 +351,14 @@ class MetricsCollector:
         )
 
         # Security metrics
-        self.auth_attempts = PrometheusCounter(
+        self.auth_attempts = create_counter(
             "modelmuxer_auth_attempts_total",
             "Authentication attempts",
             ["method", "result", "user_type"],
             registry=self.registry,
         )
 
-        self.pii_detections = PrometheusCounter(
+        self.pii_detections = create_counter(
             "modelmuxer_pii_detections_total",
             "PII detection events",
             ["pii_type", "action_taken"],

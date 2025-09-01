@@ -39,13 +39,11 @@ def test_defaults_load():
 
 
 def test_env_overrides():
-    with temp_env(
-        {
-            "DATABASE_URL": "sqlite:///./test.db",
-            "PORT": "9000",
-            "OPENAI_API_KEY": "sk-abc",
-        }
-    ):
+    with temp_env({
+        "DATABASE_URL": "sqlite:///./test.db",
+        "PORT": "9000",
+        "OPENAI_API_KEY": "sk-abc",
+    }):
         settings = reload_settings_module()
         assert settings.db.database_url.endswith("test.db")
         assert settings.server.port == 9000

@@ -4,7 +4,7 @@ Test script to demonstrate the interactive Claude CLI
 This simulates user input for testing purposes
 """
 
-import subprocess
+import subprocess  # noqa: S404
 import sys
 import time
 

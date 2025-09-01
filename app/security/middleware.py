@@ -131,10 +131,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=ErrorResponse.create(
-                    message="IP address is blocked",
-                    error_type="forbidden",
-                    code="ip_blocked"
-                ).dict()
+                    message="IP address is blocked", error_type="forbidden", code="ip_blocked"
+                ).dict(),
             )
 
         # Check dynamic IP blocking (from Redis)
@@ -144,8 +142,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 detail=ErrorResponse.create(
                     message="IP address is temporarily blocked",
                     error_type="forbidden",
-                    code="ip_temporarily_blocked"
-                ).dict()
+                    code="ip_temporarily_blocked",
+                ).dict(),
             )
 
     async def _check_rate_limiting(self, request: Request, client_ip: str) -> None:
@@ -220,7 +218,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 message=f"Rate limit exceeded: {current}/{limit} requests per {window}",
                 error_type="rate_limit_exceeded",
                 code="security_rate_limit",
-                details={"current": current, "limit": limit, "window": window}
+                details={"current": current, "limit": limit, "window": window},
             ).dict(),
             headers={"Retry-After": "60" if window == "minute" else "3600"},
         )
@@ -235,8 +233,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     message=f"Request too large: {content_length} bytes (max: {self.max_request_size})",
                     error_type="request_too_large",
                     code="payload_too_large",
-                    details={"size": int(content_length), "max_size": self.max_request_size}
-                ).dict()
+                    details={"size": int(content_length), "max_size": self.max_request_size},
+                ).dict(),
             )
 
     async def _check_suspicious_patterns(self, request: Request) -> None:
@@ -274,8 +272,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     detail=ErrorResponse.create(
                         message="Suspicious request pattern detected",
                         error_type="security_violation",
-                        code="suspicious_pattern"
-                    ).dict()
+                        code="suspicious_pattern",
+                    ).dict(),
                 )
 
     def _add_security_headers(self, response: Response) -> None:

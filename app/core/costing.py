@@ -47,10 +47,10 @@ def load_price_table(price_table_path: str) -> Dict[str, Price]:
     try:
         path = Path(price_table_path)
         if not path.exists():
-            logger.warning(f"Price table file not found: {price_table_path}")
+            logger.warning("Price table file not found: %s", price_table_path)
             return {}
 
-        with open(path, "r") as f:
+        with open(path) as f:
             data = json.load(f)
 
         # Filter out metadata keys starting with underscore
@@ -62,14 +62,16 @@ def load_price_table(price_table_path: str) -> Dict[str, Price]:
             try:
                 validated_prices[model_key] = Price(**price_dict)
             except Exception as e:
-                logger.warning(f"Invalid price entry for {model_key}: {e}")
+                logger.warning("Invalid price entry for %s: %s", model_key, e)
                 continue
 
-        logger.info(f"Loaded {len(validated_prices)} valid price entries from {price_table_path}")
+        logger.info(
+            "Loaded %d valid price entries from %s", len(validated_prices), price_table_path
+        )
         return validated_prices
 
     except Exception as e:
-        logger.error(f"Failed to load price table from {price_table_path}: {e}")
+        logger.error("Failed to load price table from %s: %s", price_table_path, e)
         return {}
 
 
@@ -212,7 +214,9 @@ class Estimator:
         self.latency_priors = latency_priors
         self.settings = settings
 
-    def estimate(self, model_key: str, tokens_in: Optional[int] = None, tokens_out: Optional[int] = None) -> Estimate:
+    def estimate(
+        self, model_key: str, tokens_in: int | None = None, tokens_out: int | None = None
+    ) -> Estimate:
         """
         Estimate cost and latency for a model request.
 
@@ -257,7 +261,13 @@ class Estimator:
         output_cost = (tokens_out / 1000) * price.output_per_1k_usd
         total_cost = input_cost + output_cost
 
-        return Estimate(usd=total_cost, eta_ms=eta_ms, model_key=model_key, tokens_in=tokens_in, tokens_out=tokens_out)
+        return Estimate(
+            usd=total_cost,
+            eta_ms=eta_ms,
+            model_key=model_key,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+        )
 
 
 def estimate_tokens(messages: List[ChatMessage], defaults: Settings, floor: int) -> tuple[int, int]:
@@ -286,7 +296,11 @@ def estimate_tokens(messages: List[ChatMessage], defaults: Settings, floor: int)
     tokens_in_estimate = max(len(full_text) // 4, floor)
 
     # Use the estimate or fall back to default if no content
-    tokens_in = tokens_in_estimate if full_text.strip() else int(defaults.pricing.estimator_default_tokens_in)
+    tokens_in = (
+        tokens_in_estimate
+        if full_text.strip()
+        else int(defaults.pricing.estimator_default_tokens_in)
+    )
 
     # Output tokens default to configured default
     tokens_out = int(defaults.pricing.estimator_default_tokens_out)

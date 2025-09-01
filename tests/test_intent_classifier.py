@@ -37,7 +37,12 @@ def analyze_class_balance(label_counts):
         if abs(ratio - uniform_ratio) > 0.2:
             imbalances.append((label, ratio, uniform_ratio))
 
-    return {"balance_ratios": balance, "uniform_ratio": uniform_ratio, "imbalances": imbalances, "total_samples": total}
+    return {
+        "balance_ratios": balance,
+        "uniform_ratio": uniform_ratio,
+        "imbalances": imbalances,
+        "total_samples": total,
+    }
 
 
 @pytest.mark.asyncio
@@ -87,9 +92,11 @@ async def test_intent_classifier_deterministic_and_labels(tmp_path: Path):
             assert 0.0 <= result["confidence"] <= 1.0, f"Invalid confidence: {result['confidence']}"
 
             # Validate method is expected
-            assert result["method"] in {"heuristic", "heuristic_fallback", "disabled"}, (
-                f"Unexpected method: {result['method']}"
-            )
+            assert result["method"] in {
+                "heuristic",
+                "heuristic_fallback",
+                "disabled",
+            }, f"Unexpected method: {result['method']}"
 
             # Track counts and predictions
             total += 1
@@ -135,7 +142,9 @@ async def test_intent_classifier_deterministic_and_labels(tmp_path: Path):
 
     # Assert reasonable class balance (no single class > 50%)
     max_class_ratio = max(balance_analysis["balance_ratios"].values())
-    assert max_class_ratio <= 0.5, f"Class imbalance too high: {max_class_ratio:.2%} for largest class"
+    assert (
+        max_class_ratio <= 0.5
+    ), f"Class imbalance too high: {max_class_ratio:.2%} for largest class"
 
 
 @pytest.mark.asyncio
@@ -175,7 +184,9 @@ async def test_specific_intent_examples():
 
     for text, expected_label in test_cases:
         result = await classify_intent([ChatMessage(role="user", content=text)])
-        assert result["label"] == expected_label, f"Expected {expected_label} for '{text}', got {result['label']}"
+        assert (
+            result["label"] == expected_label
+        ), f"Expected {expected_label} for '{text}', got {result['label']}"
 
 
 @pytest.mark.asyncio
@@ -194,7 +205,9 @@ async def test_confidence_scores():
 
     for text in high_conf_cases:
         result = await classify_intent([ChatMessage(role="user", content=text)])
-        assert result["confidence"] >= 0.7, f"Low confidence {result['confidence']} for clear case: {text}"
+        assert (
+            result["confidence"] >= 0.7
+        ), f"Low confidence {result['confidence']} for clear case: {text}"
 
     # Lower confidence cases (ambiguous)
     low_conf_cases = [
@@ -204,9 +217,9 @@ async def test_confidence_scores():
 
     for text in low_conf_cases:
         result = await classify_intent([ChatMessage(role="user", content=text)])
-        assert result["confidence"] <= 0.8, (
-            f"Unexpectedly high confidence {result['confidence']} for ambiguous case: {text}"
-        )
+        assert (
+            result["confidence"] <= 0.8
+        ), f"Unexpectedly high confidence {result['confidence']} for ambiguous case: {text}"
 
 
 @pytest.mark.asyncio
@@ -215,7 +228,9 @@ async def test_signals_extraction():
     settings.router.intent_classifier_enabled = True
     settings.features.test_mode = True
 
-    result = await classify_intent([ChatMessage(role="user", content="Write a function: def add(a, b): return a + b")])
+    result = await classify_intent([
+        ChatMessage(role="user", content="Write a function: def add(a, b): return a + b")
+    ])
 
     assert "signals" in result
     signals = result["signals"]
@@ -258,7 +273,9 @@ async def test_signals_privacy():
             # Should not contain email patterns
             assert "@" not in value, f"Signals contain email-like data: {key}={value}"
             # Should not contain phone patterns
-            assert not any(char.isdigit() for char in value), f"Signals contain numeric data: {key}={value}"
+            assert not any(
+                char.isdigit() for char in value
+            ), f"Signals contain numeric data: {key}={value}"
 
     # Check that signals are deterministic for same input
     result2 = await classify_intent([ChatMessage(role="user", content=sensitive_text)])

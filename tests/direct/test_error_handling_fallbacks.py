@@ -29,12 +29,18 @@ class TestErrorHandlingFallbacks:
         # 1. Setup mocks
         mock_openai = Mock()
         mock_openai.invoke = AsyncMock(
-            return_value=ProviderResponse(output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error")
+            return_value=ProviderResponse(
+                output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error"
+            )
         )
         mock_anthropic = Mock()
         mock_anthropic.invoke = AsyncMock(
             return_value=ProviderResponse(
-                output_text="anthropic says hello", tokens_in=10, tokens_out=20, latency_ms=100, error=None
+                output_text="anthropic says hello",
+                tokens_in=10,
+                tokens_out=20,
+                latency_ms=100,
+                error=None,
             )
         )
 
@@ -80,16 +86,24 @@ class TestErrorHandlingFallbacks:
         # 1. Setup mocks
         mock_openai = Mock()
         mock_openai.invoke = AsyncMock(
-            return_value=ProviderResponse(output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error")
+            return_value=ProviderResponse(
+                output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error"
+            )
         )
         mock_anthropic = Mock()
         mock_anthropic.invoke = AsyncMock(
-            return_value=ProviderResponse(output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error")
+            return_value=ProviderResponse(
+                output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error"
+            )
         )
         mock_groq = Mock()
         mock_groq.invoke = AsyncMock(
             return_value=ProviderResponse(
-                output_text="groq says hello", tokens_in=10, tokens_out=20, latency_ms=100, error=None
+                output_text="groq says hello",
+                tokens_in=10,
+                tokens_out=20,
+                latency_ms=100,
+                error=None,
             )
         )
 
@@ -143,11 +157,15 @@ class TestErrorHandlingFallbacks:
         # 1. Setup mocks
         mock_openai = Mock()
         mock_openai.invoke = AsyncMock(
-            return_value=ProviderResponse(output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error")
+            return_value=ProviderResponse(
+                output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error"
+            )
         )
         mock_anthropic = Mock()
         mock_anthropic.invoke = AsyncMock(
-            return_value=ProviderResponse(output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error")
+            return_value=ProviderResponse(
+                output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error"
+            )
         )
 
         mock_registry = {
@@ -180,28 +198,55 @@ class TestErrorHandlingFallbacks:
                 raise NoProvidersAvailableError("All providers failed")
 
     async def test_circuit_breaker_integration(
-        self, direct_providers_only_mode, direct_router, simple_messages, mock_provider_registry_circuit_open
+        self,
+        direct_providers_only_mode,
+        direct_router,
+        simple_messages,
+        mock_provider_registry_circuit_open,
     ):
         """Test circuit breaker integration - router skips providers with open circuits."""
         with (
-            patch.object(direct_router, "provider_registry_fn", return_value=mock_provider_registry_circuit_open),
+            patch.object(
+                direct_router,
+                "provider_registry_fn",
+                return_value=mock_provider_registry_circuit_open,
+            ),
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
 
             # The router should select the first available provider from preferences
             # It doesn't automatically skip providers with open circuits during selection
             # The circuit breaker behavior is tested at the invocation level, not selection level
-            assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+            assert provider in [
+                "openai",
+                "anthropic",
+                "mistral",
+                "groq",
+                "google",
+                "cohere",
+                "together",
+            ]
 
-    async def test_all_providers_circuit_open(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_all_providers_circuit_open(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test scenario where all providers have open circuits."""
         from app.core.exceptions import NoProvidersAvailableError
 
@@ -221,21 +266,42 @@ class TestErrorHandlingFallbacks:
             adapter.circuit_open = True
 
         with (
-            patch.object(direct_router, "provider_registry_fn", return_value=all_circuit_open_registry),
+            patch.object(
+                direct_router, "provider_registry_fn", return_value=all_circuit_open_registry
+            ),
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
             # The router should still select a provider (circuit breaker is checked at invocation time)
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
-            assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
+            assert provider in [
+                "openai",
+                "anthropic",
+                "mistral",
+                "groq",
+                "google",
+                "cohere",
+                "together",
+            ]
 
-    async def test_network_and_http_error_handling(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_network_and_http_error_handling(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test various HTTP errors are handled gracefully."""
         http_error_tests = [
             (401, "authentication_error"),
@@ -244,7 +310,7 @@ class TestErrorHandlingFallbacks:
             (503, "service_unavailable"),
         ]
 
-        for status_code, error_type in http_error_tests:
+        for _status_code, error_type in http_error_tests:
             # Create registry with specific HTTP error
             error_registry = {
                 "openai": MockProviderAdapter("openai", success_rate=0.0, error_type=error_type),
@@ -261,23 +327,44 @@ class TestErrorHandlingFallbacks:
                 patch(
                     "app.core.intent.classify_intent",
                     new=AsyncMock(
-                        return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                        return_value={
+                            "label": "chat_lite",
+                            "confidence": 0.9,
+                            "signals": {},
+                            "method": "heuristic",
+                        }
                     ),
                 ),
             ):
-                provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                    simple_messages
-                )
+                (
+                    provider,
+                    model,
+                    reasoning,
+                    intent_metadata,
+                    estimate_metadata,
+                ) = await direct_router.select_model(simple_messages)
 
                 # The router should select the first provider from preferences
                 # It doesn't automatically skip failing providers during selection
-                assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+                assert provider in [
+                    "openai",
+                    "anthropic",
+                    "mistral",
+                    "groq",
+                    "google",
+                    "cohere",
+                    "together",
+                ]
 
-    async def test_rate_limiting_scenarios(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_rate_limiting_scenarios(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test rate limiting scenarios (429 errors)."""
         # Create registry with rate limiting on first provider
         rate_limit_registry = {
-            "openai": MockProviderAdapter("openai", success_rate=0.0, error_type="rate_limit_error"),
+            "openai": MockProviderAdapter(
+                "openai", success_rate=0.0, error_type="rate_limit_error"
+            ),
             "anthropic": MockProviderAdapter("anthropic", success_rate=1.0),
             "mistral": MockProviderAdapter("mistral", success_rate=1.0),
             "groq": MockProviderAdapter("groq", success_rate=1.0),
@@ -291,24 +378,45 @@ class TestErrorHandlingFallbacks:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
 
             # The router should select the first provider from preferences
             # It doesn't automatically skip rate-limited providers during selection
-            assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+            assert provider in [
+                "openai",
+                "anthropic",
+                "mistral",
+                "groq",
+                "google",
+                "cohere",
+                "together",
+            ]
 
-    async def test_server_errors_retry_behavior(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_server_errors_retry_behavior(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test server errors (5xx) and verify retry behavior."""
         # Create registry with server errors
         server_error_registry = {
             "openai": MockProviderAdapter("openai", success_rate=0.0, error_type="server_error"),
-            "anthropic": MockProviderAdapter("anthropic", success_rate=0.0, error_type="server_error"),
+            "anthropic": MockProviderAdapter(
+                "anthropic", success_rate=0.0, error_type="server_error"
+            ),
             "mistral": MockProviderAdapter("mistral", success_rate=1.0),
             "groq": MockProviderAdapter("groq", success_rate=1.0),
             "google": MockProviderAdapter("google", success_rate=1.0),
@@ -321,19 +429,38 @@ class TestErrorHandlingFallbacks:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
 
             # The router should select the first provider from preferences
             # It doesn't automatically skip failing providers during selection
-            assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+            assert provider in [
+                "openai",
+                "anthropic",
+                "mistral",
+                "groq",
+                "google",
+                "cohere",
+                "together",
+            ]
 
-    async def test_partial_provider_registry(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_partial_provider_registry(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test scenarios where only subset of required providers are registered."""
         # Test with minimal provider registry
         minimal_registry = {
@@ -347,18 +474,29 @@ class TestErrorHandlingFallbacks:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
 
             # Should work with available providers
             assert provider in ["openai", "anthropic"]
 
-    async def test_empty_provider_registry(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_empty_provider_registry(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test with empty provider registry - verify appropriate error messages."""
         from app.core.exceptions import NoProvidersAvailableError
 
@@ -367,14 +505,21 @@ class TestErrorHandlingFallbacks:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
             with pytest.raises(NoProvidersAvailableError):
                 await direct_router.select_model(simple_messages)
 
-    async def test_model_availability_errors(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_model_availability_errors(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test with unsupported model names."""
         # Create registry where models are not found
         model_not_found_registry = {
@@ -388,23 +533,44 @@ class TestErrorHandlingFallbacks:
         }
 
         with (
-            patch.object(direct_router, "provider_registry_fn", return_value=model_not_found_registry),
+            patch.object(
+                direct_router, "provider_registry_fn", return_value=model_not_found_registry
+            ),
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
 
             # The router should select the first provider from preferences
             # It doesn't automatically skip providers with model not found errors during selection
-            assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+            assert provider in [
+                "openai",
+                "anthropic",
+                "mistral",
+                "groq",
+                "google",
+                "cohere",
+                "together",
+            ]
 
-    async def test_timeout_and_connectivity_issues(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_timeout_and_connectivity_issues(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test network timeouts and connectivity issues."""
         # Create registry with timeout issues
         timeout_registry = {
@@ -422,19 +588,38 @@ class TestErrorHandlingFallbacks:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
 
             # The router should select the first provider from preferences
             # It doesn't automatically skip providers with timeout issues during selection
-            assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+            assert provider in [
+                "openai",
+                "anthropic",
+                "mistral",
+                "groq",
+                "google",
+                "cohere",
+                "together",
+            ]
 
-    async def test_slow_vs_fast_providers(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_slow_vs_fast_providers(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test with slow providers vs fast providers."""
         # Create registry with mixed performance
         performance_registry = {
@@ -452,26 +637,51 @@ class TestErrorHandlingFallbacks:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
 
             # Should select a provider (performance preference handled by router logic)
-            assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+            assert provider in [
+                "openai",
+                "anthropic",
+                "mistral",
+                "groq",
+                "google",
+                "cohere",
+                "together",
+            ]
 
-    async def test_graceful_degradation(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_graceful_degradation(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test scenarios where direct providers fail but system remains operational."""
         # Create registry with most providers failing but some working
         degraded_registry = {
-            "openai": MockProviderAdapter("openai", success_rate=0.0, error_type="authentication_error"),
-            "anthropic": MockProviderAdapter("anthropic", success_rate=0.0, error_type="rate_limit_error"),
+            "openai": MockProviderAdapter(
+                "openai", success_rate=0.0, error_type="authentication_error"
+            ),
+            "anthropic": MockProviderAdapter(
+                "anthropic", success_rate=0.0, error_type="rate_limit_error"
+            ),
             "mistral": MockProviderAdapter("mistral", success_rate=0.0, error_type="server_error"),
             "groq": MockProviderAdapter("groq", success_rate=1.0),  # Working
-            "google": MockProviderAdapter("google", success_rate=0.0, error_type="permission_error"),
+            "google": MockProviderAdapter(
+                "google", success_rate=0.0, error_type="permission_error"
+            ),
             "cohere": MockProviderAdapter("cohere", success_rate=1.0),  # Working
             "together": MockProviderAdapter("together", success_rate=0.0, error_type="bad_request"),
         }
@@ -481,27 +691,52 @@ class TestErrorHandlingFallbacks:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
 
             # The router should select the first provider from preferences
             # It doesn't automatically skip failing providers during selection
-            assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+            assert provider in [
+                "openai",
+                "anthropic",
+                "mistral",
+                "groq",
+                "google",
+                "cohere",
+                "together",
+            ]
 
-    async def test_error_messages_informative(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_error_messages_informative(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test that error messages are informative and actionable."""
         # Create registry where all providers fail with different errors
         all_failing_registry = {
-            "openai": MockProviderAdapter("openai", success_rate=0.0, error_type="authentication_error"),
-            "anthropic": MockProviderAdapter("anthropic", success_rate=0.0, error_type="rate_limit_error"),
+            "openai": MockProviderAdapter(
+                "openai", success_rate=0.0, error_type="authentication_error"
+            ),
+            "anthropic": MockProviderAdapter(
+                "anthropic", success_rate=0.0, error_type="rate_limit_error"
+            ),
             "mistral": MockProviderAdapter("mistral", success_rate=0.0, error_type="server_error"),
             "groq": MockProviderAdapter("groq", success_rate=0.0, error_type="permission_error"),
-            "google": MockProviderAdapter("google", success_rate=0.0, error_type="permission_error"),
+            "google": MockProviderAdapter(
+                "google", success_rate=0.0, error_type="permission_error"
+            ),
             "cohere": MockProviderAdapter("cohere", success_rate=0.0, error_type="model_not_found"),
             "together": MockProviderAdapter("together", success_rate=0.0, error_type="bad_request"),
         }
@@ -511,15 +746,32 @@ class TestErrorHandlingFallbacks:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
             # The router should still select a provider (errors are handled at invocation time)
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
-            assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
+            assert provider in [
+                "openai",
+                "anthropic",
+                "mistral",
+                "groq",
+                "google",
+                "cohere",
+                "together",
+            ]
 
     async def test_metrics_during_failures(
         self, direct_providers_only_mode, direct_router, simple_messages, mock_telemetry
@@ -527,7 +779,9 @@ class TestErrorHandlingFallbacks:
         """Test metrics during failure scenarios."""
         # Create registry with some failures
         failure_registry = {
-            "openai": MockProviderAdapter("openai", success_rate=0.0, error_type="authentication_error"),
+            "openai": MockProviderAdapter(
+                "openai", success_rate=0.0, error_type="authentication_error"
+            ),
             "anthropic": MockProviderAdapter("anthropic", success_rate=1.0),
             "mistral": MockProviderAdapter("mistral", success_rate=1.0),
             "groq": MockProviderAdapter("groq", success_rate=1.0),
@@ -541,25 +795,49 @@ class TestErrorHandlingFallbacks:
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
         ):
-            provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                simple_messages
-            )
+            (
+                provider,
+                model,
+                reasoning,
+                intent_metadata,
+                estimate_metadata,
+            ) = await direct_router.select_model(simple_messages)
 
             # The router should select the first provider from preferences
             # Metrics are recorded during selection, not during fallback
-            assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+            assert provider in [
+                "openai",
+                "anthropic",
+                "mistral",
+                "groq",
+                "google",
+                "cohere",
+                "together",
+            ]
 
-    async def test_telemetry_spans_include_error_info(self, direct_providers_only_mode, direct_router, simple_messages):
+    async def test_telemetry_spans_include_error_info(
+        self, direct_providers_only_mode, direct_router, simple_messages
+    ):
         """Test telemetry spans include error information."""
         with (
             patch(
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
-                    return_value={"label": "chat_lite", "confidence": 0.9, "signals": {}, "method": "heuristic"}
+                    return_value={
+                        "label": "chat_lite",
+                        "confidence": 0.9,
+                        "signals": {},
+                        "method": "heuristic",
+                    }
                 ),
             ),
             patch("app.telemetry.tracing.start_span") as mock_span,
@@ -571,7 +849,9 @@ class TestErrorHandlingFallbacks:
 
             # Create registry with some failures
             failure_registry = {
-                "openai": MockProviderAdapter("openai", success_rate=0.0, error_type="authentication_error"),
+                "openai": MockProviderAdapter(
+                    "openai", success_rate=0.0, error_type="authentication_error"
+                ),
                 "anthropic": MockProviderAdapter("anthropic", success_rate=1.0),
                 "mistral": MockProviderAdapter("mistral", success_rate=1.0),
                 "groq": MockProviderAdapter("groq", success_rate=1.0),
@@ -581,13 +861,25 @@ class TestErrorHandlingFallbacks:
             }
 
             with patch.object(direct_router, "provider_registry_fn", return_value=failure_registry):
-                provider, model, reasoning, intent_metadata, estimate_metadata = await direct_router.select_model(
-                    simple_messages
-                )
+                (
+                    provider,
+                    model,
+                    reasoning,
+                    intent_metadata,
+                    estimate_metadata,
+                ) = await direct_router.select_model(simple_messages)
 
                 # The router should select the first provider from preferences
                 # Telemetry spans are created during selection, not during fallback
-                assert provider in ["openai", "anthropic", "mistral", "groq", "google", "cohere", "together"]
+                assert provider in [
+                    "openai",
+                    "anthropic",
+                    "mistral",
+                    "groq",
+                    "google",
+                    "cohere",
+                    "together",
+                ]
 
 
 class MockProviderAdapter:
@@ -606,7 +898,12 @@ class MockProviderAdapter:
 
         if self.circuit_open:
             return ProviderResponse(
-                output_text="", tokens_in=0, tokens_out=0, latency_ms=0, raw={}, error="circuit_open"
+                output_text="",
+                tokens_in=0,
+                tokens_out=0,
+                latency_ms=0,
+                raw={},
+                error="circuit_open",
             )
 
         # Determine if the call should fail

@@ -70,8 +70,7 @@ class LicenseComplianceChecker:
         self.REQUIRED_HEADERS[suffix]
 
         try:
-            with open(file_path, encoding="utf-8") as f:
-                content = f.read()
+            content = Path(file_path).read_text(encoding="utf-8")
         except UnicodeDecodeError:
             return True  # Skip binary files
         except Exception:
@@ -112,9 +111,7 @@ class LicenseComplianceChecker:
             try:
                 content = license_file.read_text(encoding="utf-8")
                 if "Business Source License 1.1" not in content:
-                    self.errors.append(
-                        "LICENSE file does not contain 'Business Source License 1.1'"
-                    )
+                    self.errors.append("LICENSE file does not contain 'Business Source License 1.1'")
                 if "Ajay Rajput" not in content:
                     self.errors.append("LICENSE file does not contain 'Ajay Rajput'")
                 if "January 1, 2027" not in content:
@@ -129,9 +126,7 @@ class LicenseComplianceChecker:
             try:
                 content = pyproject_file.read_text(encoding="utf-8")
                 if 'license = { text = "Business Source License 1.1" }' not in content:
-                    self.warnings.append(
-                        "pyproject.toml license field should be 'Business Source License 1.1'"
-                    )
+                    self.warnings.append("pyproject.toml license field should be 'Business Source License 1.1'")
             except Exception as e:
                 self.warnings.append(f"Could not read pyproject.toml: {e}")
 
@@ -173,12 +168,8 @@ class LicenseComplianceChecker:
             "summary": {
                 "total_errors": len(errors),
                 "total_warnings": len(warnings),
-                "required_files_check": (
-                    "PASS" if not any("Missing required" in e for e in errors) else "FAIL"
-                ),
-                "header_check": (
-                    "PASS" if not any("missing license headers" in e for e in errors) else "FAIL"
-                ),
+                "required_files_check": ("PASS" if not any("Missing required" in e for e in errors) else "FAIL"),
+                "header_check": ("PASS" if not any("missing license headers" in e for e in errors) else "FAIL"),
                 "content_check": "PASS" if not any("LICENSE file" in e for e in errors) else "FAIL",
             },
         }
@@ -216,8 +207,7 @@ def main():
 
     # Save detailed report
     report_file = project_root / "compliance_report.json"
-    with open(report_file, "w") as f:
-        json.dump(report, f, indent=2)
+    report_file.write_text(json.dumps(report, indent=2))
     print(f"Detailed report saved to: {report_file}")
 
     # Exit with error code if compliance failed

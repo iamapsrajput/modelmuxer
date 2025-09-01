@@ -80,7 +80,9 @@ class AuthenticationError(ModelMuxerError):
 class RateLimitError(ModelMuxerError):
     """Exception for rate limit exceeded."""
 
-    def __init__(self, message: str = "Rate limit exceeded", retry_after: int | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self, message: str = "Rate limit exceeded", retry_after: int | None = None, **kwargs: Any
+    ) -> None:
         self.retry_after = retry_after
         details = kwargs.get("details", {})
         details["retry_after"] = retry_after
@@ -88,13 +90,16 @@ class RateLimitError(ModelMuxerError):
 
 
 class BudgetExceededError(ModelMuxerError):
-    """Exception for budget limit exceeded."""
+    """Exception for budget limit exceeded.
+
+    estimates may include None for unpriced/unknown model costs.
+    """
 
     def __init__(
         self,
         message: str = "Budget limit exceeded",
         limit: float | None = None,
-        estimates: list[tuple[str, float]] | None = None,
+        estimates: list[tuple[str, float | None]] | None = None,
         reason: str | None = None,
         **kwargs: Any,
     ) -> None:
@@ -149,7 +154,9 @@ class ValidationError(ModelMuxerError):
 class TimeoutError(ModelMuxerError):
     """Exception for timeout errors."""
 
-    def __init__(self, message: str = "Request timeout", timeout_duration: float | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self, message: str = "Request timeout", timeout_duration: float | None = None, **kwargs: Any
+    ) -> None:
         self.timeout_duration = timeout_duration
         details = kwargs.get("details", {})
         details["timeout_duration"] = timeout_duration
@@ -171,6 +178,7 @@ class QuotaExceededError(ProviderError):
 
     def __init__(self, message: str = "Provider quota exceeded", **kwargs: Any) -> None:
         super().__init__(message, error_code="quota_exceeded", **kwargs)
+
 
 class NoProvidersAvailableError(ModelMuxerError):
     """Exception for when no providers are available."""

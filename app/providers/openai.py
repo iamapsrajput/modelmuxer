@@ -7,7 +7,12 @@ from typing import Any, Optional
 
 import httpx
 
-from app.providers.base import LLMProviderAdapter, ProviderResponse, SimpleCircuitBreaker, with_retries
+from app.providers.base import (
+    LLMProviderAdapter,
+    ProviderResponse,
+    SimpleCircuitBreaker,
+    with_retries,
+)
 from app.settings import settings
 from app.telemetry.metrics import PROVIDER_LATENCY, PROVIDER_REQUESTS, TOKENS_TOTAL
 from app.telemetry.tracing import start_span_async
@@ -50,21 +55,31 @@ class OpenAIAdapter(LLMProviderAdapter):
                             payload = {
                                 "model": model,
                                 "input": prompt,
-                                "temperature": kwargs.get("temperature", settings.router.temperature_default),
-                                "max_output_tokens": kwargs.get("max_tokens", settings.router.max_tokens_default),
+                                "temperature": kwargs.get(
+                                    "temperature", settings.router.temperature_default
+                                ),
+                                "max_output_tokens": kwargs.get(
+                                    "max_tokens", settings.router.max_tokens_default
+                                ),
                             }
                             headers = {
                                 "Authorization": f"Bearer {self.api_key}",
                                 "Content-Type": "application/json",
                             }
-                            resp = await self._client.post(f"{self.base_url}/responses", json=payload, headers=headers)
+                            resp = await self._client.post(
+                                f"{self.base_url}/responses", json=payload, headers=headers
+                            )
                         else:
                             # Use standard chat completions API
                             payload = {
                                 "model": model,
                                 "messages": [{"role": "user", "content": prompt}],
-                                "temperature": kwargs.get("temperature", settings.router.temperature_default),
-                                "max_tokens": kwargs.get("max_tokens", settings.router.max_tokens_default),
+                                "temperature": kwargs.get(
+                                    "temperature", settings.router.temperature_default
+                                ),
+                                "max_tokens": kwargs.get(
+                                    "max_tokens", settings.router.max_tokens_default
+                                ),
                             }
                             headers = {
                                 "Authorization": f"Bearer {self.api_key}",
@@ -79,13 +94,13 @@ class OpenAIAdapter(LLMProviderAdapter):
                             resp.raise_for_status()
                         except httpx.HTTPStatusError as e:
                             # Retry 429/5xx errors by re-raising as RequestError
-                            if e.response.status_code in {429} or e.response.status_code >= 500:
+                            if e.response.status_code == 429 or e.response.status_code >= 500:
                                 raise httpx.RequestError(
                                     f"Retryable HTTP error: {e.response.status_code}",
                                     request=e.request,
-                                )
+                                ) from e
                             # Non-retryable errors (401, 403, 404) are handled by outer exception handler
-                            raise
+                            raise  # noqa: B904
 
                         data = resp.json()
 
@@ -109,10 +124,16 @@ class OpenAIAdapter(LLMProviderAdapter):
                         latency_ms = int((time.perf_counter() - start) * 1000)
 
                         # Metrics
-                        PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="success").inc()
+                        PROVIDER_REQUESTS.labels(
+                            provider=provider, model=model, outcome="success"
+                        ).inc()
                         PROVIDER_LATENCY.labels(provider=provider, model=model).observe(latency_ms)
-                        TOKENS_TOTAL.labels(provider=provider, model=model, type="input").inc(in_tokens)
-                        TOKENS_TOTAL.labels(provider=provider, model=model, type="output").inc(out_tokens)
+                        TOKENS_TOTAL.labels(provider=provider, model=model, type="input").inc(
+                            in_tokens
+                        )
+                        TOKENS_TOTAL.labels(provider=provider, model=model, type="output").inc(
+                            out_tokens
+                        )
 
                         self.circuit.on_success()
                         return ProviderResponse(

@@ -86,7 +86,12 @@ async def classify_intent(messages: list[ChatMessage]) -> dict[str, Any]:
     # In test mode, force deterministic heuristics only
     if settings.features.test_mode:
         label, conf, feats = _heuristic_classify(text)
-        return {"label": label, "confidence": round(float(conf), 3), "signals": feats, "method": "heuristic"}
+        return {
+            "label": label,
+            "confidence": round(float(conf), 3),
+            "signals": feats,
+            "method": "heuristic",
+        }
 
     # Cheap LLM adapter path (optional, stubbed for now)
     # Keep deterministic fallback even when LLM not available
@@ -94,10 +99,20 @@ async def classify_intent(messages: list[ChatMessage]) -> dict[str, Any]:
         # Placeholder: integrate with adapters (e.g., openai/anthropic/mistral) if desired
         # For Phase 1, rely on heuristics to avoid network and preserve determinism.
         label, conf, feats = _heuristic_classify(text)
-        return {"label": label, "confidence": round(float(conf), 3), "signals": feats, "method": "heuristic"}
+        return {
+            "label": label,
+            "confidence": round(float(conf), 3),
+            "signals": feats,
+            "method": "heuristic",
+        }
     except Exception:
         label, conf, feats = _heuristic_classify(text)
-        return {"label": label, "confidence": round(float(conf), 3), "signals": feats, "method": "heuristic_fallback"}
+        return {
+            "label": label,
+            "confidence": round(float(conf), 3),
+            "signals": feats,
+            "method": "heuristic_fallback",
+        }
 
 
 __all__ = ["classify_intent", "INTENT_LABELS"]

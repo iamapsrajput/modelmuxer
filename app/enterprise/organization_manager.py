@@ -6,7 +6,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from sqlalchemy.orm import Session
@@ -150,11 +150,11 @@ class OrganizationManager:
 
             # Log audit event
             await self._log_audit_event(
-                organization.id,
-                owner.id,
+                str(organization.id),
+                str(owner.id),
                 AuditAction.CREATE,
                 "organization",
-                organization.id,
+                str(organization.id),
                 f"Organization '{name}' created with {plan_type.value} plan",
             )
 
@@ -248,7 +248,7 @@ class OrganizationManager:
                 inviter_id,
                 AuditAction.USER_INVITED,
                 "user",
-                user.id,
+                str(user.id),
                 f"User {email} invited with role {role.value}",
             )
 
@@ -332,7 +332,7 @@ class OrganizationManager:
                 creator_id,
                 AuditAction.CREATE,
                 "api_key",
-                api_key_record.id,
+                str(api_key_record.id),
                 f"API key '{name}' created with scopes: {', '.join(scopes)}",
             )
 
@@ -370,9 +370,9 @@ class OrganizationManager:
             )
 
             # Aggregate metrics
-            total_requests = sum(m.total_requests for m in usage_metrics)
-            total_cost = sum(m.total_cost for m in usage_metrics)
-            total_tokens = sum(m.total_tokens for m in usage_metrics)
+            total_requests = sum(m.total_requests or 0 for m in usage_metrics)
+            total_cost = sum(float(cast(float, m.total_cost) or 0) for m in usage_metrics)
+            total_tokens = sum(m.total_tokens or 0 for m in usage_metrics)
 
             # Provider breakdown
             provider_breakdown = {}
@@ -405,20 +405,20 @@ class OrganizationManager:
                     "total_cost": float(total_cost),
                     "total_tokens": total_tokens,
                     "avg_cost_per_request": (
-                        float(total_cost / total_requests) if total_requests > 0 else 0
+                        float(total_cost) / total_requests if total_requests > 0 else 0
                     ),
                 },
                 "limits": {
-                    "monthly_requests": org.monthly_request_limit,
-                    "monthly_cost": float(org.monthly_cost_limit),
+                    "monthly_requests": org.monthly_request_limit or 0 if org else 0,
+                    "monthly_cost": float(cast(float, org.monthly_cost_limit) or 0) if org else 0.0,
                     "request_utilization": (
                         (total_requests / org.monthly_request_limit) * 100
-                        if org.monthly_request_limit > 0
+                        if org and org.monthly_request_limit and org.monthly_request_limit > 0
                         else 0
                     ),
                     "cost_utilization": (
-                        (float(total_cost) / float(org.monthly_cost_limit)) * 100
-                        if org.monthly_cost_limit > 0
+                        (float(total_cost) / float(cast(float, org.monthly_cost_limit) or 1)) * 100
+                        if org and org.monthly_cost_limit and org.monthly_cost_limit > 0
                         else 0
                     ),
                 },
@@ -481,14 +481,15 @@ class OrganizationManager:
                     .count()
                 )
 
-                if current_users >= org.max_users:
+                max_users = org.max_users or 5
+                if current_users >= max_users:
                     limits_status["within_limits"] = False
                     limits_status["errors"].append(
-                        f"User limit exceeded: {current_users}/{org.max_users}"
+                        f"User limit exceeded: {current_users}/{max_users}"
                     )
-                elif current_users >= org.max_users * 0.8:
+                elif current_users >= max_users * 0.8:
                     limits_status["warnings"].append(
-                        f"Approaching user limit: {current_users}/{org.max_users}"
+                        f"Approaching user limit: {current_users}/{max_users}"
                     )
 
             elif check_type == "api_keys":
@@ -501,25 +502,27 @@ class OrganizationManager:
                     .count()
                 )
 
-                if current_keys >= org.max_api_keys:
+                max_api_keys = org.max_api_keys or 10
+                if current_keys >= max_api_keys:
                     limits_status["within_limits"] = False
                     limits_status["errors"].append(
-                        f"API key limit exceeded: {current_keys}/{org.max_api_keys}"
+                        f"API key limit exceeded: {current_keys}/{max_api_keys}"
                     )
-                elif current_keys >= org.max_api_keys * 0.8:
+                elif current_keys >= max_api_keys * 0.8:
                     limits_status["warnings"].append(
-                        f"Approaching API key limit: {current_keys}/{org.max_api_keys}"
+                        f"Approaching API key limit: {current_keys}/{max_api_keys}"
                     )
 
             elif check_type == "requests" and current_usage is not None:
-                if current_usage >= org.monthly_request_limit:
+                monthly_request_limit = org.monthly_request_limit or 1000
+                if current_usage >= monthly_request_limit:
                     limits_status["within_limits"] = False
                     limits_status["errors"].append(
-                        f"Request limit exceeded: {current_usage}/{org.monthly_request_limit}"
+                        f"Request limit exceeded: {current_usage}/{monthly_request_limit}"
                     )
-                elif current_usage >= org.monthly_request_limit * 0.8:
+                elif current_usage >= monthly_request_limit * 0.8:
                     limits_status["warnings"].append(
-                        f"Approaching request limit: {current_usage}/{org.monthly_request_limit}"
+                        f"Approaching request limit: {current_usage}/{monthly_request_limit}"
                     )
 
             return limits_status

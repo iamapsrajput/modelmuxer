@@ -282,7 +282,7 @@ class RouterTester:
         total = len(tests)
 
         for test_name, test_func in tests:
-            print(f"\n{'='*50}")
+            print(f"\n{'=' * 50}")
             print(f"🧪 {test_name}")
             print("=" * 50)
 
@@ -295,11 +295,11 @@ class RouterTester:
             except Exception as e:
                 print(f"❌ {test_name} ERROR: {e}")
 
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print("📊 TEST SUMMARY")
         print("=" * 50)
         print(f"Passed: {passed}/{total}")
-        print(f"Success Rate: {(passed/total)*100:.1f}%")
+        print(f"Success Rate: {(passed / total) * 100:.1f}%")
 
         if passed == total:
             print("🎉 All tests passed!")

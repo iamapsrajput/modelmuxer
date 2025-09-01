@@ -13,4 +13,10 @@ from .heuristic_router import EnhancedHeuristicRouter
 from .hybrid_router import HybridRouter
 from .semantic_router import SemanticRouter
 
-__all__ = ["BaseRouter", "EnhancedHeuristicRouter", "SemanticRouter", "CascadeRouter", "HybridRouter"]
+__all__ = [
+    "BaseRouter",
+    "EnhancedHeuristicRouter",
+    "SemanticRouter",
+    "CascadeRouter",
+    "HybridRouter",
+]

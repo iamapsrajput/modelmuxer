@@ -114,7 +114,9 @@ class TestProviderResponseContract:
         for provider_name in ADAPTER_CLASS_BY_PROVIDER.keys():
             pytest.importorskip(f"app.providers.{provider_name}")
             adapter_class_name = ADAPTER_CLASS_BY_PROVIDER[provider_name]
-            adapter_module = __import__(f"app.providers.{provider_name}", fromlist=[adapter_class_name])
+            adapter_module = __import__(
+                f"app.providers.{provider_name}", fromlist=[adapter_class_name]
+            )
             adapter_class = getattr(adapter_module, adapter_class_name)
 
             adapter = adapter_class(api_key="test_key", base_url="https://test.com")
@@ -136,7 +138,9 @@ class TestProviderResponseContract:
         for provider_name in ADAPTER_CLASS_BY_PROVIDER.keys():
             pytest.importorskip(f"app.providers.{provider_name}")
             adapter_class_name = ADAPTER_CLASS_BY_PROVIDER[provider_name]
-            adapter_module = __import__(f"app.providers.{provider_name}", fromlist=[adapter_class_name])
+            adapter_module = __import__(
+                f"app.providers.{provider_name}", fromlist=[adapter_class_name]
+            )
             adapter_class = getattr(adapter_module, adapter_class_name)
 
             adapter = adapter_class(api_key="test_key", base_url="https://test.com")
@@ -152,7 +156,9 @@ class TestProviderResponseContract:
         for provider_name in ADAPTER_CLASS_BY_PROVIDER.keys():
             pytest.importorskip(f"app.providers.{provider_name}")
             adapter_class_name = ADAPTER_CLASS_BY_PROVIDER[provider_name]
-            adapter_module = __import__(f"app.providers.{provider_name}", fromlist=[adapter_class_name])
+            adapter_module = __import__(
+                f"app.providers.{provider_name}", fromlist=[adapter_class_name]
+            )
             adapter_class = getattr(adapter_module, adapter_class_name)
 
             adapter = adapter_class(api_key="test_key", base_url="https://test.com")
@@ -172,7 +178,9 @@ class TestProviderResponseContract:
         for provider_name in ADAPTER_CLASS_BY_PROVIDER.keys():
             pytest.importorskip(f"app.providers.{provider_name}")
             adapter_class_name = ADAPTER_CLASS_BY_PROVIDER[provider_name]
-            adapter_module = __import__(f"app.providers.{provider_name}", fromlist=[adapter_class_name])
+            adapter_module = __import__(
+                f"app.providers.{provider_name}", fromlist=[adapter_class_name]
+            )
             adapter_class = getattr(adapter_module, adapter_class_name)
 
             adapter = adapter_class(api_key="test_key", base_url="https://test.com")
@@ -196,7 +204,11 @@ class TestProviderResponseContract:
                 mock_circuit.is_open.return_value = False
                 with patch.object(adapter, "invoke", new_callable=AsyncMock) as mock_invoke:
                     mock_invoke.return_value = ProviderResponse(
-                        output_text="success", tokens_in=10, tokens_out=20, latency_ms=100, error=None
+                        output_text="success",
+                        tokens_in=10,
+                        tokens_out=20,
+                        latency_ms=100,
+                        error=None,
                     )
                     result = await adapter.invoke("test-model", "test prompt")
                     assert result.output_text == "success"
@@ -206,7 +218,9 @@ class TestProviderResponseContract:
         for provider_name in ADAPTER_CLASS_BY_PROVIDER.keys():
             pytest.importorskip(f"app.providers.{provider_name}")
             adapter_class_name = ADAPTER_CLASS_BY_PROVIDER[provider_name]
-            adapter_module = __import__(f"app.providers.{provider_name}", fromlist=[adapter_class_name])
+            adapter_module = __import__(
+                f"app.providers.{provider_name}", fromlist=[adapter_class_name]
+            )
             adapter_class = getattr(adapter_module, adapter_class_name)
 
             adapter = adapter_class(api_key="test_key", base_url="https://test.com")
@@ -275,7 +289,10 @@ class TestProviderResponseParsing:
                 "candidates": [{"content": {"parts": [{"text": "Mock Google response"}]}}],
                 "usageMetadata": {"promptTokenCount": 10, "candidatesTokenCount": 20},
             },
-            "cohere": {"text": "Mock Cohere response", "meta": {"tokens": {"input_tokens": 10, "output_tokens": 20}}},
+            "cohere": {
+                "text": "Mock Cohere response",
+                "meta": {"tokens": {"input_tokens": 10, "output_tokens": 20}},
+            },
             "together": {
                 "choices": [{"message": {"content": "Mock Together response"}}],
                 "usage": {"prompt_tokens": 10, "completion_tokens": 20},
@@ -301,20 +318,30 @@ class TestProviderResponseParsing:
         token_usage_tests = [
             ("openai", {"usage": {"prompt_tokens": 15, "completion_tokens": 25}}, 15, 25),
             ("anthropic", {"usage": {"input_tokens": 20, "output_tokens": 30}}, 20, 30),
-            ("google", {"usageMetadata": {"promptTokenCount": 25, "candidatesTokenCount": 35}}, 25, 35),
+            (
+                "google",
+                {"usageMetadata": {"promptTokenCount": 25, "candidatesTokenCount": 35}},
+                25,
+                35,
+            ),
             ("cohere", {"meta": {"tokens": {"input_tokens": 30, "output_tokens": 40}}}, 30, 40),
         ]
 
         for provider_name, mock_usage, expected_in, expected_out in token_usage_tests:
             pytest.importorskip(f"app.providers.{provider_name}")
             adapter_class_name = ADAPTER_CLASS_BY_PROVIDER[provider_name]
-            adapter_module = __import__(f"app.providers.{provider_name}", fromlist=[adapter_class_name])
+            adapter_module = __import__(
+                f"app.providers.{provider_name}", fromlist=[adapter_class_name]
+            )
             adapter_class = getattr(adapter_module, adapter_class_name)
 
             adapter = adapter_class(api_key="test_key", base_url="https://test.com")
 
             # Create mock response with usage data
-            mock_response_data = {"choices": [{"message": {"content": "test response"}}], **mock_usage}
+            mock_response_data = {
+                "choices": [{"message": {"content": "test response"}}],
+                **mock_usage,
+            }
             mock_response = AsyncMock()
             mock_response.json = Mock(return_value=mock_response_data)
             mock_response.raise_for_status = Mock(return_value=None)
@@ -333,7 +360,9 @@ class TestProviderResponseParsing:
         for provider_name in ADAPTER_CLASS_BY_PROVIDER.keys():
             pytest.importorskip(f"app.providers.{provider_name}")
             adapter_class_name = ADAPTER_CLASS_BY_PROVIDER[provider_name]
-            adapter_module = __import__(f"app.providers.{provider_name}", fromlist=[adapter_class_name])
+            adapter_module = __import__(
+                f"app.providers.{provider_name}", fromlist=[adapter_class_name]
+            )
             adapter_class = getattr(adapter_module, adapter_class_name)
 
             adapter = adapter_class(api_key="test_key", base_url="https://test.com")
@@ -358,7 +387,9 @@ class TestProviderResponseParsing:
         for provider_name in ADAPTER_CLASS_BY_PROVIDER.keys():
             pytest.importorskip(f"app.providers.{provider_name}")
             adapter_class_name = ADAPTER_CLASS_BY_PROVIDER[provider_name]
-            adapter_module = __import__(f"app.providers.{provider_name}", fromlist=[adapter_class_name])
+            adapter_module = __import__(
+                f"app.providers.{provider_name}", fromlist=[adapter_class_name]
+            )
             adapter_class = getattr(adapter_module, adapter_class_name)
 
             adapter = adapter_class(api_key="test_key", base_url="https://test.com")
@@ -414,7 +445,10 @@ class TestProviderResponseParsing:
             ),
             (
                 "cohere",
-                {"text": "Cohere response text", "meta": {"tokens": {"input_tokens": 10, "output_tokens": 20}}},
+                {
+                    "text": "Cohere response text",
+                    "meta": {"tokens": {"input_tokens": 10, "output_tokens": 20}},
+                },
                 "Cohere response text",
             ),
         ]
@@ -422,7 +456,9 @@ class TestProviderResponseParsing:
         for provider_name, mock_response_data, expected_text in text_extraction_tests:
             pytest.importorskip(f"app.providers.{provider_name}")
             adapter_class_name = ADAPTER_CLASS_BY_PROVIDER[provider_name]
-            adapter_module = __import__(f"app.providers.{provider_name}", fromlist=[adapter_class_name])
+            adapter_module = __import__(
+                f"app.providers.{provider_name}", fromlist=[adapter_class_name]
+            )
             adapter_class = getattr(adapter_module, adapter_class_name)
 
             adapter = adapter_class(api_key="test_key", base_url="https://test.com")
@@ -437,4 +473,6 @@ class TestProviderResponseParsing:
                 result = await adapter.invoke("test-model", "test prompt")
 
                 # Verify text is correctly extracted from provider-specific response format
-                assert result.output_text == expected_text, f"{provider_name} text extraction failed"
+                assert (
+                    result.output_text == expected_text
+                ), f"{provider_name} text extraction failed"

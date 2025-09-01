@@ -177,7 +177,7 @@ class TestRedisCache:
 
     async def test_set_and_get(self) -> None:
         """Test basic set and get operations."""
-        import pickle
+        import pickle  # noqa: S403
 
         key = "test_key"
         value = {"message": "test_value", "number": 42}

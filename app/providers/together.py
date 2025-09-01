@@ -70,11 +70,11 @@ class TogetherAdapter(LLMProviderAdapter):
                 if hasattr(msg, "role") and hasattr(msg, "content"):
                     # ChatMessage object - already validated by Pydantic
                     continue
-                elif isinstance(msg, dict):
+                if isinstance(msg, dict):
                     if "role" not in msg or "content" not in msg:
                         raise ValueError(f"message {i} must have 'role' and 'content' keys")
                 else:
-                    raise ValueError(f"message {i} must be a dict or ChatMessage object")
+                    raise TypeError(f"message {i} must be a dict or ChatMessage object")
 
         system = kwargs.get("system")
         if system is not None and not isinstance(system, str):
@@ -108,14 +108,20 @@ class TogetherAdapter(LLMProviderAdapter):
 
                         # Add system message if provided
                         if kwargs.get("system"):
-                            payload_messages = [{"role": "system", "content": kwargs["system"]}] + payload_messages
+                            payload_messages = [
+                                {"role": "system", "content": kwargs["system"]}
+                            ] + payload_messages
 
                         # Validate that we have non-empty content
-                        if not payload_messages or all(not m.get("content") for m in payload_messages):
+                        if not payload_messages or all(
+                            not m.get("content") for m in payload_messages
+                        ):
                             if isinstance(prompt, str) and prompt:
                                 payload_messages = [{"role": "user", "content": prompt}]
                             else:
-                                raise ValueError("Together payload requires a non-empty prompt or messages")
+                                raise ValueError(
+                                    "Together payload requires a non-empty prompt or messages"
+                                )
 
                         # Together AI uses OpenAI-compatible format
                         payload = {
@@ -125,15 +131,12 @@ class TogetherAdapter(LLMProviderAdapter):
                         }
 
                         # Add optional parameters with normalized sampling parameters
-                        if "temperature" in kwargs:
-                            payload["temperature"] = kwargs["temperature"]
-                        else:
-                            payload["temperature"] = settings.router.temperature_default
-
-                        if "max_tokens" in kwargs:
-                            payload["max_tokens"] = kwargs["max_tokens"]
-                        else:
-                            payload["max_tokens"] = settings.router.max_tokens_default
+                        payload["temperature"] = kwargs.get(
+                            "temperature", settings.router.temperature_default
+                        )
+                        payload["max_tokens"] = kwargs.get(
+                            "max_tokens", settings.router.max_tokens_default
+                        )
 
                         # OpenAI-compatible sampling parameters (Together AI supports these)
                         if "top_p" in kwargs:
@@ -162,26 +165,36 @@ class TogetherAdapter(LLMProviderAdapter):
                             code = e.response.status_code
                             if code == 429 or code >= 500:
                                 # signal retry
-                                raise httpx.RequestError(f"retryable status: {code}", request=resp.request)
+                                raise httpx.RequestError(
+                                    f"retryable status: {code}", request=resp.request
+                                ) from e
                             # non-retryable -> propagate
-                            raise
+                            raise  # noqa: B904
 
                         data = resp.json()
 
                         # Check for error in response payload
                         if data.get("error"):
-                            error_msg = data["error"].get("message", "Together AI returned an error")
+                            error_msg = data["error"].get(
+                                "message", "Together AI returned an error"
+                            )
 
                             # Use centralized retryable error detection
                             is_retryable = _is_retryable_error("together", resp.status_code, data)
 
                             if is_retryable:
-                                raise httpx.RequestError(f"Together retryable error: {error_msg}", request=resp.request)
+                                raise httpx.RequestError(
+                                    f"Together retryable error: {error_msg}", request=resp.request
+                                )
                             else:
                                 self.circuit.on_failure()
                                 latency_ms = int((time.perf_counter() - start) * 1000)
-                                PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="error").inc()
-                                PROVIDER_LATENCY.labels(provider=provider, model=model).observe(latency_ms)
+                                PROVIDER_REQUESTS.labels(
+                                    provider=provider, model=model, outcome="error"
+                                ).inc()
+                                PROVIDER_LATENCY.labels(provider=provider, model=model).observe(
+                                    latency_ms
+                                )
                                 # Return ProviderResponse with error to let callers decide on fallbacks - adapter contract
                                 return ProviderResponse(
                                     output_text="",
@@ -195,13 +208,17 @@ class TogetherAdapter(LLMProviderAdapter):
                         # Extract content from Together AI response (OpenAI-compatible)
                         choices = data.get("choices", [])
                         if not choices:
-                            raise httpx.RequestError("Together: no choices in response", request=resp.request)
+                            raise httpx.RequestError(
+                                "Together: no choices in response", request=resp.request
+                            )
 
                         content = choices[0].get("message", {}).get("content", "")
 
                         # Map finish reason for consistency
                         finish_reason = choices[0].get("finish_reason")
-                        data["_parsed_finish_reason"] = normalize_finish_reason("openai", finish_reason)
+                        data["_parsed_finish_reason"] = normalize_finish_reason(
+                            "openai", finish_reason
+                        )
 
                         # Extract token usage from standard usage object
                         usage = data.get("usage", {})
@@ -211,10 +228,16 @@ class TogetherAdapter(LLMProviderAdapter):
                         latency_ms = int((time.perf_counter() - start) * 1000)
 
                         # Metrics
-                        PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="success").inc()
+                        PROVIDER_REQUESTS.labels(
+                            provider=provider, model=model, outcome="success"
+                        ).inc()
                         PROVIDER_LATENCY.labels(provider=provider, model=model).observe(latency_ms)
-                        TOKENS_TOTAL.labels(provider=provider, model=model, type="input").inc(in_tokens)
-                        TOKENS_TOTAL.labels(provider=provider, model=model, type="output").inc(out_tokens)
+                        TOKENS_TOTAL.labels(provider=provider, model=model, type="input").inc(
+                            in_tokens
+                        )
+                        TOKENS_TOTAL.labels(provider=provider, model=model, type="output").inc(
+                            out_tokens
+                        )
 
                         self.circuit.on_success()
                         return ProviderResponse(

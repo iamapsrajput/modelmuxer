@@ -277,19 +277,23 @@ ModelMuxer includes helpful configuration scripts:
 
 ### Common Issues
 
-**Connection Refused**
+#### Connection Refused
+
 - Verify ModelMuxer is running: `curl http://localhost:8000/health`
 - Check port availability: `netstat -ano | findstr :8000`
 
-**Authentication Failed**
+#### Authentication Failed
+
 - Verify API key: Check `.env` file has `API_KEYS=sk-test-claude-dev`
 - Check Authorization header: `Bearer sk-test-claude-dev`
 
-**No Streaming**
+#### No Streaming
+
 - Enable streaming in tool settings: `"stream": true`
 - Check logs: `docker logs modelmuxer-app -f`
 
-**Budget Exceeded**
+#### Budget Exceeded
+
 - Check current usage: `curl -H "Authorization: Bearer sk-test-claude-dev" http://localhost:8000/v1/analytics/budgets`
 - Increase limits or wait for reset
 
