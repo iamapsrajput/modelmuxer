@@ -14,8 +14,7 @@ def test_router_preferences_in_price_table():
     # Get all model keys from preferences
     candidate_keys = set()
     for plist in router.model_preferences.values():
-        for provider, model in plist:
-            candidate_keys.add(f"{provider}:{model}")
+        candidate_keys.update(f"{provider}:{model}" for provider, model in plist)
 
     # Check against price table
     price_table_keys = set(router.price_table.keys())

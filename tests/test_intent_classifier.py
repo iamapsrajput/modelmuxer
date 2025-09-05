@@ -17,7 +17,7 @@ from app.settings import settings
 def calculate_confusion_matrix(predictions, expected_labels):
     """Calculate confusion matrix for intent classification."""
     labels = sorted(set(expected_labels))
-    matrix = {label: {pred: 0 for pred in labels} for label in labels}
+    matrix = {label: dict.fromkeys(labels, 0) for label in labels}
 
     for pred, expected in zip(predictions, expected_labels, strict=True):
         matrix[expected][pred] += 1

@@ -8,17 +8,17 @@ This script provides comprehensive validation of the ModelMuxer direct provider
 architecture, ensuring all direct provider functionality works correctly.
 """
 
-import os
-import sys
-import time
 import asyncio
-import subprocess  # noqa: S404
 import importlib
 import inspect
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+import os
+import subprocess  # noqa: S404
+import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent.parent
@@ -26,10 +26,11 @@ sys.path.insert(0, str(project_root))
 
 try:
     import pytest
+
+    from app.providers.base import LLMProviderAdapter
     from app.providers.registry import get_provider_registry
     from app.router import HeuristicRouter
     from app.settings import Settings
-    from app.providers.base import LLMProviderAdapter
 except ImportError as e:
     print(f"❌ Import error: {e}")
     print(
@@ -345,9 +346,10 @@ class DirectProviderValidator:
     def _check_budget_constraints(self) -> bool:
         """Check that budget constraints work correctly."""
         try:
+            import asyncio
+
             from app.core.exceptions import BudgetExceededError
             from app.models import ChatMessage
-            import asyncio
 
             router = HeuristicRouter()
             messages = [ChatMessage(role="user", content="hi", name=None)]
@@ -396,8 +398,9 @@ class DirectProviderValidator:
     def _check_memory_usage(self) -> bool:
         """Check that memory usage patterns are acceptable."""
         try:
-            import psutil
             import os
+
+            import psutil
 
             process = psutil.Process(os.getpid())
             initial_memory = process.memory_info().rss

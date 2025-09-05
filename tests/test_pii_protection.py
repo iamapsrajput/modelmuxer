@@ -207,8 +207,11 @@ async def main():
     results = await tester.run_all_tests()
 
     # Save results
-    with open("pii_test_results.json", "w") as f:
-        json.dump(results, f, indent=2, default=str)
+    def _save_results():
+        with open("pii_test_results.json", "w") as f:
+            json.dump(results, f, indent=2, default=str)
+
+    await asyncio.to_thread(_save_results)
 
     print("\n📄 Detailed results saved to pii_test_results.json")
 

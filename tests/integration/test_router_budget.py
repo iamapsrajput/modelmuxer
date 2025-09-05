@@ -481,8 +481,7 @@ class TestEndToEndBudgetFlow:
 
         with patch("app.main.HeuristicRouter", return_value=mock_router):
             # Mock provider to return successful response
-            from app.models import (ChatCompletionResponse, ChatMessage,
-                                    Choice, Usage)
+            from app.models import ChatCompletionResponse, ChatMessage, Choice, Usage
 
             mock_provider = AsyncMock()
             from app.models import RouterMetadata
@@ -548,8 +547,7 @@ class TestEndToEndBudgetFlow:
 
         with patch("app.main.HeuristicRouter", return_value=mock_router):
             # Mock provider to return successful response
-            from app.models import (ChatCompletionResponse, ChatMessage,
-                                    Choice, Usage)
+            from app.models import ChatCompletionResponse, ChatMessage, Choice, Usage
 
             mock_provider = AsyncMock()
             from app.models import RouterMetadata

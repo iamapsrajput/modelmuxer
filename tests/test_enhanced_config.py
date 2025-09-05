@@ -10,11 +10,18 @@ from unittest.mock import patch
 
 import pytest
 
-from app.config.enhanced_config import (AuthConfig, CacheConfig,
-                                        ClassificationConfig, LoggingConfig,
-                                        ModelMuxerConfig, MonitoringConfig,
-                                        ProviderConfig, RateLimitConfig,
-                                        RoutingConfig, load_enhanced_config)
+from app.config.enhanced_config import (
+    AuthConfig,
+    CacheConfig,
+    ClassificationConfig,
+    LoggingConfig,
+    ModelMuxerConfig,
+    MonitoringConfig,
+    ProviderConfig,
+    RateLimitConfig,
+    RoutingConfig,
+    load_enhanced_config,
+)
 
 
 class TestModelMuxerConfig:
@@ -86,7 +93,7 @@ class TestProviderConfig:
             "OPENAI_BASE_URL",
         ]
 
-        with patch.dict(os.environ, {key: "" for key in env_vars_to_clear}, clear=False):
+        with patch.dict(os.environ, dict.fromkeys(env_vars_to_clear, ""), clear=False):
             # Temporarily override the model config to prevent .env file loading
             original_config = ProviderConfig.model_config
             ProviderConfig.model_config = ProviderConfig.model_config.copy()

@@ -5,6 +5,7 @@
 Tests for the caching system including memory and Redis backends.
 """
 
+import asyncio
 import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -85,7 +86,7 @@ class TestMemoryCache:
         assert await self.cache.get(key) == value
 
         # Wait for expiration
-        time.sleep(1.1)
+        await asyncio.sleep(1.1)
         assert await self.cache.get(key) is None
 
     async def test_max_size_eviction(self) -> None:
@@ -143,6 +144,162 @@ class TestMemoryCache:
         await self.cache.get("test")
         stats = await self.cache.get_stats()
         assert stats["hits"] == initial_hits + 1
+
+    async def test_get_ttl(self) -> None:
+        """Test getting TTL of a key."""
+        key = "test_key"
+        value = "test_value"
+        ttl = 3600
+
+        # Test with TTL
+        await self.cache.set(key, value, ttl=ttl)
+        retrieved_ttl = await self.cache.get_ttl(key)
+        assert retrieved_ttl is not None
+        assert retrieved_ttl <= ttl  # Should be less than or equal to original TTL
+
+        # Test without TTL (no expiration) - need to disable default TTL
+        no_default_cache = MemoryCache(default_ttl=0)
+        await no_default_cache.set("no_ttl_key", "value")
+        no_ttl_result = await no_default_cache.get_ttl("no_ttl_key")
+        assert no_ttl_result == -1
+
+        # Test non-existent key
+        nonexistent_ttl = await self.cache.get_ttl("nonexistent")
+        assert nonexistent_ttl is None
+
+    async def test_extend_ttl(self) -> None:
+        """Test extending TTL of a key."""
+        key = "test_key"
+        value = "test_value"
+        initial_ttl = 100
+
+        await self.cache.set(key, value, ttl=initial_ttl)
+        initial_retrieved_ttl = await self.cache.get_ttl(key)
+        assert initial_retrieved_ttl is not None
+
+        # Extend TTL
+        additional_seconds = 200
+        extended = await self.cache.extend_ttl(key, additional_seconds)
+        assert extended is True
+
+        # Verify new TTL is extended
+        new_ttl = await self.cache.get_ttl(key)
+        assert new_ttl is not None
+        assert new_ttl > initial_retrieved_ttl
+
+        # Test extending non-existent key
+        nonexistent_extend = await self.cache.extend_ttl("nonexistent", 100)
+        assert nonexistent_extend is False
+
+    async def test_get_multiple(self) -> None:
+        """Test getting multiple values."""
+        # Set up test data
+        test_data = {
+            "key1": "value1",
+            "key2": "value2",
+            "key3": "value3"
+        }
+
+        for key, value in test_data.items():
+            await self.cache.set(key, value)
+
+        # Get multiple keys
+        keys_to_get = ["key1", "key2", "nonexistent"]
+        results = await self.cache.get_multiple(keys_to_get)
+
+        assert "key1" in results
+        assert "key2" in results
+        assert "nonexistent" not in results
+        assert results["key1"] == "value1"
+        assert results["key2"] == "value2"
+
+    async def test_set_multiple(self) -> None:
+        """Test setting multiple values."""
+        test_data = {
+            "multi1": "multi_value1",
+            "multi2": "multi_value2",
+            "multi3": "multi_value3"
+        }
+
+        # Set multiple
+        result = await self.cache.set_multiple(test_data)
+        assert result is True
+
+        # Verify all were set
+        for key, expected_value in test_data.items():
+            retrieved = await self.cache.get(key)
+            assert retrieved == expected_value
+
+    async def test_clear_pattern(self) -> None:
+        """Test clearing keys matching a pattern."""
+        # Set up test data with similar patterns
+        test_keys = ["user:123", "user:456", "admin:789", "user:999"]
+        for key in test_keys:
+            await self.cache.set(key, f"value_{key}")
+
+        # Clear user keys
+        cleared_count = await self.cache.clear_pattern("user:*")
+        assert cleared_count == 3
+
+        # Verify user keys are gone
+        assert await self.cache.exists("user:123") is False
+        assert await self.cache.exists("user:456") is False
+        assert await self.cache.exists("user:999") is False
+
+        # Admin key should remain
+        assert await self.cache.exists("admin:789") is True
+
+    async def test_get_cache_info(self) -> None:
+        """Test getting cache information."""
+        # Set some test data
+        await self.cache.set("info_test1", "value1")
+        await self.cache.set("info_test2", "value2", ttl=300)
+
+        info = await self.cache.get_cache_info()
+
+        # Verify structure
+        assert "status" in info
+        assert "cache_size" in info
+        assert "max_size" in info
+        assert "memory_usage_mb" in info
+        assert "expired_entries" in info
+        assert "cache_stats" in info
+        assert "hit_rate" in info
+        assert "cleanup_thread_active" in info
+
+        # Verify values
+        assert info["status"] == "active"
+        assert info["cache_size"] >= 2
+        assert info["max_size"] == self.cache.max_size
+        assert isinstance(info["memory_usage_mb"], (int, float))
+        assert isinstance(info["hit_rate"], float)
+        assert 0.0 <= info["hit_rate"] <= 1.0
+
+    async def test_health_check(self) -> None:
+        """Test cache health check."""
+        # Test healthy cache
+        is_healthy = await self.cache.health_check()
+        assert is_healthy is True
+
+        # Verify test data was cleaned up
+        assert await self.cache.exists("health_check_test") is False
+
+    async def test_close(self) -> None:
+        """Test cache close functionality."""
+        # Create a new cache instance to test closing
+        test_cache = MemoryCache()
+
+        # Set some data
+        await test_cache.set("close_test", "value")
+
+        # Close the cache
+        test_cache.close()
+
+        # Verify cleanup thread is stopped
+        assert not test_cache._cleanup_thread or not test_cache._cleanup_thread.is_alive()
+
+        # Cache should be cleared
+        assert len(test_cache._cache) == 0
 
 
 class TestRedisCache:

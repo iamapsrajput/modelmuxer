@@ -7,12 +7,16 @@ from typing import Any, Optional
 
 import httpx
 
-from app.providers.base import (USER_AGENT, LLMProviderAdapter,
-                                ProviderResponse, SimpleCircuitBreaker,
-                                normalize_finish_reason, with_retries)
+from app.providers.base import (
+    USER_AGENT,
+    LLMProviderAdapter,
+    ProviderResponse,
+    SimpleCircuitBreaker,
+    normalize_finish_reason,
+    with_retries,
+)
 from app.settings import settings
-from app.telemetry.metrics import (PROVIDER_LATENCY, PROVIDER_REQUESTS,
-                                   TOKENS_TOTAL)
+from app.telemetry.metrics import PROVIDER_LATENCY, PROVIDER_REQUESTS, TOKENS_TOTAL
 from app.telemetry.tracing import start_span_async
 
 

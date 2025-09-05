@@ -82,7 +82,7 @@ def test_models_endpoint_contract():
             assert "input" in pricing, "Pricing missing 'input' field"
             assert "output" in pricing, "Pricing missing 'output' field"
             assert "unit" in pricing, "Pricing missing 'unit' field"
-            assert pricing["unit"] == "per_million_tokens", "'unit' should be 'per_million_tokens'"
+            assert pricing["unit"] == "per_1k_tokens", "'unit' should be 'per_1k_tokens'"
 
             # Verify model name format (no proxy-style separators)
             assert (

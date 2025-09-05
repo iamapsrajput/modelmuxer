@@ -4,11 +4,11 @@ Chunked file processor for handling large files to avoid 413 Request Entity Too 
 Reads files in chunks and processes them incrementally.
 """
 
+import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Iterator, List, Tuple, Dict, Any
-import argparse
+from typing import Any, Dict, Iterator, List, Tuple
 
 
 class ChunkedFileProcessor:

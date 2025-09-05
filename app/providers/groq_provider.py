@@ -16,8 +16,7 @@ import httpx
 import structlog
 
 from ..models import ChatCompletionResponse, ChatMessage
-from .base import (AuthenticationError, LLMProvider, ProviderError,
-                   RateLimitError)
+from .base import AuthenticationError, LLMProvider, ProviderError, RateLimitError
 
 logger = structlog.get_logger(__name__)
 

@@ -13,10 +13,11 @@ Usage:
 
 Requires ModelMuxer to be running on localhost:8000
 """
-import requests  # type: ignore
 import json
 import sys
 from datetime import datetime
+
+import requests  # type: ignore
 
 BASE_URL = "http://localhost:8000"
 API_KEY = "sk-test-claude-dev"

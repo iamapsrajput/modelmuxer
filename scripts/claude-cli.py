@@ -4,13 +4,14 @@ Custom Claude CLI wrapper for ModelMuxer
 Provides a Claude-like command-line interface that routes through ModelMuxer
 """
 
+import argparse
+import json
 import os
 import sys
-import json
-import requests  # type: ignore
-import argparse
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 from urllib.parse import urlparse
+
+import requests  # type: ignore
 
 try:
     import readline  # For better input handling on Unix/Linux

@@ -12,9 +12,19 @@ import structlog
 from sqlalchemy.orm import Session
 
 from ..security.auth import SecurityManager
-from .models import (AuditAction, AuditLog, Organization, OrganizationAPIKey,
-                     OrganizationBudget, OrganizationStatus, OrganizationUser,
-                     PlanType, UsageMetrics, User, UserRole)
+from .models import (
+    AuditAction,
+    AuditLog,
+    Organization,
+    OrganizationAPIKey,
+    OrganizationBudget,
+    OrganizationStatus,
+    OrganizationUser,
+    PlanType,
+    UsageMetrics,
+    User,
+    UserRole,
+)
 
 logger = structlog.get_logger(__name__)
 
