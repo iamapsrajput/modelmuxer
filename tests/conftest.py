@@ -14,15 +14,15 @@ This module provides fixtures for:
 import json
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-from unittest.mock import Mock, AsyncMock, patch
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from pydantic import BaseModel
 
-from app.settings import settings
 from app.models import ChatMessage
 from app.providers.base import ProviderResponse
+from app.settings import settings
 
 
 class MockProviderAdapter:
@@ -220,8 +220,8 @@ def mock_provider_registry_circuit_open():
 @pytest.fixture
 def direct_router(deterministic_price_table, mock_provider_registry, monkeypatch):
     """Create a HeuristicRouter instance with mocked dependencies."""
-    from app.router import HeuristicRouter
     from app.core.costing import load_price_table
+    from app.router import HeuristicRouter
 
     # Set budget threshold to allow most models to pass
     monkeypatch.setattr(settings.router_thresholds, "max_estimated_usd_per_request", 10.0)
@@ -271,8 +271,8 @@ def direct_router(deterministic_price_table, mock_provider_registry, monkeypatch
 @pytest.fixture
 def budget_constrained_router(deterministic_price_table, mock_provider_registry, monkeypatch):
     """Create a router with very low budget thresholds for testing budget gates."""
-    from app.router import HeuristicRouter
     from app.core.costing import load_price_table
+    from app.router import HeuristicRouter
 
     # Set budget threshold to a very low value for testing budget constraints
     monkeypatch.setattr(settings.router_thresholds, "max_estimated_usd_per_request", 0.02)
@@ -443,6 +443,12 @@ def mock_telemetry():
             "cost_sum_labeled": mock_cost_sum_labeled,
             "budget_exceeded_labeled": mock_budget_exceeded_labeled,
         }
+
+
+@pytest.fixture
+def content():
+    """Provide default content text for streaming tests."""
+    return "Hello from test suite to validate streaming response behavior."
 
 
 @pytest.fixture

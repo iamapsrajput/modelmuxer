@@ -11,30 +11,33 @@ from typing import Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
+
+# Define protocol types unconditionally so annotations are always available
+@runtime_checkable
+class _CounterProtocol(Protocol):
+    def labels(self, *label_values: str, **label_kwargs: str) -> "_CounterProtocol": ...
+    def inc(self, amount: float = 1.0) -> None: ...
+
+
+@runtime_checkable
+class _HistogramProtocol(Protocol):
+    def labels(self, *label_values: str, **label_kwargs: str) -> "_HistogramProtocol": ...
+    def observe(self, value: float) -> None: ...
+
+
+@runtime_checkable
+class _GaugeProtocol(Protocol):
+    def labels(self, *label_values: str, **label_kwargs: str) -> "_GaugeProtocol": ...
+    def set(self, value: float) -> None: ...
+
+
 try:
-    from prometheus_client import (
-        Counter as _PromCounter,
-        Histogram as _PromHistogram,
-        Gauge as _PromGauge,
-        Summary as _PromSummary,
-    )
+    from prometheus_client import Counter as _PromCounter
+    from prometheus_client import Gauge as _PromGauge
+    from prometheus_client import Histogram as _PromHistogram
+    from prometheus_client import Summary as _PromSummary
 except ImportError:
     logger.warning("prometheus_client not available - using no-op metrics")
-
-    @runtime_checkable
-    class _CounterProtocol(Protocol):
-        def labels(self, *label_values: str) -> "_CounterProtocol": ...
-        def inc(self, amount: float = 1.0) -> None: ...
-
-    @runtime_checkable
-    class _HistogramProtocol(Protocol):
-        def labels(self, *label_values: str) -> "_HistogramProtocol": ...
-        def observe(self, value: float) -> None: ...
-
-    @runtime_checkable
-    class _GaugeProtocol(Protocol):
-        def labels(self, *label_values: str) -> "_GaugeProtocol": ...
-        def set(self, value: float) -> None: ...
 
     class _NoopMetric:
         def __init__(self, *args, **kwargs):
@@ -69,14 +72,34 @@ except ImportError:
 else:
     # Re-export concrete classes for construction, but we will type the module-level
     # metrics using the Protocols above to avoid UnknownMemberType in strict mode.
-    Counter = _PromCounter
-    Histogram = _PromHistogram
-    Gauge = _PromGauge
-    Summary = _PromSummary
+    Counter = _PromCounter  # type: ignore
+    Histogram = _PromHistogram  # type: ignore
+    Gauge = _PromGauge  # type: ignore
+    Summary = _PromSummary  # type: ignore
 
-# Request metrics
+"""
+Common metrics for both app and tests. We expose both names used across tests and dashboards.
+"""
+
+# Request metrics (legacy names used by tests/dashboards)
+HTTP_REQUESTS_TOTAL: _CounterProtocol = Counter(
+    "http_requests_total",
+    "Total HTTP requests",
+    ["route", "method", "status"],
+)
+
+HTTP_LATENCY: _HistogramProtocol = Histogram(
+    "http_request_duration_milliseconds",
+    "HTTP request duration in milliseconds",
+    ["route", "method"],
+    buckets=[1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000],
+)
+
+# App-prefixed equivalents for internal use
 REQUESTS_TOTAL: _CounterProtocol = Counter(
-    "modelmuxer_requests_total", "Total number of requests", ["method", "endpoint", "status"]
+    "modelmuxer_requests_total",
+    "Total number of requests",
+    ["method", "endpoint", "status"],
 )
 
 REQUEST_DURATION: _HistogramProtocol = Histogram(
@@ -111,7 +134,11 @@ ROUTER_INTENT_TOTAL: _CounterProtocol = Counter(
 # Cost estimation and budget metrics
 LLM_ROUTER_COST_ESTIMATE_USD_SUM: _CounterProtocol = Counter(
     "modelmuxer_router_cost_estimate_usd_sum",
-    "Total estimated cost in USD for router decisions. The 'within_budget' label indicates whether the model estimate was within the configured budget threshold ('true') or exceeded it ('false'), enabling analysis of budget gating effectiveness.",
+    (
+        "Total estimated cost in USD for router decisions. The 'within_budget' label indicates whether "
+        "the model estimate was within the configured budget threshold ('true') or exceeded it ('false'), "
+        "enabling analysis of budget gating effectiveness."
+    ),
     ["route", "model", "within_budget"],
 )
 
@@ -149,8 +176,8 @@ LLM_ROUTER_SELECTED_COST_ESTIMATE_USD: _CounterProtocol = Counter(
 # Provider metrics
 PROVIDER_REQUESTS: _CounterProtocol = Counter(
     "modelmuxer_provider_requests_total",
-    "Provider requests by provider and model",
-    ["provider", "model"],
+    "Provider requests by provider, model, and outcome",
+    ["provider", "model", "outcome"],
 )
 
 PROVIDER_LATENCY: _HistogramProtocol = Histogram(
@@ -195,7 +222,7 @@ COST_TOTAL_USD: _CounterProtocol = Counter(
 TOKENS_TOTAL: _CounterProtocol = Counter(
     "modelmuxer_tokens_total",
     "Total tokens by provider and model",
-    ["provider", "model", "type"],  # type: input/output
+    ["provider", "model", "type"],
 )
 
 # Policy metrics

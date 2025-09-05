@@ -7,14 +7,15 @@ This module tests the complete request/response cycle through the full API stack
 when using direct providers only, ensuring the entire system works correctly.
 """
 
-import pytest
 import json
-from unittest.mock import patch, Mock, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 # Apply mocks before importing the app
 # Mock the provider registry before any imports
-with patch("app.providers.registry.get_provider_registry") as mock_registry:
+with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
     mock_provider = AsyncMock()
     mock_provider.invoke = AsyncMock()
     mock_registry.return_value = {"openai": mock_provider}
@@ -25,11 +26,10 @@ with patch("app.main.HeuristicRouter") as mock_router_cls:
     mock_router.select_model = AsyncMock(return_value=("openai", "gpt-3.5-turbo", "test", {}, {}))
     mock_router_cls.return_value = mock_router
 
-from app.models import ChatMessage
 from app.core.exceptions import BudgetExceededError
-
 # Import app after mocks are applied
 from app.main import app, get_authenticated_user
+from app.models import ChatMessage
 
 
 # Mock authentication for all tests
@@ -57,7 +57,7 @@ class TestEndToEndDirect:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             # Mock all required provider adapters
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 # Create mock provider registry
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
@@ -131,7 +131,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
                     return_value=Mock(
@@ -195,7 +195,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
                     return_value=Mock(
@@ -248,7 +248,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
                     return_value=Mock(
@@ -290,7 +290,7 @@ class TestEndToEndDirect:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with (
-                patch("app.providers.registry.get_provider_registry") as mock_registry,
+                patch("app.main.providers_registry.get_provider_registry") as mock_registry,
                 patch("app.cost_tracker.record_request", create=True) as mock_record,
             ):
                 mock_adapter = Mock()
@@ -337,7 +337,7 @@ class TestEndToEndDirect:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with (
-                patch("app.providers.registry.get_provider_registry") as mock_registry,
+                patch("app.main.providers_registry.get_provider_registry") as mock_registry,
                 patch("app.database.log_request", create=True) as mock_log,
             ):
                 mock_adapter = Mock()
@@ -381,7 +381,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
                     return_value=Mock(
@@ -424,7 +424,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
                     return_value=Mock(
@@ -465,7 +465,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
                     return_value=Mock(
@@ -511,7 +511,7 @@ class TestEndToEndDirect:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with (
-                patch("app.providers.registry.get_provider_registry") as mock_registry,
+                patch("app.main.providers_registry.get_provider_registry") as mock_registry,
                 patch("app.telemetry.metrics.ROUTER_REQUESTS", create=True) as mock_requests,
                 patch(
                     "app.telemetry.metrics.PROVIDER_REQUESTS", create=True
@@ -556,7 +556,7 @@ class TestEndToEndDirect:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with (
-                patch("app.providers.registry.get_provider_registry") as mock_registry,
+                patch("app.main.providers_registry.get_provider_registry") as mock_registry,
                 patch("app.telemetry.tracing.start_span", create=True) as mock_span,
             ):
                 mock_adapter = Mock()
@@ -598,7 +598,7 @@ class TestEndToEndDirect:
 
         client = TestClient(app)
 
-        with patch("app.providers.registry.get_provider_registry") as mock_registry:
+        with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
             mock_registry.return_value = {"openai": Mock(), "anthropic": Mock(), "mistral": Mock()}
 
             # Test health check endpoint
@@ -619,7 +619,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 # Mock provider that fails
                 mock_adapter = Mock()
             mock_adapter.invoke = AsyncMock(
@@ -648,15 +648,17 @@ class TestEndToEndDirect:
 
     async def test_concurrent_request_handling(self, direct_providers_only_mode, simple_messages):
         """Test concurrent request handling with direct providers."""
-        from app.main import app
         import asyncio
+
         import httpx
+
+        from app.main import app
 
         # Mock authentication
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
                     return_value=Mock(
@@ -702,7 +704,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 # Only one provider configured
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
@@ -738,7 +740,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 # All providers configured
                 mock_adapter = Mock()
                 mock_adapter.invoke = AsyncMock(
@@ -789,7 +791,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 mock_registry.return_value = {
                     "openai": Mock(),
                     "anthropic": Mock(),
@@ -823,7 +825,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 # Empty provider registry
                 mock_registry.return_value = {}
 
@@ -848,7 +850,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 mock_registry.return_value = {}
 
             request_data = {
@@ -877,7 +879,7 @@ class TestEndToEndDirect:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with (
-                patch("app.providers.registry.get_provider_registry") as mock_registry,
+                patch("app.main.providers_registry.get_provider_registry") as mock_registry,
                 patch(
                     "app.router.HeuristicRouter.record_latency", create=True
                 ) as mock_record_latency,
@@ -919,7 +921,7 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.providers.registry.get_provider_registry") as mock_registry:
+            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 # Create adapters with different latencies
                 fast_adapter = Mock()
             fast_adapter.invoke = AsyncMock(
@@ -964,9 +966,11 @@ class TestEndToEndDirect:
 
     async def test_streaming_response_end_to_end(self, direct_providers_only_mode):
         """Test end-to-end streaming response."""
-        from app.main import app
         import asyncio
+
         import httpx
+
+        from app.main import app
 
         # Mock authentication
         with patch("app.auth.auth.authenticate_request") as mock_auth:
@@ -982,7 +986,7 @@ class TestEndToEndDirect:
             for chunk in chunks:
                 yield chunk
 
-        with patch("app.providers.registry.get_provider_registry") as mock_registry:
+        with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
             mock_adapter = Mock()
             mock_adapter.invoke = mock_streaming_invoke
 

@@ -7,7 +7,7 @@ import hashlib
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 import structlog
@@ -16,7 +16,7 @@ from cryptography.fernet import Fernet
 logger = structlog.get_logger(__name__)
 
 
-class PIIType(str, Enum):
+class PIIType(StrEnum):
     """Types of PII that can be detected."""
 
     EMAIL = "email"
@@ -33,7 +33,7 @@ class PIIType(str, Enum):
     CUSTOM = "custom"
 
 
-class RedactionAction(str, Enum):
+class RedactionAction(StrEnum):
     """Actions to take when PII is detected."""
 
     REDACT = "redact"  # Replace with [REDACTED]

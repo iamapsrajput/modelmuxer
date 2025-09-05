@@ -8,12 +8,13 @@ direct provider architecture, validating the complete request flow from
 API endpoints through to provider responses.
 """
 
-# Apply mocks before importing the app
-import pytest
 import asyncio
 import json
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
+
+# Apply mocks before importing the app
+import pytest
 from fastapi.testclient import TestClient
 
 # Mock the provider registry before any imports
@@ -27,11 +28,11 @@ with patch("app.main.HeuristicRouter") as mock_router_cls:
     mock_router = MagicMock()
     mock_router_cls.return_value = mock_router
 
+from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
 from app.main import app
 from app.models import ChatCompletionRequest, ChatCompletionResponse
-from app.router import HeuristicRouter
-from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
 from app.providers.registry import get_provider_registry
+from app.router import HeuristicRouter
 
 
 # Mock authentication for all tests

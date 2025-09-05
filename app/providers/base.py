@@ -16,7 +16,8 @@ from typing import Any, Optional
 
 import httpx
 
-from ..models import ChatCompletionResponse, ChatMessage, Choice, RouterMetadata, Usage
+from ..models import (ChatCompletionResponse, ChatMessage, Choice,
+                      RouterMetadata, Usage)
 from ..security.config import SecurityConfig
 
 
@@ -239,14 +240,13 @@ class LLMProvider(ABC):
             return False
 
 
-# ===================== New Adapter Interface =====================
-from dataclasses import dataclass
 import asyncio
 import random
 import time
+# ===================== New Adapter Interface =====================
+from dataclasses import dataclass
 
 from app.settings import settings
-
 
 # ===================== Shared Utilities =====================
 
@@ -405,8 +405,8 @@ class ProviderResponse:
     tokens_in: int
     tokens_out: int
     latency_ms: int
-    raw: Optional[Any] = None
-    error: Optional[str] = None
+    raw: Any | None = None
+    error: str | None = None
 
 
 class SimpleCircuitBreaker:

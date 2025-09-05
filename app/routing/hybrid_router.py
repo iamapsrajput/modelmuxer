@@ -7,6 +7,7 @@ This module implements a hybrid router that combines heuristic, semantic,
 and cascade routing strategies to make optimal routing decisions.
 """
 
+import operator
 from typing import Any
 
 import structlog
@@ -64,11 +65,11 @@ class HybridRouter(BaseRouter):
             self.cascade_router = None
 
         # Validate that at least one router is available
-        available_routers = sum([
+        available_routers = sum(
             1
             for router in [self.heuristic_router, self.semantic_router, self.cascade_router]
             if router is not None
-        ])
+        )
 
         if available_routers == 0:
             raise RoutingError("No sub-routers available for hybrid routing")
@@ -162,7 +163,7 @@ class HybridRouter(BaseRouter):
             task_type_scores[task_type] = sum(confidences) / len(confidences)
 
         # Select the task type with highest weighted confidence
-        best_task_type = max(task_type_scores.items(), key=lambda x: x[1])
+        best_task_type = max(task_type_scores.items(), key=operator.itemgetter(1))
         combined["task_type"] = best_task_type[0]
         combined["confidence_score"] = best_task_type[1]
 
@@ -291,7 +292,7 @@ class HybridRouter(BaseRouter):
             scored_recommendations.append((score, strategy, provider, model, reasoning, confidence))
 
         # Select the highest scoring recommendation
-        scored_recommendations.sort(key=lambda x: x[0], reverse=True)
+        scored_recommendations.sort(key=operator.itemgetter(0), reverse=True)
         best_score, best_strategy, provider, model, reasoning, confidence = scored_recommendations[
             0
         ]

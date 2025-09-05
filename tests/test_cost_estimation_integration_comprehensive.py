@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from app.core.costing import Estimator, LatencyPriors, load_price_table, estimate_tokens, Price
+from app.core.costing import (Estimator, LatencyPriors, Price, estimate_tokens,
+                              load_price_table)
 from app.models import ChatMessage
 from app.router import HeuristicRouter
 

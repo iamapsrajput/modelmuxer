@@ -5,34 +5,30 @@ Heuristic routing logic for selecting the best LLM provider and model.
 """
 
 import logging
-import re
-from typing import Callable, cast, TypedDict
-
-from app.settings import settings
-from app.core.costing import Estimator, LatencyPriors, load_price_table, estimate_tokens
-from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
-from app.models import ChatMessage
-
-from app.telemetry.tracing import start_span_async
-from app.telemetry.tracing import (
-    start_span as start_span,
-)  # backward-compat attribute expected by some tests
-from app.telemetry.metrics import (
-    ROUTER_REQUESTS,
-    ROUTER_DECISION_LATENCY,
-    ROUTER_FALLBACKS,
-    ROUTER_INTENT_TOTAL,
-    LLM_ROUTER_COST_ESTIMATE_USD_SUM,
-    LLM_ROUTER_ETA_MS_BUCKET,
-    LLM_ROUTER_BUDGET_EXCEEDED_TOTAL,
-    LLM_ROUTER_DOWN_ROUTE_TOTAL,
-    LLM_ROUTER_UNPRICED_MODELS_SKIPPED,
-    LLM_ROUTER_SELECTED_COST_ESTIMATE_USD,
-)
-from app.core.intent import classify_intent
-from app.providers.base import LLMProviderAdapter, ProviderResponse
-import time
 import operator
+import re
+import time
+from typing import Callable, TypedDict, cast
+
+from app.core.costing import (Estimator, LatencyPriors, estimate_tokens,
+                              load_price_table)
+from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
+from app.core.intent import classify_intent
+from app.models import ChatMessage
+from app.providers.base import LLMProviderAdapter, ProviderResponse
+from app.settings import settings
+from app.telemetry.metrics import (LLM_ROUTER_BUDGET_EXCEEDED_TOTAL,
+                                   LLM_ROUTER_COST_ESTIMATE_USD_SUM,
+                                   LLM_ROUTER_DOWN_ROUTE_TOTAL,
+                                   LLM_ROUTER_ETA_MS_BUCKET,
+                                   LLM_ROUTER_SELECTED_COST_ESTIMATE_USD,
+                                   LLM_ROUTER_UNPRICED_MODELS_SKIPPED,
+                                   ROUTER_DECISION_LATENCY, ROUTER_FALLBACKS,
+                                   ROUTER_INTENT_TOTAL, ROUTER_REQUESTS)
+from app.telemetry.tracing import \
+    start_span as \
+    start_span  # backward-compat attribute expected by some tests
+from app.telemetry.tracing import start_span_async
 
 # Note: providers will be imported at runtime to avoid circular imports
 
@@ -651,11 +647,15 @@ class HeuristicRouter:
                     "available_providers": list(available.keys()),
                 },
             )
+        # In direct-provider tests, adapters may be simple mocks; accept objects with 'invoke'
         if not isinstance(adapter, LLMProviderAdapter):
-            raise NoProvidersAvailableError(
-                f"Provider does not implement adapter interface: {provider}",
-                details={"provider": provider},
-            )
+            import inspect
+
+            if not hasattr(adapter, "invoke") or not inspect.iscoroutinefunction(adapter.invoke):
+                raise NoProvidersAvailableError(
+                    f"Provider does not implement adapter interface: {provider}",
+                    details={"provider": provider},
+                )
         return await adapter.invoke(model=model, prompt=prompt, **kwargs)
 
     def _generate_reasoning(self, analysis: "HeuristicRouter.Analysis") -> str:

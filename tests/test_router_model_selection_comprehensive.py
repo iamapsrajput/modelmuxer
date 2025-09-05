@@ -1,13 +1,13 @@
 from typing import Any
+from unittest.mock import Mock, patch
 
 import pytest
 
+from app.core.costing import load_price_table
 from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
 from app.models import ChatMessage
 from app.router import HeuristicRouter
-from app.core.costing import load_price_table
 from app.settings import settings
-from unittest.mock import Mock, patch
 
 
 @pytest.mark.asyncio
@@ -184,8 +184,8 @@ async def test_edge_cases_empty_and_non_english(monkeypatch, deterministic_price
 @pytest.mark.asyncio
 @pytest.mark.router_comprehensive
 async def test_production_mode_missing_pricing_raises(monkeypatch):
-    from app.settings import settings
     from app.core.exceptions import RouterConfigurationError
+    from app.settings import settings
 
     monkeypatch.setattr(settings.features, "mode", "production")
 

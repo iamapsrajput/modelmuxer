@@ -1,11 +1,11 @@
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
-from app.core.exceptions import NoProvidersAvailableError, BudgetExceededError
+from app.core.costing import load_price_table
+from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
 from app.models import ChatMessage
 from app.router import HeuristicRouter
-from app.core.costing import load_price_table
 from app.settings import settings
 
 
@@ -216,8 +216,8 @@ async def test_no_affordable_available_fallback(monkeypatch, deterministic_price
 @pytest.mark.asyncio
 @pytest.mark.provider_availability_comprehensive
 async def test_production_mode_missing_providers_raises(monkeypatch):
-    from app.settings import settings
     from app.core.exceptions import RouterConfigurationError
+    from app.settings import settings
 
     monkeypatch.setattr(settings.features, "mode", "production")
 

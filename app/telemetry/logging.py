@@ -7,7 +7,7 @@ from typing import Any, Dict
 try:
     from opentelemetry.trace import get_current_span as otel_get_current_span
 except ImportError:  # pragma: no cover
-    otel_get_current_span = None
+    otel_get_current_span = None  # type: ignore
 
 
 def get_current_span():

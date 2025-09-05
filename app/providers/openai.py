@@ -7,14 +7,11 @@ from typing import Any, Optional
 
 import httpx
 
-from app.providers.base import (
-    LLMProviderAdapter,
-    ProviderResponse,
-    SimpleCircuitBreaker,
-    with_retries,
-)
+from app.providers.base import (LLMProviderAdapter, ProviderResponse,
+                                SimpleCircuitBreaker, with_retries)
 from app.settings import settings
-from app.telemetry.metrics import PROVIDER_LATENCY, PROVIDER_REQUESTS, TOKENS_TOTAL
+from app.telemetry.metrics import (PROVIDER_LATENCY, PROVIDER_REQUESTS,
+                                   TOKENS_TOTAL)
 from app.telemetry.tracing import start_span_async
 
 
@@ -28,7 +25,9 @@ class OpenAIAdapter(LLMProviderAdapter):
         )
         self._client = httpx.AsyncClient(timeout=settings.providers.timeout_ms / 1000)
 
-    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:  # noqa: D401
+    async def invoke(
+        self, model: str, prompt: str, **kwargs: Any
+    ) -> ProviderResponse:  # noqa: D401
         start = time.perf_counter()
         provider = "openai"
 

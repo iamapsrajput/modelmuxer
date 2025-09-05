@@ -7,7 +7,7 @@ Provides a Claude-like command-line interface that routes through ModelMuxer
 import os
 import sys
 import json
-import requests
+import requests  # type: ignore
 import argparse
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse
@@ -26,8 +26,13 @@ class ClaudeCLI:
             raise ValueError("Invalid --url provided. Must be http(s)://host[:port]")
         # Allow only localhost by default to avoid SSRF. Override with env var for trusted CI/dev.
         host = parsed.hostname or ""
-        if host not in {"localhost", "127.0.0.1"} and os.getenv("ALLOW_EXTERNAL_CLI_URLS", "false").lower() != "true":
-            raise ValueError("Refusing non-localhost URL. Set ALLOW_EXTERNAL_CLI_URLS=true to override.")
+        if (
+            host not in {"localhost", "127.0.0.1"}
+            and os.getenv("ALLOW_EXTERNAL_CLI_URLS", "false").lower() != "true"
+        ):
+            raise ValueError(
+                "Refusing non-localhost URL. Set ALLOW_EXTERNAL_CLI_URLS=true to override."
+            )
         self.base_url = f"{parsed.scheme}://{parsed.netloc}"
         # Prefer central settings if available, otherwise fall back to env
         try:
@@ -36,11 +41,15 @@ class ClaudeCLI:
             default_key = app_settings.api.api_keys[0] if app_settings.api.api_keys else None
         except Exception:
             default_key = None
-        self.api_key = api_key or default_key or os.getenv("MODELMUXER_API_KEY", "your-api-key-here")
+        self.api_key = (
+            api_key or default_key or os.getenv("MODELMUXER_API_KEY", "your-api-key-here")
+        )
         self.session = requests.Session()
-        self.session.headers.update({"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"})
+        self.session.headers.update(
+            {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+        )
 
-    def chat(self, message: str, model: Optional[str] = None, stream: bool = True) -> None:
+    def chat(self, message: str, model: str | None = None, stream: bool = True) -> None:
         """Send a chat message to ModelMuxer"""
 
         # Prepare the request payload in OpenAI format (ModelMuxer handles both)
@@ -68,7 +77,9 @@ class ClaudeCLI:
     def _stream_response(self, payload: Dict[Any, Any]) -> None:
         """Handle streaming response"""
         try:
-            response = self.session.post(f"{self.base_url}/v1/chat/completions", json=payload, stream=True, timeout=60)
+            response = self.session.post(
+                f"{self.base_url}/v1/chat/completions", json=payload, stream=True, timeout=60
+            )
             response.raise_for_status()
 
             print("\nClaude (via ModelMuxer):")
@@ -101,7 +112,9 @@ class ClaudeCLI:
     def _non_stream_response(self, payload: Dict[Any, Any]) -> None:
         """Handle non-streaming response"""
         payload["stream"] = False
-        response = self.session.post(f"{self.base_url}/v1/chat/completions", json=payload, timeout=60)
+        response = self.session.post(
+            f"{self.base_url}/v1/chat/completions", json=payload, timeout=60
+        )
         response.raise_for_status()
 
         data = response.json()

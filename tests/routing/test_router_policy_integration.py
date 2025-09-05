@@ -7,8 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.policy.rules import enforce_policies
 from app.models import ChatCompletionRequest, ChatMessage
+from app.policy.rules import enforce_policies
 
 
 class _Counter:

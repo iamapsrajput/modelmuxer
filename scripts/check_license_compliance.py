@@ -42,8 +42,8 @@ class LicenseComplianceChecker:
 
     def __init__(self, project_root: Path):
         self.project_root = project_root
-        self.errors = []
-        self.warnings = []
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
 
     def should_skip(self, path: Path) -> bool:
         """Check if a file or directory should be skipped."""
@@ -99,8 +99,8 @@ class LicenseComplianceChecker:
 
         if missing_headers:
             self.errors.append(f"Files missing license headers: {len(missing_headers)}")
-            for file_path in missing_headers[:10]:  # Show first 10
-                self.errors.append(f"  - {file_path}")
+            for file_name in missing_headers[:10]:  # Show first 10
+                self.errors.append(f"  - {file_name}")
             if len(missing_headers) > 10:
                 self.errors.append(f"  ... and {len(missing_headers) - 10} more")
 
@@ -111,7 +111,9 @@ class LicenseComplianceChecker:
             try:
                 content = license_file.read_text(encoding="utf-8")
                 if "Business Source License 1.1" not in content:
-                    self.errors.append("LICENSE file does not contain 'Business Source License 1.1'")
+                    self.errors.append(
+                        "LICENSE file does not contain 'Business Source License 1.1'"
+                    )
                 if "Ajay Rajput" not in content:
                     self.errors.append("LICENSE file does not contain 'Ajay Rajput'")
                 if "January 1, 2027" not in content:
@@ -126,7 +128,9 @@ class LicenseComplianceChecker:
             try:
                 content = pyproject_file.read_text(encoding="utf-8")
                 if 'license = { text = "Business Source License 1.1" }' not in content:
-                    self.warnings.append("pyproject.toml license field should be 'Business Source License 1.1'")
+                    self.warnings.append(
+                        "pyproject.toml license field should be 'Business Source License 1.1'"
+                    )
             except Exception as e:
                 self.warnings.append(f"Could not read pyproject.toml: {e}")
 
@@ -168,8 +172,12 @@ class LicenseComplianceChecker:
             "summary": {
                 "total_errors": len(errors),
                 "total_warnings": len(warnings),
-                "required_files_check": ("PASS" if not any("Missing required" in e for e in errors) else "FAIL"),
-                "header_check": ("PASS" if not any("missing license headers" in e for e in errors) else "FAIL"),
+                "required_files_check": (
+                    "PASS" if not any("Missing required" in e for e in errors) else "FAIL"
+                ),
+                "header_check": (
+                    "PASS" if not any("missing license headers" in e for e in errors) else "FAIL"
+                ),
                 "content_check": "PASS" if not any("LICENSE file" in e for e in errors) else "FAIL",
             },
         }

@@ -7,11 +7,13 @@ This test verifies that the router handles exceptions gracefully without
 UnboundLocalError when preferences variable might not be initialized.
 """
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from app.router import HeuristicRouter
-from app.models import ChatMessage
+
 from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
+from app.models import ChatMessage
+from app.router import HeuristicRouter
 
 
 class TestHeuristicRouterScope:

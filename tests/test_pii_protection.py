@@ -6,8 +6,9 @@ Demonstrates how ModelMuxer protects personally identifiable information.
 
 import asyncio
 import json
+from typing import Any, Dict
+
 import httpx
-from typing import Dict, Any
 
 # Test configuration
 MODELMUXER_BASE_URL = "http://localhost:8000"

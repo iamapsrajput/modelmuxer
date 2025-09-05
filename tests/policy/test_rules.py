@@ -35,6 +35,7 @@ def test_jailbreak_detection_blocks(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("POLICY_JAILBREAK_PATTERNS_PATH", str(patterns))
     # Reload settings to pick up new path
     from importlib import reload
+
     import app.settings as settings_module
 
     reload(settings_module)
@@ -48,6 +49,7 @@ def test_allow_deny_model_region(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("POLICY_MODEL_ALLOW", json.dumps({"t1": ["gpt-4o"]}))
     monkeypatch.setenv("POLICY_REGION_DENY", json.dumps({"t1": ["cn"]}))
     from importlib import reload
+
     import app.settings as settings_module
 
     reload(settings_module)
@@ -66,6 +68,7 @@ def test_extra_patterns_and_ner(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("POLICY_EXTRA_PII_REGEX", json.dumps(["customsecret\\d+"]))
     monkeypatch.setenv("FEATURES_ENABLE_PII_NER", "true")
     from importlib import reload
+
     import app.settings as settings_module
 
     reload(settings_module)

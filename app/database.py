@@ -296,7 +296,7 @@ class Database:
                 (user_id, today),
             )
             daily_data = await cursor.fetchone()
-            daily_cost, daily_requests = daily_data if daily_data else (0.0, 0)
+            daily_cost, daily_requests = daily_data or (0.0, 0)
 
             cursor = await db.execute(
                 """
@@ -306,7 +306,7 @@ class Database:
                 (user_id, today.year, today.month),
             )
             monthly_data = await cursor.fetchone()
-            monthly_cost, monthly_requests = monthly_data if monthly_data else (0.0, 0)
+            monthly_cost, monthly_requests = monthly_data or (0.0, 0)
 
             # Get total stats
             cursor = await db.execute(

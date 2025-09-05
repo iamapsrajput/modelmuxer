@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import requests
 import json
+
+import requests
 
 jwt_token = "sk-test-claude-dev"
 base_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {jwt_token}"}

@@ -2,9 +2,10 @@
 # ModelMuxer (c) 2025 Ajay Rajput
 # Licensed under Business Source License 1.1 – see LICENSE for details.
 
-import requests
 import json
 import time
+
+import requests
 
 headers = {"Content-Type": "application/json", "Authorization": "Bearer sk-test-claude-dev"}
 

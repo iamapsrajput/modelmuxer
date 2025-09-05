@@ -9,12 +9,10 @@ system performance, usage patterns, and health indicators.
 
 import time
 from collections import defaultdict
-from typing import Any
+# Type-safe Prometheus imports with proper protocols
+from typing import Any, Protocol
 
 import structlog
-
-# Type-safe Prometheus imports with proper protocols
-from typing import Protocol
 
 
 class CounterProtocol(Protocol):

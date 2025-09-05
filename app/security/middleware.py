@@ -17,8 +17,8 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.types import ASGIApp
 
-from .auth import SecurityManager
 from ..core.exceptions import ErrorResponse
+from .auth import SecurityManager
 from .pii_protection import PIIProtector
 
 logger = structlog.get_logger(__name__)

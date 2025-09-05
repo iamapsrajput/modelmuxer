@@ -8,6 +8,7 @@ are first tried with cheaper models and escalated to more expensive ones based
 on quality thresholds and confidence scores.
 """
 
+import operator
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -120,13 +121,15 @@ class CascadeRouter(BaseRouter):
                 # Attempt request with current model
                 response, step_cost = await self._execute_step(step, messages, user_id, **kwargs)
 
-                routing_metadata["steps_attempted"].append({
-                    "step": step_idx,
-                    "provider": step.provider,
-                    "model": step.model,
-                    "cost": step_cost,
-                    "success": True,
-                })
+                routing_metadata["steps_attempted"].append(
+                    {
+                        "step": step_idx,
+                        "provider": step.provider,
+                        "model": step.model,
+                        "cost": step_cost,
+                        "success": True,
+                    }
+                )
                 routing_metadata["total_cost"] += step_cost
 
                 # Evaluate response quality and confidence
@@ -152,14 +155,16 @@ class CascadeRouter(BaseRouter):
                     )
 
             except Exception as e:
-                routing_metadata["steps_attempted"].append({
-                    "step": step_idx,
-                    "provider": step.provider,
-                    "model": step.model,
-                    "cost": 0.0,
-                    "success": False,
-                    "error": str(e),
-                })
+                routing_metadata["steps_attempted"].append(
+                    {
+                        "step": step_idx,
+                        "provider": step.provider,
+                        "model": step.model,
+                        "cost": 0.0,
+                        "success": False,
+                        "error": str(e),
+                    }
+                )
                 routing_metadata["escalation_reasons"].append(f"Error in step {step_idx}: {str(e)}")
                 continue
 
@@ -209,7 +214,7 @@ class CascadeRouter(BaseRouter):
         analysis["complexity_score"] = min(1.0, complexity_score / 10.0)
 
         # Determine task type
-        max_category = max(task_indicators.items(), key=lambda x: x[1])
+        max_category = max(task_indicators.items(), key=operator.itemgetter(1))
         if max_category[1] > 0:
             analysis["task_type"] = max_category[0]
 
@@ -316,7 +321,7 @@ class CascadeRouter(BaseRouter):
             filtered.append((provider, model, cost, quality))
 
         # Sort by cost (cheapest first)
-        return sorted(filtered, key=lambda x: x[2])
+        return sorted(filtered, key=operator.itemgetter(2))
 
     def _is_provider_available(self, provider: str) -> bool:
         """Check if a provider is available."""

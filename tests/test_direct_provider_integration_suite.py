@@ -1,11 +1,11 @@
-from unittest.mock import patch, Mock
+import asyncio
+from unittest.mock import Mock, patch
 
 import pytest
 
+from app.core.costing import load_price_table
 from app.models import ChatMessage
 from app.router import HeuristicRouter
-from app.core.costing import load_price_table
-import asyncio
 
 
 @pytest.mark.asyncio

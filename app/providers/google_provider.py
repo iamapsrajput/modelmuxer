@@ -17,7 +17,8 @@ import structlog
 
 from ..core.utils import estimate_tokens
 from ..models import ChatCompletionResponse, ChatMessage
-from .base import AuthenticationError, LLMProvider, ProviderError, RateLimitError
+from .base import (AuthenticationError, LLMProvider, ProviderError,
+                   RateLimitError)
 
 logger = structlog.get_logger(__name__)
 
@@ -92,10 +93,12 @@ class GoogleProvider(LLMProvider):
             elif msg.role == "user":
                 contents.append({"role": "user", "parts": [{"text": msg.content}]})
             elif msg.role == "assistant":
-                contents.append({
-                    "role": "model",  # Google uses "model" instead of "assistant"
-                    "parts": [{"text": msg.content}],
-                })
+                contents.append(
+                    {
+                        "role": "model",  # Google uses "model" instead of "assistant"
+                        "parts": [{"text": msg.content}],
+                    }
+                )
 
         result = {"contents": contents}
         if system_instruction:

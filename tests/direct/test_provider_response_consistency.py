@@ -7,12 +7,13 @@ This module tests that all direct provider adapters return consistent ProviderRe
 objects with the correct fields populated, regardless of the underlying provider API.
 """
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
-import httpx
 import asyncio
+from unittest.mock import AsyncMock, Mock, patch
 
-from app.providers.base import ProviderResponse, ProviderError
+import httpx
+import pytest
+
+from app.providers.base import ProviderError, ProviderResponse
 
 ADAPTER_CLASS_BY_PROVIDER = {
     "openai": "OpenAIAdapter",

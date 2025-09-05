@@ -14,12 +14,12 @@ import logging
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from app.settings import Settings
 from app.models import ChatMessage
+from app.settings import Settings
 
 logger = logging.getLogger(__name__)
 
