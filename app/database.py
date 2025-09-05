@@ -15,10 +15,10 @@ class Database:
     """Async SQLite database manager for the LLM router."""
 
     def __init__(self, db_path: str = None):
-        # Use default SQLite database for local development
-        import os
+        # Use centralized settings for database configuration
+        from .settings import settings as app_settings
 
-        database_url = os.getenv("DATABASE_URL", "sqlite:///./modelmuxer.db")
+        database_url = app_settings.db.database_url
         self.db_path = db_path or database_url.replace("sqlite:///", "")
 
     async def init_database(self) -> None:
@@ -229,7 +229,8 @@ class Database:
             """,
                 (user_id, today),
             )
-            daily_usage = (await cursor.fetchone())[0] or 0.0
+            daily_result = await cursor.fetchone()
+            daily_usage = daily_result[0] if daily_result else 0.0
 
             cursor = await db.execute(
                 """
@@ -238,7 +239,8 @@ class Database:
             """,
                 (user_id, today.year, today.month),
             )
-            monthly_usage = (await cursor.fetchone())[0] or 0.0
+            monthly_result = await cursor.fetchone()
+            monthly_usage = monthly_result[0] if monthly_result else 0.0
 
             # Check budgets
             daily_remaining = daily_budget - daily_usage
@@ -294,7 +296,7 @@ class Database:
                 (user_id, today),
             )
             daily_data = await cursor.fetchone()
-            daily_cost, daily_requests = daily_data if daily_data else (0.0, 0)
+            daily_cost, daily_requests = daily_data or (0.0, 0)
 
             cursor = await db.execute(
                 """
@@ -304,7 +306,7 @@ class Database:
                 (user_id, today.year, today.month),
             )
             monthly_data = await cursor.fetchone()
-            monthly_cost, monthly_requests = monthly_data if monthly_data else (0.0, 0)
+            monthly_cost, monthly_requests = monthly_data or (0.0, 0)
 
             # Get total stats
             cursor = await db.execute(

@@ -1,0 +1,36 @@
+### Configuration
+
+- Basic settings class: [app/config.py](mdc:app/config.py)
+- Config orchestrator and mode loader: [app/config/**init**.py](mdc:app/config/__init__.py)
+- Enhanced configuration definitions: [app/config/enhanced_config.py](mdc:app/config/enhanced_config.py)
+- Settings orchestrator: [app/settings.py](mdc:app/settings.py)
+
+### Configuration Modes
+
+- **Basic Mode**: Simple configuration for development and testing
+- **Enhanced Mode**: Full feature set with advanced capabilities
+- **Production Mode**: Optimized for production deployment
+
+### Environment Variables
+
+Enable enhanced/production via `MODELMUXER_MODE` env var; `settings` points to enhanced config when active.
+
+### Key Configuration Areas
+
+1. **Provider Configuration**: API keys, endpoints, and provider-specific settings
+2. **Routing Configuration**: Router strategies, fallback policies, and optimization settings
+3. **Security Configuration**: Authentication, authorization, and security policies
+4. **Monitoring Configuration**: Metrics, tracing, and observability settings
+5. **Cache Configuration**: Cache types, TTL settings, and storage options
+6. **Database Configuration**: Connection strings, pooling, and migration settings
+7. **Enterprise Configuration**: Multi-tenant settings, organization management
+8. **Policy Configuration**: Compliance rules, safety policies, and custom patterns
+
+### Configuration Best Practices
+
+1. **Environment Separation**: Use different configs for dev/staging/production
+2. **Secret Management**: Store sensitive data in environment variables or secure vaults
+3. **Validation**: Use Pydantic for configuration validation
+4. **Defaults**: Provide sensible defaults for all configuration options
+5. **Documentation**: Document all configuration options and their effects
+6. **Testing**: Test configuration loading and validation

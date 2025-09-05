@@ -1,0 +1,97 @@
+### API and Tests
+
+- API surface and FastAPI routes: [app/main.py](mdc:app/main.py)
+- OpenAPI spec and docs:
+  [docs/openapi/openapi.yaml](mdc:docs/openapi/openapi.yaml),
+  [docs/api-reference.md](mdc:docs/api-reference.md)
+- Architecture documentation: [docs/architecture.md](mdc:docs/architecture.md)
+
+### Key API Endpoints
+
+- **Chat Completions**: `/v1/chat/completions` - Standard chat completion
+  endpoint
+- **Enhanced Completions**: `/v1/chat/completions/enhanced` - Enhanced routing
+  with cascade strategies
+- **Analytics**: `/v1/analytics/costs`, `/v1/analytics/budgets` - Cost and
+  budget management
+- **Providers**: `/v1/providers` - Available providers and models
+- **Models**: `/v1/models` - List all available models
+- **Health**: `/health` - System health check
+- **Metrics**: `/metrics` - Prometheus metrics endpoint
+
+### Test Structure
+
+#### Core Test Files (Root Level)
+
+- [test_requests.py](mdc:test_requests.py) - Integration tests for API endpoints
+- [test_router.py](mdc:test_router.py) - Router functionality tests
+- [test_monitoring.py](mdc:test_monitoring.py) - Observability tests
+- [test_pii_protection.py](mdc:test_pii_protection.py) - Security and PII
+  protection tests
+- [test_cost_tracking.py](mdc:test_cost_tracking.py) - Cost tracking
+  functionality
+- [test_budget_management.py](mdc:test_budget_management.py) - Budget management
+  tests
+- [test_enhanced_config.py](mdc:test_enhanced_config.py) - Configuration system
+  tests
+- [test_enhanced_modelmuxer.py](mdc:test_enhanced_modelmuxer.py) - Enhanced
+  features integration
+- [test_cache.py](mdc:test_cache.py) - Caching functionality tests
+- [test_auth.py](mdc:test_auth.py) - Authentication and authorization tests
+- [test_streaming.py](mdc:test_streaming.py) - Streaming response tests
+- [test_updated_routing.py](mdc:test_updated_routing.py) - Updated routing
+  strategies
+- [test_enhanced_features.py](mdc:test_enhanced_features.py) - Enhanced feature
+  tests
+- [test_settings.py](mdc:test_settings.py) - Settings configuration tests
+- [test_interactive.py](mdc:test_interactive.py) - Interactive testing utilities
+- [test_constants.py](mdc:test_constants.py) - Constants and configuration tests
+- [test_api.py](mdc:test_api.py) - Basic API functionality tests
+- [test_routing.py](mdc:test_routing.py) - Basic routing tests
+
+#### Test Packages
+
+- **Observability**: [tests/observability/](mdc:tests/observability/) - Metrics,
+  tracing, and monitoring tests
+- **Performance**: [tests/performance/](mdc:tests/performance/) - Performance
+  and benchmark tests
+- **Policy**: [tests/policy/](mdc:tests/policy/) - Policy enforcement and
+  compliance tests
+- **Providers**: [tests/providers/](mdc:tests/providers/) - Provider-specific
+  tests
+- **Routing**: [tests/routing/](mdc:tests/routing/) - Routing strategy tests
+
+### Testing Guidelines
+
+- **Unit Tests**: Test individual components and functions
+- **Integration Tests**: Test API endpoints and provider interactions
+- **Performance Tests**: Benchmark routing decisions and provider calls
+- **Security Tests**: Verify PII protection and policy enforcement
+- **Observability Tests**: Ensure metrics and tracing work correctly
+
+### Test Execution
+
+```bash
+# Run all tests
+poetry run pytest
+
+# Run specific test categories
+poetry run pytest tests/observability/
+poetry run pytest tests/policy/
+poetry run pytest tests/providers/
+
+# Run with coverage
+poetry run pytest --cov=app --cov-report=html
+
+# Run performance tests
+poetry run pytest tests/performance/
+```
+
+- OpenAPI spec and docs:
+  [docs/openapi/openapi.yaml](mdc:docs/openapi/openapi.yaml),
+  [docs/api-reference.md](mdc:docs/api-reference.md)
+- Useful tests to understand behavior:
+  [tests/test_router.py](mdc:tests/test_router.py),
+  [tests/test_requests.py](mdc:tests/test_requests.py),
+  [tests/test_monitoring.py](mdc:tests/test_monitoring.py), root-level
+  `test_*.py` files.

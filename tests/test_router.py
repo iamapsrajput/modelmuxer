@@ -78,29 +78,29 @@ class TestHeuristicRouter(unittest.TestCase):
         analysis = self.router.analyze_prompt(messages)
         self.assertFalse(analysis["is_simple"])
 
-    def test_model_selection_code(self) -> None:
+    async def test_model_selection_code(self) -> None:
         """Test model selection for code-related prompts."""
         messages = [
             ChatMessage(
                 role="user", content="Write a Python function to implement binary search", name=None
             )
         ]
-        provider, model, reason = self.router.select_model(messages)
+        provider, model, reason, _, _ = await self.router.select_model(messages)
 
         # Should select a high-quality model for code
         self.assertIn(provider, ["openai", "anthropic"])
         self.assertIn("code", reason.lower())
 
-    def test_model_selection_simple(self) -> None:
+    async def test_model_selection_simple(self) -> None:
         """Test model selection for simple prompts."""
         messages = [ChatMessage(role="user", content="What is 5+3?", name=None)]
-        provider, model, reason = self.router.select_model(messages)
+        provider, model, reason, _, _ = await self.router.select_model(messages)
 
         # Should select cost-effective model for simple queries
         self.assertIn(provider, ["mistral", "anthropic", "openai"])
         self.assertIn("simple", reason.lower())
 
-    def test_model_selection_complex(self) -> None:
+    async def test_model_selection_complex(self) -> None:
         """Test model selection for complex analysis."""
         messages = [
             ChatMessage(
@@ -108,7 +108,7 @@ class TestHeuristicRouter(unittest.TestCase):
                 content="Analyze the performance characteristics of different database indexing strategies",
             )
         ]
-        provider, model, reason = self.router.select_model(messages)
+        provider, model, reason, _, _ = await self.router.select_model(messages)
 
         # Should select high-quality model for complex analysis
         self.assertIn(provider, ["openai", "anthropic"])
@@ -130,16 +130,20 @@ class TestHeuristicRouter(unittest.TestCase):
         self.assertEqual(analysis["message_count"], 3)
         self.assertTrue(analysis["has_code"])  # Should detect programming context
 
-    def test_budget_constraint(self) -> None:
+    async def test_budget_constraint(self) -> None:
         """Test model selection with budget constraints."""
         messages = [ChatMessage(role="user", content="Explain quantum computing", name=None)]
 
         # Test with very low budget
-        provider, model, reason = self.router.select_model(messages, budget_constraint=0.0001)
+        provider, model, reason, _, _ = await self.router.select_model(
+            messages, budget_constraint=0.0001
+        )
         self.assertIn(provider, ["mistral", "openai", "groq"])  # Should select cheapest option
 
         # Test with normal budget
-        provider, model, reason = self.router.select_model(messages, budget_constraint=0.01)
+        provider, model, reason, _, _ = await self.router.select_model(
+            messages, budget_constraint=0.01
+        )
         # Should allow more expensive models
         self.assertIn(provider, ["openai", "anthropic", "mistral", "groq"])
 

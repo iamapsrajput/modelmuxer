@@ -9,8 +9,14 @@ semantic, cascade, and hybrid routing strategies.
 
 from .base_router import BaseRouter
 from .cascade_router import CascadeRouter
-from .heuristic_router import HeuristicRouter
+from .heuristic_router import EnhancedHeuristicRouter
 from .hybrid_router import HybridRouter
 from .semantic_router import SemanticRouter
 
-__all__ = ["BaseRouter", "HeuristicRouter", "SemanticRouter", "CascadeRouter", "HybridRouter"]
+__all__ = [
+    "BaseRouter",
+    "EnhancedHeuristicRouter",
+    "SemanticRouter",
+    "CascadeRouter",
+    "HybridRouter",
+]

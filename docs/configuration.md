@@ -1,6 +1,7 @@
 # Configuration Guide
 
-ModelMuxer provides extensive configuration options through environment variables, configuration files, and runtime settings.
+ModelMuxer provides extensive configuration options through environment
+variables, configuration files, and runtime settings.
 
 ## Environment Variables
 
@@ -22,29 +23,33 @@ ENVIRONMENT=production          # development, staging, production
 ### Provider API Keys
 
 ```env
-# Required: At least one provider API key
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-MISTRAL_API_KEY=...
-GOOGLE_API_KEY=...
-GROQ_API_KEY=gsk_...
-TOGETHER_API_KEY=...
-COHERE_API_KEY=...
+# Direct Provider API Keys (Primary Routing Method)
+OPENAI_API_KEY=sk-...           # OpenAI GPT models
+ANTHROPIC_API_KEY=sk-ant-...    # Claude models
+MISTRAL_API_KEY=...             # Mistral models
+GOOGLE_API_KEY=...              # Gemini models
+GROQ_API_KEY=gsk_...            # Groq models
+TOGETHER_API_KEY=...            # Together AI models
+COHERE_API_KEY=...              # Cohere Command models
+
 ```
 
 ### Routing Configuration
 
 ```env
+# Direct Provider Configuration
+ENABLE_DIRECT_PROVIDERS_ONLY=true    # Use direct providers as primary (default)
+PROVIDER_ADAPTERS_ENABLED=true       # Enable direct provider adapters (default)
+
+
 # Application Mode
-MODELMUXER_MODE=basic           # basic, enhanced, production
+MODELMUXER_MODE=basic                 # basic, enhanced, production
 
 # Heuristic Routing Thresholds
-CODE_DETECTION_THRESHOLD=0.2    # Threshold for code detection
-COMPLEXITY_THRESHOLD=0.2        # Threshold for complexity detection
-SIMPLE_QUERY_THRESHOLD=0.3      # Threshold for simple query detection
-SIMPLE_QUERY_MAX_LENGTH=100     # Max length for simple queries
-
-
+CODE_DETECTION_THRESHOLD=0.2          # Threshold for code detection
+COMPLEXITY_THRESHOLD=0.2              # Threshold for complexity detection
+SIMPLE_QUERY_THRESHOLD=0.3            # Threshold for simple query detection
+SIMPLE_QUERY_MAX_LENGTH=100           # Max length for simple queries
 ```
 
 ### Authentication & Security
@@ -145,18 +150,12 @@ providers:
     api_key: "${OPENAI_API_KEY}"
     timeout: 30
     max_retries: 3
-    models:
-      - gpt-4o
-      - gpt-4o-mini
-      - gpt-3.5-turbo
-
+    models: [gpt-4o, gpt-4o-mini, gpt-3.5-turbo]
   anthropic:
     api_key: "${ANTHROPIC_API_KEY}"
     timeout: 30
     max_retries: 3
-    models:
-      - claude-3-5-sonnet-20241022
-      - claude-3-haiku-20240307
+    models: [claude-3-5-sonnet-20241022, claude-3-haiku-20240307]
 
 routing:
   default_strategy: "hybrid"
@@ -245,12 +244,16 @@ models:
 
 routing_preferences:
   code:
+    - provider: "anthropic"
+      model: "claude-sonnet-4-20250514"
     - provider: "openai"
       model: "gpt-4o"
-    - provider: "anthropic"
-      model: "claude-3-5-sonnet-20241022"
 
   simple:
+    - provider: "openai"
+      model: "gpt-4o-mini"
+    - provider: "anthropic"
+      model: "claude-3-haiku-20240307"
     - provider: "openai"
       model: "gpt-4o-mini"
     - provider: "anthropic"
@@ -298,6 +301,16 @@ poetry run python -m app.config.validate
 curl http://localhost:8000/api/v1/config/status
 ```
 
+## Direct Provider Architecture
+
+ModelMuxer now uses direct provider connections as the primary routing method.
+This provides:
+
+- **Better Performance**: Lower latency without proxy overhead
+- **Enhanced Reliability**: Provider-specific circuit breakers and retry logic
+- **Improved Observability**: Detailed telemetry and error handling
+- **Cost Optimization**: Direct cost tracking and budget management
+
 ## Environment-Specific Configurations
 
 ### Development
@@ -339,7 +352,8 @@ RATE_LIMIT_ENABLED=true
 2. **Validate on Startup**: Always validate configuration before starting
 3. **Use Defaults**: Provide sensible defaults for all configuration options
 4. **Document Changes**: Document any configuration changes in your deployment
-5. **Test Configurations**: Test configuration changes in staging before production
+5. **Test Configurations**: Test configuration changes in staging before
+   production
 6. **Monitor Configuration**: Monitor configuration changes and their impact
 
 ## Next Steps

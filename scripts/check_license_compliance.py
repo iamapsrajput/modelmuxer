@@ -42,8 +42,8 @@ class LicenseComplianceChecker:
 
     def __init__(self, project_root: Path):
         self.project_root = project_root
-        self.errors = []
-        self.warnings = []
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
 
     def should_skip(self, path: Path) -> bool:
         """Check if a file or directory should be skipped."""
@@ -70,8 +70,7 @@ class LicenseComplianceChecker:
         self.REQUIRED_HEADERS[suffix]
 
         try:
-            with open(file_path, encoding="utf-8") as f:
-                content = f.read()
+            content = Path(file_path).read_text(encoding="utf-8")
         except UnicodeDecodeError:
             return True  # Skip binary files
         except Exception:
@@ -100,8 +99,8 @@ class LicenseComplianceChecker:
 
         if missing_headers:
             self.errors.append(f"Files missing license headers: {len(missing_headers)}")
-            for file_path in missing_headers[:10]:  # Show first 10
-                self.errors.append(f"  - {file_path}")
+            for file_name in missing_headers[:10]:  # Show first 10
+                self.errors.append(f"  - {file_name}")
             if len(missing_headers) > 10:
                 self.errors.append(f"  ... and {len(missing_headers) - 10} more")
 
@@ -216,8 +215,7 @@ def main():
 
     # Save detailed report
     report_file = project_root / "compliance_report.json"
-    with open(report_file, "w") as f:
-        json.dump(report, f, indent=2)
+    report_file.write_text(json.dumps(report, indent=2))
     print(f"Detailed report saved to: {report_file}")
 
     # Exit with error code if compliance failed

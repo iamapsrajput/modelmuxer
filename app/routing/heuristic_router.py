@@ -7,6 +7,7 @@ This module contains the enhanced heuristic router that uses rule-based
 logic to determine the optimal provider and model for requests.
 """
 
+import operator
 import re
 from typing import Any
 
@@ -19,7 +20,7 @@ from .base_router import BaseRouter
 logger = structlog.get_logger(__name__)
 
 
-class HeuristicRouter(BaseRouter):
+class EnhancedHeuristicRouter(BaseRouter):
     """
     Enhanced heuristic router with improved pattern matching and rules.
 
@@ -176,46 +177,33 @@ class HeuristicRouter(BaseRouter):
             "code_generation": [
                 ("openai", "gpt-4o", 0.95),
                 ("anthropic", "claude-3-5-sonnet", 0.90),
-                ("litellm", "gpt-4", 0.85),  # LiteLLM proxy for GPT-4
                 ("openai", "gpt-3.5-turbo", 0.75),
-                ("litellm", "gpt-3.5-turbo", 0.70),  # LiteLLM proxy fallback
             ],
             "code_review": [
                 ("openai", "gpt-4o", 0.95),
                 ("anthropic", "claude-3-5-sonnet", 0.90),
-                ("litellm", "gpt-4", 0.85),  # LiteLLM proxy for GPT-4
                 ("openai", "gpt-3.5-turbo", 0.70),
-                ("litellm", "gpt-3.5-turbo", 0.65),  # LiteLLM proxy fallback
             ],
             "complex_analysis": [
                 ("anthropic", "claude-3-5-sonnet", 0.95),
                 ("openai", "gpt-4o", 0.90),
-                ("litellm", "claude-3-sonnet", 0.88),  # LiteLLM proxy for Claude
                 ("anthropic", "claude-3-opus", 0.85),
-                ("litellm", "gpt-4", 0.80),  # LiteLLM proxy for GPT-4
                 ("openai", "gpt-3.5-turbo", 0.65),
-                ("litellm", "claude-3-haiku", 0.60),  # LiteLLM proxy for Haiku
             ],
             "simple_qa": [
                 ("google", "gemini-1.5-flash", 0.90),
                 ("mistral", "mistral-small", 0.85),
-                ("litellm", "claude-3-haiku", 0.82),  # LiteLLM proxy for Haiku
                 ("anthropic", "claude-3-haiku", 0.80),
-                ("litellm", "gpt-3.5-turbo", 0.78),  # LiteLLM proxy for GPT-3.5
                 ("openai", "gpt-3.5-turbo", 0.75),
             ],
             "creative_writing": [
                 ("openai", "gpt-4o", 0.95),
                 ("anthropic", "claude-3-5-sonnet", 0.85),
-                ("litellm", "claude-3-sonnet", 0.82),  # LiteLLM proxy for Claude
-                ("litellm", "gpt-4", 0.78),  # LiteLLM proxy for GPT-4
                 ("openai", "gpt-3.5-turbo", 0.80),
             ],
             "general": [
                 ("openai", "gpt-3.5-turbo", 0.85),
-                ("litellm", "gpt-3.5-turbo", 0.82),  # LiteLLM proxy for GPT-3.5
                 ("anthropic", "claude-3-haiku", 0.80),
-                ("litellm", "claude-3-haiku", 0.78),  # LiteLLM proxy for Haiku
                 ("google", "gemini-1.5-flash", 0.75),
                 ("mistral", "mistral-small", 0.70),
             ],
@@ -320,7 +308,7 @@ class HeuristicRouter(BaseRouter):
             ) / 2
 
         # Find the highest scoring task type
-        best_task = max(task_scores.items(), key=lambda x: x[1])
+        best_task = max(task_scores.items(), key=operator.itemgetter(1))
         if best_task[1] > 0.4:
             analysis["task_type"] = best_task[0]
             analysis["confidence_score"] = best_task[1]

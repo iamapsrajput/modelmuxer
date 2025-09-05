@@ -1,0 +1,21 @@
+---
+description: "Routing strategies and how provider/model selection works"
+globs: app/routing/**/*.py
+---
+
+### Routing Overview
+
+- Routers implement the `RouterInterface` from [app/core/interfaces.py](mdc:app/core/interfaces.py) and commonly extend [app/routing/base_router.py](mdc:app/routing/base_router.py)
+
+- Available strategies:
+
+  - Heuristic: [app/routing/heuristic_router.py](mdc:app/routing/heuristic_router.py)
+  - Semantic: [app/routing/semantic_router.py](mdc:app/routing/semantic_router.py)
+  - Cascade: [app/routing/cascade_router.py](mdc:app/routing/cascade_router.py)
+  - Hybrid: [app/routing/hybrid_router.py](mdc:app/routing/hybrid_router.py)
+  - Optional Semantic: [app/routing/semantic_router_optional.py](mdc:app/routing/semantic_router_optional.py)
+
+- Typical flow:
+  1. `analyze_prompt(messages)` produces analysis including task type and confidence.
+  2. Constraints (e.g., cost, latency) are applied if provided.
+  3. `_route_request(...)` returns `(provider, model, reasoning, confidence)`.

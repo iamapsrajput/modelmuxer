@@ -12,9 +12,9 @@ class Settings(BaseSettings):
     """Application settings with environment variable support."""
 
     # LLM Provider API Keys
-    openai_api_key: str = Field(..., description="OpenAI API key")
-    anthropic_api_key: str = Field(..., description="Anthropic API key")
-    mistral_api_key: str = Field(..., description="Mistral API key")
+    openai_api_key: str = Field("", description="OpenAI API key")
+    anthropic_api_key: str = Field("", description="Anthropic API key")
+    mistral_api_key: str = Field("", description="Mistral API key")
 
     # Router Configuration
     default_model: str = Field("gpt-3.5-turbo", description="Default model to use")
@@ -26,9 +26,7 @@ class Settings(BaseSettings):
 
     # Security
     api_key_header: str = Field("Authorization", description="API key header name")
-    allowed_api_keys: str = Field(
-        default="", env="API_KEYS", description="Comma-separated allowed API keys"
-    )
+    allowed_api_keys: list[str] = Field(default=[], description="Comma-separated allowed API keys")
 
     # Server Configuration
     # Note: 0.0.0.0 binding is intentional for container deployment
@@ -85,12 +83,16 @@ class Settings(BaseSettings):
         0.0006, description="Mistral-small output price per million tokens"
     )
 
-    @validator("allowed_api_keys")
-    def parse_api_keys(cls, v) -> None:
+    @validator("allowed_api_keys", pre=True, always=True)
+    def parse_api_keys(cls, v):
         """Parse comma-separated API keys into a list."""
-        if isinstance(v, str):
-            return [key.strip() for key in v.split(",") if key.strip()]
-        return v
+        if isinstance(v, str) and v:
+            keys = [key.strip() for key in v.split(",") if key.strip()]
+            print(f"DEBUG: Parsed API keys: {keys}")  # Debug output
+            return keys
+        elif isinstance(v, list):
+            return v
+        return []
 
     def get_allowed_api_keys(self) -> list[str]:
         """Get list of allowed API keys."""
@@ -137,4 +139,4 @@ class Settings(BaseSettings):
 
 
 # Global settings instance
-settings = Settings()
+settings = Settings()  # type: ignore

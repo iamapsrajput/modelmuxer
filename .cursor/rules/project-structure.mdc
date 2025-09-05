@@ -1,0 +1,126 @@
+### ModelMuxer Project Structure
+
+- Entry point FastAPI app: [app/main.py](mdc:app/main.py)
+
+  - Creates the FastAPI `app`, registers middleware and exception handlers
+  - Defines primary API endpoints and dependencies
+  - CLI/server runners via `cli()` and `main()`
+
+- Configuration system:
+
+  - Basic settings: [app/config.py](mdc:app/config.py)
+  - Enhanced and composed config:
+    [app/config/**init**.py](mdc:app/config/__init__.py),
+    [app/config/enhanced_config.py](mdc:app/config/enhanced_config.py)
+  - Mode select via env var `MODELMUXER_MODE` (basic | enhanced | production)
+  - Settings orchestrator: [app/settings.py](mdc:app/settings.py)
+
+- Providers (LLM backends):
+
+  - Base abstractions and exceptions:
+    [app/providers/base.py](mdc:app/providers/base.py)
+  - Implementations and exports:
+    [app/providers/**init**.py](mdc:app/providers/__init__.py)
+  - Concrete providers:
+    [app/providers/openai_provider.py](mdc:app/providers/openai_provider.py),
+    [app/providers/anthropic_provider.py](mdc:app/providers/anthropic_provider.py),
+    [app/providers/mistral_provider.py](mdc:app/providers/mistral_provider.py),
+    [app/providers/google_provider.py](mdc:app/providers/google_provider.py),
+    [app/providers/cohere_provider.py](mdc:app/providers/cohere_provider.py),
+    [app/providers/groq_provider.py](mdc:app/providers/groq_provider.py),
+    [app/providers/together_provider.py](mdc:app/providers/together_provider.py)
+
+- Routing strategies:
+
+  - Base router and interface usage:
+    [app/routing/base_router.py](mdc:app/routing/base_router.py),
+    [app/core/interfaces.py](mdc:app/core/interfaces.py)
+  - Strategies:
+    [app/routing/heuristic_router.py](mdc:app/routing/heuristic_router.py),
+    [app/routing/semantic_router.py](mdc:app/routing/semantic_router.py),
+    [app/routing/cascade_router.py](mdc:app/routing/cascade_router.py),
+    [app/routing/hybrid_router.py](mdc:app/routing/hybrid_router.py),
+    [app/routing/semantic_router_optional.py](mdc:app/routing/semantic_router_optional.py)
+  - Legacy router: [app/router.py](mdc:app/router.py)
+
+- Security and auth:
+
+  - Security middleware and PII protection:
+    [app/security/middleware.py](mdc:app/security/middleware.py),
+    [app/security/pii_protection.py](mdc:app/security/pii_protection.py)
+  - Security config and roles/permissions:
+    [app/security/config.py](mdc:app/security/config.py),
+    [app/security/auth.py](mdc:app/security/auth.py)
+  - Enhanced auth middleware:
+    [app/middleware/auth_middleware.py](mdc:app/middleware/auth_middleware.py)
+  - Authentication system: [app/auth.py](mdc:app/auth.py)
+
+- Core models and interfaces: [app/models.py](mdc:app/models.py),
+  [app/core/interfaces.py](mdc:app/core/interfaces.py),
+  [app/core/exceptions.py](mdc:app/core/exceptions.py)
+
+- Monitoring and observability:
+
+  - Metrics and collection:
+    [app/monitoring/metrics.py](mdc:app/monitoring/metrics.py),
+    [app/monitoring/metrics_collector.py](mdc:app/monitoring/metrics_collector.py)
+  - Health checks:
+    [app/monitoring/health_checker.py](mdc:app/monitoring/health_checker.py)
+  - Telemetry: [app/telemetry/metrics.py](mdc:app/telemetry/metrics.py),
+    [app/telemetry/tracing.py](mdc:app/telemetry/tracing.py),
+    [app/telemetry/logging.py](mdc:app/telemetry/logging.py)
+
+- Policy and compliance:
+
+  - Policy enforcement: [app/policy/rules.py](mdc:app/policy/rules.py)
+  - Pattern matching: [app/policy/patterns/](mdc:app/policy/patterns/)
+
+- Classification and embeddings:
+
+  - Prompt classification:
+    [app/classification/prompt_classifier.py](mdc:app/classification/prompt_classifier.py)
+  - Embeddings system:
+    [app/classification/embeddings.py](mdc:app/classification/embeddings.py)
+
+- Enterprise features:
+
+  - Organization management:
+    [app/enterprise/organization_manager.py](mdc:app/enterprise/organization_manager.py)
+  - Enterprise models: [app/enterprise/models.py](mdc:app/enterprise/models.py)
+
+- Caching and storage:
+
+  - Cache implementations:
+    [app/cache/memory_cache.py](mdc:app/cache/memory_cache.py),
+    [app/cache/redis_cache.py](mdc:app/cache/redis_cache.py)
+  - Database layer: [app/database.py](mdc:app/database.py)
+
+- Cost tracking and budget management:
+
+  - Cost tracker: [app/cost_tracker.py](mdc:app/cost_tracker.py)
+
+- Middleware:
+
+  - Authentication:
+    [app/middleware/auth_middleware.py](mdc:app/middleware/auth_middleware.py)
+  - Logging:
+    [app/middleware/logging_middleware.py](mdc:app/middleware/logging_middleware.py)
+  - Rate limiting:
+    [app/middleware/rate_limit_middleware.py](mdc:app/middleware/rate_limit_middleware.py)
+
+- API docs and reference:
+  [docs/openapi/openapi.yaml](mdc:docs/openapi/openapi.yaml),
+  [docs/api-reference.md](mdc:docs/api-reference.md),
+  [docs/architecture.md](mdc:docs/architecture.md)
+
+- Tests: top-level `test_*.py` files and `tests/` package (e.g.,
+  [tests/test_router.py](mdc:tests/test_router.py),
+  [tests/test_requests.py](mdc:tests/test_requests.py),
+  [tests/test_monitoring.py](mdc:tests/test_monitoring.py),
+  [tests/test_pii_protection.py](mdc:tests/test_pii_protection.py),
+  [tests/test_cost_tracking.py](mdc:tests/test_cost_tracking.py),
+  [tests/test_budget_management.py](mdc:tests/test_budget_management.py))
+
+- Tests: top-level `test_*.py` files and `tests/` package (e.g.,
+  [tests/test_router.py](mdc:tests/test_router.py),
+  [tests/test_requests.py](mdc:tests/test_requests.py))

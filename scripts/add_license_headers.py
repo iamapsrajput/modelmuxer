@@ -113,8 +113,7 @@ def has_license_header(content: str, header_type: str) -> bool:
 def add_header_to_file(file_path: Path, header_type: str) -> bool:
     """Add license header to a file. Returns True if file was modified."""
     try:
-        with open(file_path, encoding="utf-8") as f:
-            content = f.read()
+        content = Path(file_path).read_text(encoding="utf-8")
     except UnicodeDecodeError:
         print(f"Skipping binary file: {file_path}")
         return False
@@ -142,8 +141,7 @@ def add_header_to_file(file_path: Path, header_type: str) -> bool:
         new_content = header_text + content
 
     try:
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(new_content)
+        Path(file_path).write_text(new_content, encoding="utf-8")
         return True
     except Exception as e:
         print(f"Error writing to {file_path}: {e}")

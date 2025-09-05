@@ -1,0 +1,101 @@
+### Observability and Monitoring
+
+#### Monitoring Components
+
+- **Metrics Collection**: [app/monitoring/metrics.py](mdc:app/monitoring/metrics.py)
+
+  - Prometheus metrics definitions
+  - Custom business metrics
+  - Performance counters
+  - Error rate tracking
+
+- **Metrics Collector**: [app/monitoring/metrics_collector.py](mdc:app/monitoring/metrics_collector.py)
+
+  - Metrics aggregation and collection
+  - Histogram and counter management
+  - Metrics export and formatting
+  - Custom metric registration
+
+- **Health Checker**: [app/monitoring/health_checker.py](mdc:app/monitoring/health_checker.py)
+  - System health monitoring
+  - Provider availability checks
+  - Database connectivity checks
+  - Service dependency health
+
+#### Telemetry Components
+
+- **Metrics**: [app/telemetry/metrics.py](mdc:app/telemetry/metrics.py)
+
+  - Telemetry-specific metrics
+  - Performance monitoring
+  - Business intelligence metrics
+  - Custom telemetry events
+
+- **Tracing**: [app/telemetry/tracing.py](mdc:app/telemetry/tracing.py)
+
+  - OpenTelemetry integration
+  - Distributed tracing setup
+  - Span creation and management
+  - Trace context propagation
+
+- **Logging**: [app/telemetry/logging.py](mdc:app/telemetry/logging.py)
+  - Structured logging configuration
+  - Log level management
+  - Correlation ID handling
+  - PII-safe logging practices
+
+#### Middleware
+
+- **Auth Middleware**: [app/middleware/auth_middleware.py](mdc:app/middleware/auth_middleware.py)
+
+  - Authentication and authorization
+  - User context management
+  - Request validation
+  - Security enforcement
+
+- **Logging Middleware**: [app/middleware/logging_middleware.py](mdc:app/middleware/logging_middleware.py)
+
+  - Request/response logging
+  - Performance timing
+  - Error tracking
+  - Audit trail creation
+
+- **Rate Limit Middleware**: [app/middleware/rate_limit_middleware.py](mdc:app/middleware/rate_limit_middleware.py)
+  - Rate limiting implementation
+  - Throttling controls
+  - Usage tracking
+  - Fair use enforcement
+
+### Observability Guidelines
+
+1. **Metrics**: Always include relevant metrics for business operations
+2. **Tracing**: Use OpenTelemetry spans for distributed tracing
+3. **Logging**: Use structured logging with correlation IDs
+4. **Health Checks**: Implement comprehensive health monitoring
+5. **Performance**: Monitor latency, throughput, and error rates
+6. **Security**: Log security events and policy violations
+
+### Key Metrics
+
+- **HTTP Metrics**: Request count, latency, error rates
+- **Router Metrics**: Decision latency, fallback rates, confidence scores
+- **Provider Metrics**: Call latency, success rates, token usage
+- **Business Metrics**: Cost tracking, budget usage, user activity
+- **Policy Metrics**: Violation counts, redaction rates, compliance status
+
+### Usage Patterns
+
+```python
+# Metrics collection
+from app.monitoring.metrics import MetricsCollector
+from app.telemetry.metrics import record_business_metric
+
+# Tracing
+from app.telemetry.tracing import get_tracer, create_span
+
+# Logging
+from app.telemetry.logging import get_logger
+
+# Health checks
+from app.monitoring.health_checker import HealthChecker
+```

@@ -10,18 +10,11 @@ from unittest.mock import patch
 
 import pytest
 
-from app.config.enhanced_config import (
-    AuthConfig,
-    CacheConfig,
-    ClassificationConfig,
-    LoggingConfig,
-    ModelMuxerConfig,
-    MonitoringConfig,
-    ProviderConfig,
-    RateLimitConfig,
-    RoutingConfig,
-    load_enhanced_config,
-)
+from app.config.enhanced_config import (AuthConfig, CacheConfig,
+                                        ClassificationConfig, LoggingConfig,
+                                        ModelMuxerConfig, MonitoringConfig,
+                                        ProviderConfig, RateLimitConfig,
+                                        RoutingConfig, load_enhanced_config)
 
 
 class TestModelMuxerConfig:
@@ -90,8 +83,6 @@ class TestProviderConfig:
             "COHERE_API_KEY",
             "GROQ_API_KEY",
             "TOGETHER_API_KEY",
-            "LITELLM_BASE_URL",
-            "LITELLM_API_KEY",
             "OPENAI_BASE_URL",
         ]
 

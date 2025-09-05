@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "modelmuxer"
-version = "1.0.0"
+version = "2.0.0"
 description = "Enterprise-grade intelligent LLM routing engine for cost and performance optimization"
 authors = ["Ajay Rajput <ajay@modelmuxer.com>"]
 license = "Business Source License 1.1"
@@ -45,14 +45,12 @@ sqlalchemy = "^2.0.0"
 alembic = "^1.12.0"
 aiosqlite = "^0.21.0"
 structlog = "^23.2.0"
-# Tiktoken for OpenAI tokenization and LiteLLM compatibility
+# Tiktoken for OpenAI tokenization
 tiktoken = "^0.7.0"
 tenacity = "^8.2.0"
 cachetools = "^5.3.0"
 psutil = "^5.9.0"
 pyjwt = { extras = ["cryptography"], version = "^2.10.1" }
-# LiteLLM for unified LLM API access
-litellm = "^1.55.0"
 # Enterprise features
 asyncpg = "^0.30.0"
 cryptography = "^44.0.2"
@@ -67,11 +65,10 @@ pytest-asyncio = "^0.21.0"
 pytest-cov = "^4.1.0"
 pytest-env = "^1.1.3"
 pytest-benchmark = "^4.0.0"
-black = "^24.3.0"
-ruff = "^0.1.0"
+black = "^24.4.0"
+ruff = "^0.6.0"
 mypy = "^1.7.0"
 pre-commit = "^3.5.0"
-bandit = "^1.7.5"
 safety = "^2.3.0"
 isort = "^5.12.0"
 flake8 = "^6.0.0"
@@ -79,6 +76,8 @@ pip-audit = "^2.6.0"
 types-psutil = "^7.0.0.20250801"
 interrogate = "^1.7.0"
 pip-licenses = "^5.0.0"
+basedpyright = "^1.31.3"
+types-sqlalchemy = "^1.4.53.38"
 
 [tool.poetry.group.jupyter]
 optional = true
@@ -104,10 +103,11 @@ scikit-learn = "^1.3.0"
 optional = true
 
 [tool.poetry.group.monitoring.dependencies]
-prometheus-client = "^0.19.0"
+prometheus-client = "^0.22.1"
 opentelemetry-api = "^1.20.0"
 opentelemetry-sdk = "^1.20.0"
 opentelemetry-instrumentation-fastapi = "^0.41b0"
+opentelemetry-exporter-otlp-proto-grpc = "^1.20.0"
 
 [tool.poetry.scripts]
 modelmuxer = "app.main:cli"
@@ -138,19 +138,127 @@ extend-exclude = '''
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+preview = true
+exclude = [
+    ".venv",
+    "build",
+    "dist",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    "htmlcov",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade
+    "N",     # pep8-naming
+    "Q",     # flake8-quotes
+    "SIM",   # flake8-simplify
+    "ARG",   # flake8-unused-arguments
+    "PIE",   # flake8-pie
+    "LOG",   # flake8-logging-format
+    "RET",   # flake8-return
+    "SLF",   # flake8-self
+    "SLOT",  # flake8-slots
+    "TRY",   # tryceratops
+    "NPY",   # numpy-v2
+    "AIR",   # flake8-airflow
+    "COM",   # flake8-commas
+    "DTZ",   # flake8-datetimez
+    "T20",   # flake8-print
+    "FA",    # flake8-future-annotations
+    "ISC",   # flake8-implicit-str-concat
+    "G",     # flake8-logging
+    "INP",   # flake8-no-pep420
+    "PTH",   # flake8-use-pathlib
+    "RSE",   # flake8-raise
+    "FBT",   # flake8-boolean-trap
+    "A",     # flake8-builtins
+    "C90",   # mccabe
+    "ICN",   # flake8-import-conventions
+    "BLE",   # flake8-blind-except
+    "FURB",  # refurb
+    "ASYNC", # flake8-async
+    "S",     # bandit
 ]
 ignore = [
-    "E501", # line too long, handled by black
-    "B008", # do not perform function calls in argument defaults
-    "C901", # too complex
+    "E501",    # line too long, handled by black
+    "B008",    # do not perform function calls in argument defaults
+    "C901",    # too complex
+    "PLR0913", # too many arguments
+    "PLR0915", # too many statements
+    "PLR0912", # too many branches
+    "PLR0911", # too many return statements
+    "PLR2004", # magic value used in comparison
+    "COM812",  # trailing comma missing
+    "Q000",    # single quotes found but double quotes preferred
+    "T201",    # print found
+    "BLE001",  # do not catch blind exception
+    "TRY003",  # avoid specifying long messages outside the exception class
+    "TRY301",  # abstract raise to an inner function
+    "TRY400",  # use logging.exception instead of logging.error
+    "TRY300",  # consider moving this statement to an else block
+    "RET505",  # unnecessary else after return statement
+    "RET506",  # unnecessary elif after raise statement
+    "RET504",  # unnecessary assignment before return statement
+    "ARG001",  # unused function argument
+    "ARG002",  # unused method argument
+    "FBT001",  # boolean-typed positional argument in function definition
+    "FBT002",  # boolean default positional argument in function definition
+    "FBT003",  # boolean positional value in function call
+    "DTZ003",  # use of datetime.datetime.utcnow() is not allowed
+    "DTZ005",  # use of datetime.datetime.now() without tz argument is not allowed
+    "PIE790",  # unnecessary pass statement
+    "SIM102",  # use a single if statement instead of nested if statements
+    "SIM105",  # use contextlib.suppress instead of try-except-pass
+    "SIM110",  # use return any(...) instead of for loop
+    "SIM114",  # combine if branches using logical or operator
+    "SIM117",  # use a single with statement with multiple contexts
+    "UP006",   # use list instead of List for type annotation
+    "UP007",   # use X | Y for type annotations
+    "UP035",   # typing.Dict is deprecated, use dict instead
+    "UP037",   # remove quotes from type annotation
+    "W191",    # indentation contains tabs
+    "W291",    # trailing whitespace
+    "W293",    # blank line contains whitespace
+    "I001",    # import block is un-sorted or un-formatted
+    "E402",    # module level import not at top of file
+    "F401",    # imported but unused
+    "F821",    # undefined name
+    "F841",    # local variable is assigned to but never used
+    "S101",    # use of assert detected
+    "S104",    # possible binding to all interfaces
+    "S105",    # possible hardcoded password assigned to
+    "S106",    # possible hardcoded password assigned to argument
+    "S110",    # try-except-pass detected, consider logging the exception
+    "S113",    # probable use of requests call without timeout
+    "S311",    # standard pseudo-random generators are not suitable for cryptographic purposes
+    "PTH118",  # os.path.join() should be replaced by Path with / operator
+    "PTH120",  # os.path.dirname() should be replaced by Path.parent
+    "PTH123",  # open() should be replaced by Path.open()
+    "INP001",  # file is part of an implicit namespace package
+    "ICN001",  # numpy should be imported as np
+    "SLF001",  # private member accessed
+    "N805",    # first argument of a method should be named self
+    "G201",    # logging.exception should be used instead of logging.error
+    "E731",    # do not assign a lambda expression, use a def
+    "SIM118",  # use key in dict instead of key in dict.keys()
+    "S301",    # pickle and modules that wrap it can be unsafe when used to deserialize untrusted data
+    "ASYNC1",  # async functions should not call open, time.sleep, or subprocess methods
+    "A001",    # variable is shadowing a Python builtin
+    "DTZ011",  # use of datetime.date.today() is not allowed, use datetime.datetime.now(tz=).date() instead
+    "RET508",  # unnecessary elif after break statement
+    "TRY002",  # create your own exception
+    "SIM103",  # return the condition directly
+    "ISC001",  # conflicts with formatter
 ]
 
 [tool.ruff.per-file-ignores]
@@ -183,12 +291,43 @@ exclude = [
     "tests/*",
 ]
 
+[tool.basedpyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+useLibraryCodeForTypes = true
+reportUnknownMemberType = false
+reportUnusedCallResult = false
+reportMissingTypeStubs = false
+reportIncompatibleVariableOverride = false
+reportAttributeAccessIssue = "warning"
+reportOptionalSubscript = "warning"
+reportOptionalMemberAccess = "warning"
+reportOptionalCall = "warning"
+exclude = [
+    "**/.venv/**",
+    "**/tests/**",
+    "app/routing/**",
+    "app/providers/**",
+    "app/config/enhanced_config.py",
+    "app/classification/**",
+]
+ignore = [
+    "app/main.py",
+    "app/router.py",
+    "app/database.py",
+    "app/cost_tracker.py",
+    "app/security/**",
+    "app/middleware/**",
+]
+
 [[tool.mypy.overrides]]
 module = [
     "sentence_transformers.*",
     "sklearn.*",
     "prometheus_client.*",
     "tiktoken.*",
+    "opentelemetry.*",
+    "numpy.*",
 ]
 ignore_missing_imports = true
 
@@ -229,9 +368,3 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]
-
-[tool.bandit]
-# Bandit security linting configuration
-exclude_dirs = ["tests", ".venv", "htmlcov"]
-# Exclude test files
-exclude = ["*/test_*.py", "**/test_*.py"]

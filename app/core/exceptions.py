@@ -63,6 +63,13 @@ class RoutingError(ModelMuxerError):
         super().__init__(message, kwargs.get("error_code"), details)
 
 
+class RouterConfigurationError(ModelMuxerError):
+    """Exception for router configuration errors, especially at startup."""
+
+    def __init__(self, message: str, **kwargs: Any) -> None:
+        super().__init__(message, error_code="router_configuration_error", **kwargs)
+
+
 class AuthenticationError(ModelMuxerError):
     """Exception for authentication failures."""
 
@@ -83,19 +90,24 @@ class RateLimitError(ModelMuxerError):
 
 
 class BudgetExceededError(ModelMuxerError):
-    """Exception for budget limit exceeded."""
+    """Exception for budget limit exceeded.
+
+    estimates may include None for unpriced/unknown model costs.
+    """
 
     def __init__(
         self,
         message: str = "Budget limit exceeded",
-        current_usage: float | None = None,
-        budget_limit: float | None = None,
+        limit: float | None = None,
+        estimates: list[tuple[str, float | None]] | None = None,
+        reason: str | None = None,
         **kwargs: Any,
     ) -> None:
-        self.current_usage = current_usage
-        self.budget_limit = budget_limit
+        self.limit = limit
+        self.estimates = estimates or []
+        self.reason = reason
         details = kwargs.get("details", {})
-        details.update({"current_usage": current_usage, "budget_limit": budget_limit})
+        details.update({"limit": limit, "estimates": self.estimates, "reason": reason})
         super().__init__(message, error_code="budget_exceeded", details=details)
 
 
@@ -166,3 +178,10 @@ class QuotaExceededError(ProviderError):
 
     def __init__(self, message: str = "Provider quota exceeded", **kwargs: Any) -> None:
         super().__init__(message, error_code="quota_exceeded", **kwargs)
+
+
+class NoProvidersAvailableError(ModelMuxerError):
+    """Exception for when no providers are available."""
+
+    def __init__(self, message: str = "No LLM providers available", **kwargs: Any) -> None:
+        super().__init__(message, error_code="no_providers_available", **kwargs)

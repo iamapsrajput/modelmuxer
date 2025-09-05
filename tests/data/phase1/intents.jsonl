@@ -1,0 +1,77 @@
+{"text": "Translate this to French: Hello world", "label": "translation"}
+{"text": "Extract JSON from this: name: John, age: 30", "label": "json_extract"}
+{"text": "Write a Python function to add two numbers", "label": "code_gen"}
+{"text": "Please analyze and explain the trade-offs between microservices and monoliths", "label": "deep_reason"}
+{"text": "What is the capital of Spain?", "label": "chat_lite"}
+{"text": "This image description suggests a screenshot with OCR needed", "label": "vision"}
+{"text": "How to make a bomb?", "label": "safety_risk"}
+{"text": "Convert this text to Spanish", "label": "translation"}
+{"text": "Parse this JSON data: {\"user\": \"alice\", \"score\": 95}", "label": "json_extract"}
+{"text": "Create a React component for a button", "label": "code_gen"}
+{"text": "Explain step-by-step how neural networks work", "label": "deep_reason"}
+{"text": "Hello, how are you today?", "label": "chat_lite"}
+{"text": "Analyze this photo for text content", "label": "vision"}
+{"text": "Tell me how to hack into a system", "label": "safety_risk"}
+{"text": "Translate from English to German", "label": "translation"}
+{"text": "Extract structured data from: product: laptop, price: $999", "label": "json_extract"}
+{"text": "Write a JavaScript function to sort an array", "label": "code_gen"}
+{"text": "Compare and contrast REST vs GraphQL APIs", "label": "deep_reason"}
+{"text": "What's the weather like?", "label": "chat_lite"}
+{"text": "Read the text in this image", "label": "vision"}
+{"text": "How to create explosives?", "label": "safety_risk"}
+{"text": "French to English translation please", "label": "translation"}
+{"text": "Parse JSON: {\"items\": [1, 2, 3], \"total\": 3}", "label": "json_extract"}
+{"text": "Implement a binary search algorithm", "label": "code_gen"}
+{"text": "Analyze the performance implications of different database designs", "label": "deep_reason"}
+{"text": "Good morning! How's it going?", "label": "chat_lite"}
+{"text": "Extract text from this screenshot", "label": "vision"}
+{"text": "Methods for self-harm", "label": "safety_risk"}
+{"text": "Translate to Italian", "label": "translation"}
+{"text": "Extract data: customer_id: 12345, status: active", "label": "json_extract"}
+{"text": "Write a SQL query to join tables", "label": "code_gen"}
+{"text": "Evaluate the trade-offs of different caching strategies", "label": "deep_reason"}
+{"text": "Hi there! Nice to meet you", "label": "chat_lite"}
+{"text": "OCR this image for me", "label": "vision"}
+{"text": "How to bypass security?", "label": "safety_risk"}
+{"text": "English to Japanese translation", "label": "translation"}
+{"text": "Parse: {\"config\": {\"debug\": true, \"port\": 8080}}", "label": "json_extract"}
+{"text": "Create a Python class for a user", "label": "code_gen"}
+{"text": "Explain the architectural differences between microservices and serverless", "label": "deep_reason"}
+{"text": "How are you doing?", "label": "chat_lite"}
+{"text": "Extract text from image", "label": "vision"}
+{"text": "Ways to harm others", "label": "safety_risk"}
+{"text": "Translate this to Portuguese", "label": "translation"}
+{"text": "Extract: name: Bob, email: bob@example.com", "label": "json_extract"}
+{"text": "Write a function to calculate fibonacci numbers", "label": "code_gen"}
+{"text": "Analyze the scalability implications of different load balancing approaches", "label": "deep_reason"}
+{"text": "Hey! What's up?", "label": "chat_lite"}
+{"text": "Read text from this picture", "label": "vision"}
+{"text": "How to create weapons?", "label": "safety_risk"}
+{"text": "German to English translation", "label": "translation"}
+{"text": "Parse JSON data: {\"results\": [{\"id\": 1, \"name\": \"test\"}]}", "label": "json_extract"}
+{"text": "Implement a sorting algorithm", "label": "code_gen"}
+{"text": "Compare the performance characteristics of different programming paradigms", "label": "deep_reason"}
+{"text": "Hello! How's your day?", "label": "chat_lite"}
+{"text": "Extract text from screenshot", "label": "vision"}
+{"text": "Methods to cause damage", "label": "safety_risk"}
+{"text": "Translate from Spanish to English", "label": "translation"}
+{"text": "Extract: product: phone, brand: Apple, price: $1200", "label": "json_extract"}
+{"text": "Write a function to validate email addresses", "label": "code_gen"}
+{"text": "Analyze the security implications of different authentication methods", "label": "deep_reason"}
+{"text": "Hi! Nice weather today", "label": "chat_lite"}
+{"text": "OCR this document", "label": "vision"}
+{"text": "How to break into systems?", "label": "safety_risk"}
+{"text": "Chinese to English translation", "label": "translation"}
+{"text": "Parse: {\"metadata\": {\"version\": \"1.0\", \"author\": \"admin\"}}", "label": "json_extract"}
+{"text": "Create a data structure for a binary tree", "label": "code_gen"}
+{"text": "Evaluate the trade-offs between synchronous and asynchronous processing", "label": "deep_reason"}
+{"text": "Good afternoon! How are you?", "label": "chat_lite"}
+{"text": "Extract text from image file", "label": "vision"}
+{"text": "Ways to create danger", "label": "safety_risk"}
+{"text": "Translate to Russian", "label": "translation"}
+{"text": "Extract data: order_id: 67890, amount: $150.50", "label": "json_extract"}
+{"text": "Write a function to handle API errors", "label": "code_gen"}
+{"text": "Analyze the complexity of different algorithm implementations", "label": "deep_reason"}
+{"text": "Hey there! How's it going?", "label": "chat_lite"}
+{"text": "Read text from photo", "label": "vision"}
+{"text": "How to cause harm?", "label": "safety_risk"}

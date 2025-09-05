@@ -14,58 +14,58 @@ data:
   PORT: "8000"
   DEBUG: "false"
   LOG_LEVEL: "INFO"
-  
+
   # Database Configuration
   DATABASE_HOST: "postgresql-primary"
   DATABASE_PORT: "5432"
   DATABASE_NAME: "modelmuxer"
   DATABASE_POOL_SIZE: "20"
   DATABASE_MAX_OVERFLOW: "30"
-  
+
   # Redis Configuration
   REDIS_HOST: "redis-cluster"
   REDIS_PORT: "6379"
   REDIS_DB: "0"
   REDIS_MAX_CONNECTIONS: "100"
-  
+
   # Cache Configuration
   CACHE_ENABLED: "true"
   CACHE_BACKEND: "redis"
   CACHE_DEFAULT_TTL: "3600"
   CACHE_MAX_SIZE: "10000"
-  
+
   # Routing Configuration
   ROUTING_STRATEGY: "hybrid"
   ROUTING_SEMANTIC_ENABLED: "true"
   ROUTING_CASCADE_ENABLED: "true"
   ROUTING_HEURISTIC_ENABLED: "true"
-  
+
   # Classification Configuration
   CLASSIFICATION_ENABLED: "true"
   CLASSIFICATION_MODEL: "all-MiniLM-L6-v2"
   CLASSIFICATION_THRESHOLD: "0.7"
-  
+
   # Monitoring Configuration
   MONITORING_ENABLED: "true"
   METRICS_ENABLED: "true"
   HEALTH_CHECK_ENABLED: "true"
-  
+
   # Security Configuration
   AUTH_ENABLED: "true"
   RATE_LIMIT_ENABLED: "true"
   CORS_ENABLED: "true"
   CORS_ORIGINS: "*"
-  
+
   # Enterprise Features
   MULTI_TENANT_ENABLED: "true"
   AUDIT_LOGGING_ENABLED: "true"
   PII_DETECTION_ENABLED: "true"
-  
+
   # Provider Configuration
   PROVIDER_TIMEOUT: "30"
   PROVIDER_MAX_RETRIES: "3"
   PROVIDER_RETRY_DELAY: "1"
-  
+
   # Cost Tracking
   COST_TRACKING_ENABLED: "true"
   BUDGET_ALERTS_ENABLED: "true"
@@ -85,21 +85,21 @@ data:
         least_conn;
         server modelmuxer-service:8000 max_fails=3 fail_timeout=30s;
     }
-    
+
     server {
         listen 80;
         server_name _;
-        
+
         # Security headers
         add_header X-Frame-Options DENY;
         add_header X-Content-Type-Options nosniff;
         add_header X-XSS-Protection "1; mode=block";
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
-        
+
         # Rate limiting
         limit_req_zone $binary_remote_addr zone=api:10m rate=100r/m;
         limit_req_zone $binary_remote_addr zone=auth:10m rate=10r/m;
-        
+
         # Health check endpoint
         location /health {
             access_log off;
@@ -109,7 +109,7 @@ data:
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
-        
+
         # API endpoints with rate limiting
         location /v1/ {
             limit_req zone=api burst=20 nodelay;
@@ -122,7 +122,7 @@ data:
             proxy_read_timeout 60s;
             proxy_send_timeout 60s;
         }
-        
+
         # Authentication endpoints with stricter rate limiting
         location /auth/ {
             limit_req zone=auth burst=5 nodelay;
@@ -132,7 +132,7 @@ data:
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
-        
+
         # Metrics endpoint (internal only)
         location /metrics {
             allow 10.0.0.0/8;

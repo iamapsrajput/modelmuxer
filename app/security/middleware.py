@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.types import ASGIApp
 
+from ..core.exceptions import ErrorResponse
 from .auth import SecurityManager
 from .pii_protection import PIIProtector
 
@@ -128,13 +129,21 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         """Check if IP is blocked."""
         if client_ip in self.blocked_ips:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="IP address is blocked"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=ErrorResponse.create(
+                    message="IP address is blocked", error_type="forbidden", code="ip_blocked"
+                ).dict(),
             )
 
         # Check dynamic IP blocking (from Redis)
         if self.redis_client.exists(f"blocked_ip:{client_ip}"):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="IP address is temporarily blocked"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=ErrorResponse.create(
+                    message="IP address is temporarily blocked",
+                    error_type="forbidden",
+                    code="ip_temporarily_blocked",
+                ).dict(),
             )
 
     async def _check_rate_limiting(self, request: Request, client_ip: str) -> None:
@@ -205,7 +214,12 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Rate limit exceeded: {current}/{limit} requests per {window}",
+            detail=ErrorResponse.create(
+                message=f"Rate limit exceeded: {current}/{limit} requests per {window}",
+                error_type="rate_limit_exceeded",
+                code="security_rate_limit",
+                details={"current": current, "limit": limit, "window": window},
+            ).dict(),
             headers={"Retry-After": "60" if window == "minute" else "3600"},
         )
 
@@ -215,7 +229,12 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         if content_length and int(content_length) > self.max_request_size:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Request too large: {content_length} bytes (max: {self.max_request_size})",
+                detail=ErrorResponse.create(
+                    message=f"Request too large: {content_length} bytes (max: {self.max_request_size})",
+                    error_type="request_too_large",
+                    code="payload_too_large",
+                    details={"size": int(content_length), "max_size": self.max_request_size},
+                ).dict(),
             )
 
     async def _check_suspicious_patterns(self, request: Request) -> None:
@@ -250,7 +269,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Suspicious request pattern detected",
+                    detail=ErrorResponse.create(
+                        message="Suspicious request pattern detected",
+                        error_type="security_violation",
+                        code="suspicious_pattern",
+                    ).dict(),
                 )
 
     def _add_security_headers(self, response: Response) -> None:

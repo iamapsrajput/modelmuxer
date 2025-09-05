@@ -4,33 +4,46 @@
 # Database models for organization management and multi-tenancy
 
 import uuid
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Index,
-    Integer,
-    Numeric,
-    String,
-    Text,
-)
+try:
+    from sqlalchemy.orm import Mapped
+
+    SQLALCHEMY_2_0_AVAILABLE = True
+except ImportError:
+    # Fallback for older SQLAlchemy versions
+    SQLALCHEMY_2_0_AVAILABLE = False
+
+from sqlalchemy import JSON, Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
+try:
+    import sqlalchemy.orm
 
-class Base(DeclarativeBase):
-    """Base class for all database models."""
+    _DeclarativeBase = getattr(sqlalchemy.orm, "DeclarativeBase", None)
 
-    pass
+    if _DeclarativeBase is not None:
+
+        class Base(_DeclarativeBase):
+            """Base class for all database models."""
+
+            pass
+
+    else:
+        raise ImportError("DeclarativeBase not available")
+
+except (ImportError, AttributeError):
+    # Fallback for older SQLAlchemy versions
+    from sqlalchemy.ext.declarative import declarative_base
+
+    Base = declarative_base()
 
 
-class PlanType(str, Enum):
+class PlanType(StrEnum):
     """Subscription plan types."""
 
     FREE = "free"
@@ -40,7 +53,7 @@ class PlanType(str, Enum):
     CUSTOM = "custom"
 
 
-class OrganizationStatus(str, Enum):
+class OrganizationStatus(StrEnum):
     """Organization status."""
 
     ACTIVE = "active"
@@ -49,7 +62,7 @@ class OrganizationStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     """User roles within organizations."""
 
     OWNER = "owner"
@@ -58,7 +71,7 @@ class UserRole(str, Enum):
     VIEWER = "viewer"
 
 
-class AuditAction(str, Enum):
+class AuditAction(StrEnum):
     """Audit log action types."""
 
     CREATE = "create"

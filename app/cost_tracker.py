@@ -12,6 +12,7 @@ This module provides both basic and advanced cost tracking capabilities includin
 """
 
 import json
+import operator
 import sqlite3
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -20,7 +21,8 @@ from typing import Any
 
 import tiktoken
 
-from .config import settings
+from app.settings import get_provider_pricing, settings
+
 from .models import ChatMessage
 
 # Enhanced imports (optional)
@@ -80,7 +82,7 @@ class CostTracker:
 
     def __init__(self, enhanced_mode: bool = False):
         self.enhanced_mode = enhanced_mode
-        self.pricing = settings.get_provider_pricing()
+        self.pricing = get_provider_pricing()
         # Initialize tokenizers for different providers
         self._tokenizers: dict[str, Any] = {}
 
@@ -93,8 +95,73 @@ class CostTracker:
 
     def _initialize_enhanced_features(self) -> None:
         """Initialize enhanced cost tracking features."""
-        # This will be implemented when we add the AdvancedCostTracker functionality
-        pass
+        try:
+            # Initialize Redis connection
+            self.redis_client = redis.Redis(
+                host="host.docker.internal",  # For Docker container access
+                port=6379,
+                decode_responses=True,
+                socket_timeout=5,
+                socket_connect_timeout=5,
+            )
+            # Test connection
+            self.redis_client.ping()
+            if logger:
+                logger.info("enhanced_cost_tracker_redis_connected")
+        except Exception as e:
+            if logger:
+                logger.warning("enhanced_cost_tracker_redis_failed", error=str(e))
+            # Fallback to mock client
+            self.redis_client = MockRedisClient()
+
+        # Initialize SQLite for persistent budget storage
+        self.db_path = "cost_tracker_enhanced.db"
+        self._init_enhanced_database()
+
+    def _init_enhanced_database(self) -> None:
+        """Initialize enhanced database for cost tracking."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Create enhanced budget tracking tables
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS enhanced_budgets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                budget_type TEXT NOT NULL,
+                budget_limit REAL NOT NULL,
+                provider TEXT,
+                model TEXT,
+                alert_thresholds TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, budget_type, provider, model)
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS enhanced_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                user_id TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                cost REAL NOT NULL,
+                tokens INTEGER DEFAULT 0,
+                routing_reason TEXT,
+                success BOOLEAN DEFAULT TRUE
+            )
+        """
+        )
+
+        conn.commit()
+        conn.close()
+
+        if logger:
+            logger.info("enhanced_database_initialized", db_path=self.db_path)
 
     def get_tokenizer(self, provider: str, model: str) -> None:
         """Get or create tokenizer for a specific model."""
@@ -142,7 +209,7 @@ class CostTracker:
         """Estimate output tokens based on max_tokens parameter."""
         if max_tokens:
             return min(max_tokens, 1000)  # Cap at reasonable default
-        return settings.max_tokens_default // 2  # Estimate half of max as typical output
+        return settings.router.max_tokens_default // 2  # Estimate half of max as typical output
 
     def calculate_cost(
         self, provider: str, model: str, input_tokens: int, output_tokens: int
@@ -237,7 +304,7 @@ class CostTracker:
             comparisons.append(estimate)
 
         # Sort by estimated cost
-        return sorted(comparisons, key=lambda x: x["estimated_cost"])
+        return sorted(comparisons, key=operator.itemgetter("estimated_cost"))
 
     def get_model_info(self, provider: str, model: str) -> dict[str, Any]:
         """Get detailed information about a model including pricing."""

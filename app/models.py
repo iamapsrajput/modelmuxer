@@ -5,7 +5,7 @@ Pydantic models for request/response schemas and data validation.
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, validator
@@ -36,6 +36,7 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: float | None = Field(None, description="Frequency penalty")
     logit_bias: dict[str, float] | None = Field(None, description="Logit bias")
     user: str | None = Field(None, description="User identifier")
+    region: str | None = Field(None, description="Region identifier for compliance/policy checks")
 
 
 class Usage(BaseModel):
@@ -62,6 +63,24 @@ class RouterMetadata(BaseModel):
     routing_reason: str = Field(..., description="Reason for the routing decision")
     estimated_cost: float = Field(..., description="Estimated cost in USD")
     response_time_ms: float = Field(..., description="Response time in milliseconds")
+    # Optional intent fields
+    intent_label: str | None = Field(None, description="Predicted intent label")
+    intent_confidence: float | None = Field(None, description="Intent confidence score")
+    intent_signals: dict[str, Any] | None = Field(None, description="Raw feature signals")
+    # Estimate metadata fields
+    estimated_cost_usd: float | None = Field(None, description="Estimated cost from router in USD")
+    estimated_eta_ms: int | None = Field(
+        None, description="Estimated response time in milliseconds"
+    )
+    # Estimated token fields for downstream telemetry
+    estimated_tokens_in: int | None = Field(None, description="Estimated input tokens from router")
+    estimated_tokens_out: int | None = Field(
+        None, description="Estimated output tokens from router"
+    )
+    # Direct provider routing flag
+    direct_providers_only: bool | None = Field(
+        None, description="Whether direct providers only mode is enabled"
+    )
 
 
 class ChatResponse(BaseModel):
@@ -126,19 +145,25 @@ class ErrorResponse(BaseModel):
 
     @classmethod
     def create(
-        cls, message: str, error_type: str = "invalid_request_error", code: str | None = None
+        cls,
+        message: str,
+        error_type: str = "invalid_request_error",
+        code: str | None = None,
+        details: dict[str, Any] | None = None,
     ) -> "ErrorResponse":
         """Create a standardized error response."""
-        error_data = {"message": message, "type": error_type}
+        error_data: dict[str, Any] = {"message": message, "type": error_type}
         if code:
             error_data["code"] = code
+        if details is not None:
+            error_data["details"] = details
         return cls(error=error_data)
 
 
 # Enhanced models for Part 2: Cost-Aware Cascading & Analytics
 
 
-class BudgetPeriodEnum(str, Enum):
+class BudgetPeriodEnum(StrEnum):
     daily = "daily"
     weekly = "weekly"
     monthly = "monthly"

@@ -1,661 +1,525 @@
-# ModelMuxer™
+# ModelMuxer - Intelligent LLM Router
 
-## The Enterprise-Grade Intelligent LLM Routing Engine
+ModelMuxer is an intelligent LLM routing service that optimizes cost and quality
+by automatically selecting the best provider and model for each request. It uses
+direct provider connections for optimal performance and reliability, providing
+advanced features like cost tracking, caching, and intelligent routing.
 
-[![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-108%20Total-green.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/Coverage-35%25-yellow.svg)](htmlcov/)
-[![Production Ready](https://img.shields.io/badge/Production-Ready-green.svg)](docs/deployment.md)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+## Features
 
-ModelMuxer is a production-ready, enterprise-grade LLM routing platform that
-intelligently routes requests to the optimal AI model based on cost, quality,
-and performance requirements. Built for scale, security, and efficiency.
+- **Multi-Provider Support**: Direct connections to OpenAI, Anthropic, Mistral,
+  Google, Groq, Cohere, Together AI
+- **Intelligent Routing**: Automatic provider/model selection based on request
+  characteristics
+- **Cost Tracking**: Real-time cost monitoring and budget management
+- **Caching**: Response caching for improved performance and cost savings
+- **Enterprise Features**: Multi-tenancy, policy enforcement, and compliance
+- **Observability**: Comprehensive metrics, tracing, and monitoring
 
-## ✨ Key Features
-
-- **🧠 Intelligent Routing**: Cascade, semantic, heuristic, and hybrid routing strategies
-- **💰 Cost Optimization**: Real-time budget management and cost-aware model selection
-- **🌐 Multi-Provider**: OpenAI, Anthropic, Google, Mistral, Groq, LiteLLM, and more
-- **🔐 Enterprise Security**: JWT authentication, RBAC, and audit logging
-- **📊 Observability**: Comprehensive metrics, tracing, and monitoring
-- **☸️ Production Ready**: Kubernetes-native with high availability
-
-## 🏗️ Architecture
-
-ModelMuxer is built with a microservices architecture designed for enterprise scale:
-
-```text
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Load Balancer │────│  ModelMuxer API │────│   Provider APIs │
-│    (NGINX)      │    │   (FastAPI)     │    │ (OpenAI, etc.)  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                       ┌────────┴────────┐
-                       │                 │
-                ┌──────▼──────┐   ┌──────▼──────┐
-                │ PostgreSQL  │   │    Redis    │
-                │  (Primary)  │   │  (Cluster)  │
-                └─────────────┘   └─────────────┘
-```
-
-## 🚀 Quick Start
-
-```bash
-# Clone and install
-git clone https://github.com/iamapsrajput/ModelMuxer.git
-cd ModelMuxer
-poetry install && poetry shell
-
-# Configure and run
-cp .env.example .env  # Add your API keys
-MODELMUXER_MODE=enhanced poetry run uvicorn app.main:app --reload
-```
-
-Visit `http://localhost:8000/docs` for interactive API documentation.
-
-📖 **[Complete Installation Guide](docs/installation.md)** | 🚀 **[Deployment Guide](docs/deployment.md)**
-
-## 📚 API Documentation
-
-### Core Endpoints
-
-| Endpoint                        | Method   | Description                    |
-| ------------------------------- | -------- | ------------------------------ |
-| `/v1/chat/completions`          | POST     | Standard chat completion       |
-| `/v1/chat/completions/enhanced` | POST     | Enhanced completion            |
-| `/v1/analytics/costs`           | GET      | Detailed cost analytics        |
-| `/v1/analytics/budgets`         | GET/POST | Budget management              |
-| `/v1/providers`                 | GET      | Available providers and models |
-| `/v1/models`                    | GET      | List all available models      |
-| `/health`                       | GET      | System health check            |
-| `/metrics`                      | GET      | Prometheus metrics             |
-
-### Example Usage
-
-#### Basic Chat Completion
-
-```python
-import requests
-
-response = requests.post("http://localhost:8000/v1/chat/completions",
-    headers={"Authorization": "Bearer your-jwt-token"},
-    json={
-        "messages": [
-            {"role": "user", "content": "What is the capital of France?"}
-        ],
-        "temperature": 0.7,
-        "max_tokens": 100
-    }
-)
-```
-
-#### Enhanced Cascade Routing
-
-```python
-response = requests.post("http://localhost:8000/v1/chat/completions/enhanced",
-    headers={
-        "Authorization": "Bearer your-jwt-token",
-        "X-Routing-Strategy": "cost_optimized",
-        "X-Max-Budget": "0.05"
-    },
-    json={
-        "messages": [
-            {"role": "user", "content": "Explain quantum computing"}
-        ],
-        "cascade_config": {
-            "cascade_type": "quality_focused",
-            "max_budget": 0.05,
-            "quality_threshold": 0.8
-        }
-    }
-)
-```
-
-#### Cost Analytics
-
-```python
-response = requests.get("http://localhost:8000/v1/analytics/costs",
-    headers={"Authorization": "Bearer your-jwt-token"},
-    params={
-        "start_date": "2025-01-01",
-        "end_date": "2025-01-31",
-        "group_by": "provider"
-    }
-)
-```
-
-For complete API documentation, see our [OpenAPI Specification](docs/openapi/openapi.yaml).
-
-## Setup Instructions
-
-### Prerequisites
-
-- Python 3.11 or higher
-- API keys for at least one LLM provider (OpenAI, Anthropic, Mistral, or LiteLLM proxy)
+## Quick Start
 
 ### Installation
 
-1. **Clone the repository**
+```bash
+# Clone the repository
+git clone https://github.com/your-org/modelmuxer.git
+cd modelmuxer
 
-   ```bash
-   git clone <repository-url>
-   cd ModelMuxer
-   ```
+# Install dependencies
+poetry install
 
-2. **Install dependencies**
+# Set up environment with direct provider API keys
+cp .env.example .env
+# Edit .env with your direct provider API keys:
+# OPENAI_API_KEY=sk-...
+# ANTHROPIC_API_KEY=sk-ant-...
+# MISTRAL_API_KEY=...
+# GOOGLE_API_KEY=...
 
-   ```bash
-   poetry install --with dev,ml
-   ```
+# Run the server
+poetry run python -m app.main
+```
 
-3. **Configure environment variables**
+### Basic Usage
 
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
-   ```
+```bash
+# Start the server
+poetry run python -m app.main --mode basic
 
-4. **Run the server**
+# Make a request
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{
+    "messages": [{"role": "user", "content": "Hello, how are you?"}],
+    "model": "gpt-3.5-turbo"
+  }'
+```
 
-   ```bash
-   # Enhanced mode (recommended for production)
-   # Includes: ML routing, advanced cost tracking, monitoring, enterprise features
-   MODELMUXER_MODE=enhanced uvicorn app.main:app --reload
-
-   # Basic mode for development/testing
-   # Includes: Basic routing, simple cost tracking, minimal features
-   MODELMUXER_MODE=basic uvicorn app.main:app --reload
-   ```
-
-5. **Test the installation**
-
-   ```bash
-   python test_requests.py
-   ```
+## Configuration
 
 ### Environment Variables
 
-Copy `.env.example` to `.env` and configure the following:
+Key configuration options in `.env`:
 
 ```bash
-# Required: LLM Provider API Keys
-OPENAI_API_KEY=sk-your-openai-key-here
-ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
-MISTRAL_API_KEY=your-mistral-key-here
+# Direct Provider API Keys (Primary)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+MISTRAL_API_KEY=...
+GOOGLE_API_KEY=...
+GROQ_API_KEY=gsk_...
+COHERE_API_KEY=...
+TOGETHER_API_KEY=...
 
-# Optional: LiteLLM Proxy Configuration
-LITELLM_BASE_URL=http://localhost:4000
-LITELLM_API_KEY=your-litellm-api-key-here
+# Provider Configuration (Direct connections only)
+PROVIDER_ADAPTERS_ENABLED=true
 
-# Optional: Router Configuration
-DEFAULT_MODEL=gpt-3.5-turbo
-MAX_TOKENS_DEFAULT=1000
-TEMPERATURE_DEFAULT=0.7
 
-# Optional: Security
-ALLOWED_API_KEYS=sk-test-key-1,sk-test-key-2
+# Intent Classifier (Phase 1)
+ROUTER_INTENT_CLASSIFIER_ENABLED=true
+INTENT_LOW_CONFIDENCE=0.4
+INTENT_MIN_CONF_FOR_DIRECT=0.7
 
-# Optional: Cost Limits (USD)
-DEFAULT_DAILY_BUDGET=10.0
-DEFAULT_MONTHLY_BUDGET=100.0
+# Test Mode
+TEST_MODE=false
+
+# Pricing and Cost Estimation
+PRICE_TABLE_PATH=./scripts/data/prices.json
+LATENCY_PRIORS_WINDOW_S=1800
+ESTIMATOR_DEFAULT_TOKENS_IN=400
+ESTIMATOR_DEFAULT_TOKENS_OUT=300
+
+# Budget Thresholds
+MAX_ESTIMATED_USD_PER_REQUEST=0.08
 ```
 
-## Containerization
+### Deployment Modes
 
-ModelMuxer supports multiple containerization platforms with auto-detection:
+- **Basic Mode**: Direct provider routing with cost tracking
+- **Enhanced Mode**: Advanced features with ML classification and caching
+- **Production Mode**: Full enterprise features with monitoring and advanced
+  routing
 
-### **Quick Start (Auto-Detection)**
+## Architecture: Direct Providers Only
+
+ModelMuxer uses direct provider connections exclusively, offering:
+
+- **Lower Latency**: Direct API calls without proxy overhead
+- **Better Error Handling**: Provider-specific error handling and retry logic
+- **Enhanced Control**: Fine-grained configuration per provider
+- **Improved Observability**: Detailed telemetry and circuit breaker patterns
+
+### Provider Requirements
+
+**At least one provider must be configured for ModelMuxer to function:**
+
+- **OpenAI**: Set `OPENAI_API_KEY=sk-...` for GPT models
+- **Anthropic**: Set `ANTHROPIC_API_KEY=sk-ant-...` for Claude models
+- **Mistral**: Set `MISTRAL_API_KEY=...` for Mistral models
+- **Google**: Set `GOOGLE_API_KEY=...` for Gemini models
+- **Groq**: Set `GROQ_API_KEY=gsk_...` for Groq models
+- **Together AI**: Set `TOGETHER_API_KEY=...` for Together AI models
+- **Cohere**: Set `COHERE_API_KEY=...` for Cohere models
+
+If no providers are configured:
+
+- The service will log a warning at startup
+- Requests will fail with a 503 error
+- Check your API key configuration and ensure keys are valid
+
+## API Reference
+
+### Chat Completions
+
+```http
+POST /v1/chat/completions
+```
+
+Compatible with OpenAI's chat completions API. ModelMuxer will automatically
+route to the optimal provider.
+
+### Health Check
+
+```http
+GET /health
+```
+
+Returns service health status.
+
+### Metrics
+
+```http
+GET /metrics/prometheus
+```
+
+Prometheus metrics endpoint.
+
+## Development
+
+### Running Tests
 
 ```bash
-# Automatically detects and uses the best available containerization system
-./scripts/container-auto.sh run
+# Run all tests
+poetry run pytest
+
+# Run specific test categories
+poetry run pytest tests/test_intent_classifier.py
+poetry run pytest tests/test_routing.py
 ```
 
-### **Apple Container (macOS 15+ Beta)**
+### Code Quality
 
 ```bash
-# Check system compatibility
-./scripts/apple-container-commands.sh check
+# Format code
+poetry run black .
 
-# Build and run with Apple Container
-./scripts/apple-container-commands.sh run
+# Lint code
+poetry run ruff check .
 
-# Using Apple Container Compose
-container compose -f container-compose.yaml up -d
+# Type checking
+poetry run mypy .
 ```
 
-### **Docker (Cross-Platform)**
+## Cost Estimation & Budget Management
+
+ModelMuxer includes a comprehensive cost estimation and budget management system
+that helps control spending and optimize model selection based on cost
+constraints.
+
+### Price Table
+
+The system uses a centralized price table (`scripts/data/prices.json`)
+containing current market rates for all supported providers and models. The
+price table format is:
+
+```json
+{
+  "provider:model": {
+    "input_per_1k_usd": 2.5,
+    "output_per_1k_usd": 10.0
+  }
+}
+```
+
+Prices are in USD per 1k tokens and use the mtoks = tokens/1000 formula. The
+system automatically loads and validates this price table on startup.
+
+### Latency Priors
+
+The system maintains latency priors for each model using a ring buffer of recent
+measurements. This provides p95 and p99 percentile estimates for ETA
+calculation, helping with both cost and performance optimization.
+
+### Budget Gate
+
+The budget gate enforces cost constraints before routing decisions:
+
+- **Pre-request Estimation**: Estimates cost using token heuristics and current
+  prices
+- **Budget Enforcement**: Blocks requests that exceed
+  `MAX_ESTIMATED_USD_PER_REQUEST`
+- **Down-routing**: Automatically selects cheaper models when budget allows
+- **Structured Errors**: Returns HTTP 402 with detailed cost information when
+  budget exceeded
+
+### Configuration
+
+Configure budget constraints and estimation parameters:
 
 ```bash
-# Using Docker Compose
-docker-compose up -d
+# Budget threshold (typical values: 0.05 conservative, 0.08 balanced, 0.15 permissive)
+MAX_ESTIMATED_USD_PER_REQUEST=0.08
 
-# Or build and run manually
-docker build -t modelmuxer:latest .
-docker run -d --name modelmuxer --env-file .env -p 8000:8000 modelmuxer:latest
+# Latency measurement window (30 minutes default)
+LATENCY_PRIORS_WINDOW_S=1800
+
+# Default token estimates when not provided
+ESTIMATOR_DEFAULT_TOKENS_IN=400
+ESTIMATOR_DEFAULT_TOKENS_OUT=300
 ```
 
-For detailed containerization instructions and troubleshooting, see [docs/containerization-guide.md](docs/containerization-guide.md).
+### Error Response Format
 
-## API Usage
+ModelMuxer uses a standardized error response format for all API errors. All
+error responses include an `error` object with consistent structure:
 
-### Chat Completion API
+```json
+{
+  "error": {
+    "message": "Human-readable error description",
+    "type": "error_category",
+    "code": "specific_error_code",
+    "details": {
+      // Additional error-specific information
+    }
+  }
+}
+```
+
+#### Budget Exceeded Errors (HTTP 402)
+
+```json
+{
+  "error": {
+    "message": "Budget exceeded: No models within budget limit of $0.08",
+    "type": "budget_exceeded",
+    "code": "insufficient_budget",
+    "details": {
+      "limit": 0.08,
+      "estimate": 0.12
+    }
+  }
+}
+```
+
+#### Validation Errors (HTTP 400)
+
+```json
+
+```
+
+#### Authentication Errors (HTTP 401)
+
+```json
+{
+  "error": {
+    "message": "Invalid API key provided.",
+    "type": "authentication_error",
+    "code": "invalid_api_key",
+    "details": {}
+  }
+}
+```
+
+#### Rate Limiting Errors (HTTP 429)
+
+```json
+{
+  "error": {
+    "message": "Rate limit exceeded: 100/100 requests per minute",
+    "type": "rate_limit_exceeded",
+    "code": "security_rate_limit",
+    "details": {
+      "current": 100,
+      "limit": 100,
+      "window": "minute"
+    }
+  }
+}
+```
+
+#### Provider Errors (HTTP 502)
+
+```json
+{
+  "error": {
+    "message": "Provider error: OpenAI API returned 429",
+    "type": "provider_error",
+    "code": "provider_error",
+    "details": {}
+  }
+}
+```
+
+#### Service Unavailable Errors (HTTP 503)
+
+```json
+{
+  "error": {
+    "message": "Provider openai is not available",
+    "type": "service_unavailable",
+    "code": "provider_unavailable",
+    "details": {}
+  }
+}
+```
+
+### Integration with Existing Systems
+
+The new cost estimation system works alongside the existing cost tracking
+system:
+
+- **Pre-request Estimation**: New system estimates costs before routing
+- **Post-request Tracking**: Existing system tracks actual costs after
+  completion
+- **Telemetry Integration**: Both systems contribute to monitoring and metrics
+- **Backward Compatibility**: Existing cost tracking continues to work unchanged
+
+### Response Headers
+
+When debug mode is enabled (`SERVER_DEBUG=true`), the API includes additional
+headers for observability:
+
+- **`X-Route-Decision`**: Shows the selected provider and model (e.g.,
+  `openai:gpt-4o-mini`)
+- **`X-Route-Estimate-USD`**: Shows the estimated cost in USD (e.g., `0.000150`)
+
+**Note**: These headers are non-contractual and may change without notice. They
+are intended for debugging and monitoring purposes only.
+
+## Phase 1: Intent Classifier
+
+The Routing Mind intent classifier is the first building block for intelligent
+routing. It analyzes each request and tags it with a task label and confidence
+score before routing decisions are made.
+
+### Features
+
+- **Lightweight Classification**: Uses heuristics by default, with optional
+  cheap LLM integration
+- **Deterministic Results**: Test mode ensures reproducible behavior
+- **Feature Extraction**: Extracts lexical and structural signals from prompts
+- **Telemetry Integration**: OpenTelemetry spans and Prometheus metrics
+
+### Intent Labels
+
+The classifier supports 7 intent labels:
+
+- `chat_lite`: Simple conversation and basic questions
+- `deep_reason`: Complex analysis, explanations, and reasoning
+- `code_gen`: Code generation and programming tasks
+- `json_extract`: JSON parsing and structured data extraction
+- `translation`: Language translation tasks
+- `vision`: Image analysis and OCR tasks
+- `safety_risk`: Potentially harmful content detection
+
+### Configuration
 
 ```bash
-curl -X POST "http://localhost:8000/v1/chat/completions" \
-  -H "Authorization: Bearer sk-test-key-1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "messages": [
-      {"role": "user", "content": "What is the capital of France?"}
-    ],
-    "max_tokens": 150,
-    "temperature": 0.7
-  }'
+# Enable/disable the classifier
+ROUTER_INTENT_CLASSIFIER_ENABLED=true
+
+# Confidence thresholds
+INTENT_LOW_CONFIDENCE=0.4
+INTENT_MIN_CONF_FOR_DIRECT=0.7
 ```
 
-### Streaming Response
+### Usage
+
+The classifier runs automatically on each request and attaches intent metadata
+to the response:
+
+```json
+{
+  "router_metadata": {
+    "selected_provider": "openai",
+    "selected_model": "gpt-3.5-turbo",
+    "routing_reason": "Simple query detected",
+    "intent_label": "chat_lite",
+    "intent_confidence": 0.85,
+    "intent_signals": {
+      "token_length_est": 45.2,
+      "has_code_fence": false,
+      "has_programming_keywords": false,
+      "signals": {
+        "code": false,
+        "translation": false,
+        "vision": false,
+        "safety": false
+      }
+    }
+  }
+}
+```
+
+### Testing
+
+The classifier includes comprehensive tests with a dataset of 60 labeled
+examples:
 
 ```bash
-curl -X POST "http://localhost:8000/v1/chat/completions" \
-  -H "Authorization: Bearer sk-test-key-1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "messages": [
-      {"role": "user", "content": "Count from 1 to 10"}
-    ],
-    "stream": true
-  }'
+# Run intent classifier tests
+poetry run pytest tests/test_intent_classifier.py -v
 ```
 
-### Python Client Example
+The test suite validates:
 
-```python
-import httpx
-import asyncio
+- Accuracy ≥ 80% on the labeled dataset
+- Deterministic results in test mode
+- Proper handling of disabled feature flag
+- Confidence score validation
+- Feature signal extraction
 
-async def chat_with_router():
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "http://localhost:8000/v1/chat/completions",
-            headers={"Authorization": "Bearer sk-test-key-1"},
-            json={
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": "Write a Python function to calculate fibonacci"
-                    }
-                ],
-                "max_tokens": 500
-            }
-        )
+### Architecture
 
-        data = response.json()
-        print(f"Response: {data['choices'][0]['message']['content']}")
-        print(f"Provider: {data['router_metadata']['selected_provider']}")
-        print(f"Model: {data['router_metadata']['selected_model']}")
-        print(f"Cost: ${data['router_metadata']['estimated_cost']:.6f}")
+The intent classifier consists of:
 
-asyncio.run(chat_with_router())
-```
+1. **Feature Extraction** (`app/core/features.py`): Extracts lexical and
+   structural signals
+2. **Intent Classification** (`app/core/intent.py`): Heuristic classification
+   with LLM fallback
+3. **Integration** (`app/main.py`): Wired into request flow with telemetry
+4. **Telemetry** (`app/telemetry/metrics.py`): Prometheus counter and
+   OpenTelemetry spans
 
-## Docker Deployment
+### Future Enhancements
 
-### Using Docker Compose
-
-1. **Create environment file**
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
-   ```
-
-2. **Build and run**
-
-   ```bash
-   docker-compose up --build
-   ```
-
-3. **Test the deployment**
-
-   ```bash
-   curl http://localhost:8000/health
-   ```
-
-### Manual Docker Build
-
-```bash
-# Build the image
-docker build -t modelmuxer .
-
-# Run the container
-docker run -p 8000:8000 \
-  -e OPENAI_API_KEY=your-key \
-  -e ANTHROPIC_API_KEY=your-key \
-  -e MISTRAL_API_KEY=your-key \
-  modelmuxer
-```
+- Cheap LLM integration for improved accuracy
+- Dynamic confidence thresholds based on model performance
+- Intent-aware routing decisions
+- A/B testing framework for intent strategies
 
 ## Monitoring and Metrics
 
-### System Metrics
+ModelMuxer provides comprehensive Prometheus metrics for monitoring routing
+decisions, cost estimation, and system performance.
 
-```bash
-curl -H "Authorization: Bearer sk-test-key-1" \
-  http://localhost:8000/metrics
-```
+### Key Metrics
 
-### User Statistics
+- **`modelmuxer_router_cost_estimate_usd_sum`**: Total estimated costs by route,
+  model, and budget status
+  - Labels: `route`, `model`, `within_budget` (true/false)
+  - The `within_budget` label helps analyze budget gating effectiveness
+- **`modelmuxer_router_budget_exceeded_total`**: Budget exceeded events by route
+  and reason
+- **`modelmuxer_router_decision_latency_ms`**: Router decision latency
+  distribution
+- **`modelmuxer_provider_latency_seconds`**: Provider response latency by
+  provider and model
 
-```bash
-curl -H "Authorization: Bearer sk-test-key-1" \
-  http://localhost:8000/user/stats
-```
+### Budget Monitoring
 
-### Available Providers
+The `within_budget` label in cost estimation metrics provides visibility into:
 
-```bash
-curl -H "Authorization: Bearer sk-test-key-1" \
-  http://localhost:8000/providers
-```
+- How often models exceed budget thresholds
+- Which models are most frequently down-routed due to cost
+- Budget gating effectiveness across different request types
 
-## 🔗 LiteLLM Integration
+### Grafana Dashboard
 
-ModelMuxer supports [LiteLLM](https://docs.litellm.ai/) as a unified proxy for accessing multiple LLM providers through a single endpoint. This is particularly useful for:
+A pre-configured Grafana dashboard is available in
+`grafana/dashboard_modelmuxer.json` for visualizing these metrics.
 
-- **Unified API**: Access 100+ LLM models through one consistent interface
-- **Cost Optimization**: Leverage LiteLLM's built-in cost tracking and optimization
-- **Provider Abstraction**: Switch between providers without changing your code
-- **Advanced Features**: Load balancing, fallbacks, and custom model configurations
+## Known Limitations
 
-### LiteLLM Setup
+### Latency Priors (In-Memory Only)
 
-1. **Install and run LiteLLM proxy**:
+The current latency tracking system (`LatencyPriors`) is implemented as an
+in-memory ring buffer that resets on application restart. This means:
 
-   ```bash
-   pip install litellm[proxy]
-   litellm --config config.yaml
-   ```
-
-2. **Configure ModelMuxer**:
-
-   ```bash
-   # In your .env file
-   LITELLM_BASE_URL=http://localhost:4000
-   LITELLM_API_KEY=your-litellm-api-key-here  # Optional
-   ```
-
-3. **Example LiteLLM config.yaml**:
-   ```yaml
-   model_list:
-     - model_name: gpt-3.5-turbo
-       litellm_params:
-         model: openai/gpt-3.5-turbo
-         api_key: sk-your-openai-key
-     - model_name: claude-3-haiku
-       litellm_params:
-         model: anthropic/claude-3-haiku-20240307
-         api_key: sk-ant-your-anthropic-key
-   ```
-
-### LiteLLM Benefits in ModelMuxer
-
-- **Seamless Integration**: Works with existing routing strategies
-- **Cost Tracking**: Combines LiteLLM and ModelMuxer cost analytics
-- **Fallback Support**: Automatic failover when LiteLLM proxy is unavailable
-- **Custom Models**: Support for custom model configurations and pricing
-
-## Routing Logic Details
-
-The router uses heuristic analysis to select the optimal provider and model:
-
-### Code Detection
-
-- **Triggers**: Code blocks (```), inline code (`), programming keywords
-- **Route to**: GPT-4o or Claude-Sonnet for high-quality code generation
-- **Example**: "Write a Python function to sort a list"
-
-### Complexity Analysis
-
-- **Triggers**: Keywords like "analyze", "explain", "debug", "reasoning"
-- **Route to**: Premium models (GPT-4o, Claude-Sonnet)
-- **Example**: "Analyze the time complexity of merge sort"
-
-### Simple Queries
-
-- **Triggers**: Short prompts (<100 chars), simple question patterns
-- **Route to**: Cost-effective models (Mistral-small, Claude-Haiku)
-- **Example**: "What is 2+2?"
-
-### General Queries
-
-- **Default**: Balanced cost/quality models (GPT-3.5-turbo)
-- **Example**: "Tell me about climate change"
-
-## Cost Optimization
-
-### Budget Management
-
-- Daily and monthly budget limits per user
-- Automatic cost estimation before requests
-- Budget exceeded protection
-
-### Cost Tracking
-
-- Real-time cost calculation
-- Usage analytics per user
-- Provider cost comparison
-
-### Model Pricing (per million tokens)
-
-| Provider  | Model           | Input | Output |
-| --------- | --------------- | ----- | ------ |
-| OpenAI    | GPT-4o          | $5.00 | $15.00 |
-| OpenAI    | GPT-3.5-turbo   | $0.50 | $1.50  |
-| Anthropic | Claude-3-Sonnet | $3.00 | $15.00 |
-| Anthropic | Claude-3-Haiku  | $0.25 | $1.25  |
-| Mistral   | Mistral-Small   | $0.20 | $0.60  |
-
-## Testing
-
-### Run All Tests
-
-```bash
-# Integration tests
-python test_requests.py
-
-# Unit tests
-python test_router.py
-```
-
-### Test Specific Scenarios
-
-```bash
-# Test with custom URL and API key
-python test_requests.py --url http://localhost:8000 --api-key your-key
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"Provider not available" error**
-
-   - Check that API keys are correctly set in `.env`
-   - Verify API keys are valid and have sufficient credits
-   - Check network connectivity to provider APIs
-
-2. **"Budget exceeded" error**
-
-   - Check daily/monthly budget limits in settings
-   - Review usage with `/user/stats` endpoint
-   - Adjust budget limits in `.env` file
-
-3. **Authentication errors**
-
-   - Verify API key format (should start with `sk-` for test keys)
-   - Check `ALLOWED_API_KEYS` in configuration
-   - Ensure Authorization header is properly formatted
-
-4. **High response times**
-   - Check provider API status
-   - Consider using faster models for simple queries
-   - Monitor system resources
-
-### Debug Mode
-
-Run with debug logging:
-
-```bash
-DEBUG=true uvicorn app.main:app --reload --log-level debug
-```
-
-### Health Checks
-
-```bash
-# Check API health
-curl http://localhost:8000/health
-
-# Check provider availability
-curl -H "Authorization: Bearer sk-test-key-1" \
-  http://localhost:8000/providers
-```
-
-## Architecture
-
-### Components
-
-- **FastAPI Application**: Main API server with OpenAI-compatible endpoints
-- **Heuristic Router**: Intelligent routing logic based on prompt analysis
-- **Provider Adapters**: Unified interface for OpenAI, Anthropic, and Mistral
-- **Cost Tracker**: Real-time cost calculation and budget management
-- **Database Layer**: SQLite for request logging and usage tracking
-- **Authentication**: API key-based authentication with rate limiting
-
-### Data Flow
-
-1. **Request Authentication**: Validate API key and check rate limits
-2. **Prompt Analysis**: Analyze prompt characteristics (code, complexity, length)
-3. **Model Selection**: Route to optimal provider/model based on analysis
-4. **Budget Check**: Verify user has sufficient budget for estimated cost
-5. **Provider Call**: Execute request with selected provider
-6. **Response Processing**: Standardize response format and add metadata
-7. **Logging**: Record request details, costs, and performance metrics
+- **Limitation**: All latency measurements are lost when the service restarts
+- **Impact**: ETA estimates will fall back to defaults until new measurements
+  are collected
+- **Workaround**: For production deployments, consider implementing a
+  Redis-backed version that persists measurements across restarts
+- **Future Enhancement**: The interface is designed to be easily replaceable
+  with a persistent backend
 
 ## Contributing
 
-### Development Setup
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of
+conduct and the process for submitting pull requests.
 
-1. Fork the repository
-2. Create a virtual environment: `python -m venv venv`
-3. Activate: `source venv/bin/activate` (Linux/Mac) or `venv\Scripts\activate` (Windows)
-4. Install dependencies: `poetry install --with dev,ml`
-5. Run tests: `python test_router.py && python test_requests.py`
+## License
 
-### Adding New Providers
+This project is licensed under the Business Source License 1.1 - see the
+[LICENSE](LICENSE) file for details.
 
-1. Create new provider class in `app/providers/`
-2. Inherit from `LLMProvider` base class
-3. Implement required methods: `chat_completion`, `stream_chat_completion`, `calculate_cost`
-4. Add provider to `app/providers/__init__.py`
-5. Update configuration and pricing in `app/config.py`
-6. Add tests for the new provider
+## Support
 
-## 📊 Performance & Benchmarks
+For support and questions:
 
-ModelMuxer delivers exceptional performance with intelligent routing:
-
-- **Cost Savings**: Up to 70% cost reduction through cascade routing
-- **Response Time**: <200ms average routing decision time
-- **Throughput**: 10,000+ requests/minute per instance
-- **Availability**: 99.9% uptime with proper deployment
-- **Quality**: Maintains 95%+ response quality with cost optimization
-
-## 🔒 Security & Compliance
-
-- **🔐 Enterprise Security**: JWT authentication, RBAC, audit logging
-- **🛡️ PII Protection**: Automatic detection and redaction of sensitive data
-- **📋 Compliance Ready**: GDPR, CCPA, SOC 2 compliance features
-- **🔍 Security Scanning**: Automated vulnerability scanning in CI/CD
-- **🏰 Network Security**: Kubernetes network policies and TLS encryption
-
-## 📈 Monitoring & Observability
-
-- **📊 Grafana Dashboards**: Pre-built dashboards for cost, performance, and health
-- **🚨 Alerting**: Comprehensive alerting for budgets, errors, and performance
-- **📝 Structured Logging**: JSON logs with correlation IDs and tracing
-- **🔍 Distributed Tracing**: End-to-end request tracing with OpenTelemetry
-- **📈 Custom Metrics**: Business metrics for cost optimization and quality
-
-## 📖 Documentation
-
-- **[Production Deployment Guide](docs/deployment/production-guide.md)**:
-  Complete production setup
-- **[API Documentation](docs/openapi/openapi.yaml)**: OpenAPI specification
-- **[Security Guide](docs/security.md)**: Security configuration and practices
-- **[Monitoring Guide](docs/monitoring.md)**: Observability setup and configuration
-- **[Production Checklist](docs/deployment/production-checklist.md)**:
-  Pre-deployment checklist
-
-## 📄 License
-
-ModelMuxer is licensed under the [Business Source License 1.1](LICENSE).
-
-### 📋 License Summary
-
-- ✅ **Non-commercial use**: Free for personal, academic, and research use
-- ✅ **Evaluation**: Free to test and evaluate the software
-- ✅ **Contributions**: Community contributions welcome under the same license
-- ❌ **Commercial use**: Requires separate commercial license until January 1, 2027
-- 🔄 **Future**: Automatically becomes Apache 2.0 licensed on January 1, 2027
-
-### 💼 Commercial Licensing
-
-For commercial use, enterprise licenses, or questions about licensing,
-please open a GitHub Issue with the "licensing" label.
-
-### 🏛️ Academic and Research Use
-
-ModelMuxer is free for academic research, educational use, and non-commercial
-research projects. Please cite the project in academic publications.
-
-### 📜 Legal Documents
-
-- [LICENSE](LICENSE) - Complete Business Source License 1.1 terms
-- [COPYRIGHT](COPYRIGHT) - Copyright and ownership information
-- [NOTICE](NOTICE) - Distribution and attribution requirements
-- [TRADEMARKS.md](TRADEMARKS.md) - Trademark usage guidelines
-- [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) - Third-party dependency licenses
-
-## 🏢 Enterprise Support
-
-**ModelMuxer Enterprise** offers additional features and support:
-
-- 🎯 **Priority Support**: 24/7 support with SLA guarantees
-- 🏗️ **Custom Deployment**: On-premises and private cloud deployment
-- 🔧 **Custom Features**: Tailored routing strategies and integrations
-- 📊 **Advanced Analytics**: Enhanced reporting and business intelligence
-- 🔒 **Enhanced Security**: Additional compliance and security features
-
-Please open a GitHub Issue with the "enterprise" label for more information.
-
-## 🙏 Acknowledgments
-
-- **FrugalGPT**: Inspiration for cascade routing strategies
-- **OpenAI**: API compatibility and excellent models
-- **Anthropic**: High-quality Claude models and safety research
-- **FastAPI**: Excellent Python web framework
-- **Kubernetes**: Container orchestration platform
-- **Prometheus & Grafana**: Monitoring and observability stack
-
----
-
-## Built with ❤️ by the ModelMuxer team
-
-For questions, support, or feedback:
-
-- 💬 Discord: [Join our community](https://discord.gg/modelmuxer)
-- 🐛 Issues: [GitHub Issues](https://github.com/iamapsrajput/modelmuxer/issues)
-- 📧 Support: Open a GitHub Issue with the "support" label
-- 📖 Docs: [docs.modelmuxer.com](https://docs.modelmuxer.com)
+- Create an issue on GitHub
+- Check the [documentation](docs/)
+- Review [troubleshooting guide](docs/troubleshooting.md)

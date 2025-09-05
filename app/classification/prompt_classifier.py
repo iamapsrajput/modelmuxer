@@ -7,6 +7,7 @@ This module provides machine learning-based classification of prompts
 to improve routing decisions and understand user intent.
 """
 
+import operator
 from datetime import datetime
 from typing import Any
 
@@ -219,7 +220,7 @@ class PromptClassifier(ClassifierInterface):
                 category_scores[category] = similarity
 
             # Find the best matching category
-            best_category = max(category_scores.items(), key=lambda x: x[1])
+            best_category = max(category_scores.items(), key=operator.itemgetter(1))
             category_name, confidence = best_category
 
             # Apply confidence threshold
@@ -285,7 +286,7 @@ class PromptClassifier(ClassifierInterface):
                 "method": "keyword_fallback",
             }
 
-        best_category = max(category_scores.items(), key=lambda x: x[1])
+        best_category = max(category_scores.items(), key=operator.itemgetter(1))
         category_name, confidence = best_category
 
         return {

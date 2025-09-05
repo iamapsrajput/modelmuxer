@@ -1,0 +1,191 @@
+{
+    "_comment": "ModelMuxer Direct Provider Price Table - Current market rates as of 2025",
+    "_format": "provider:model -> {input_per_1k_usd, output_per_1k_usd}",
+    "_source": "Direct provider pricing APIs and documentation",
+    "_note": "Prices in USD per 1k tokens (1k tokens = 1,000 tokens). Only direct providers supported.",
+    "_providers": "openai, anthropic, mistral, groq, google, cohere, together",
+    "openai:gpt-4o": {
+        "input_per_1k_usd": 2.50,
+        "output_per_1k_usd": 10.00
+    },
+    "openai:gpt-4o-mini": {
+        "input_per_1k_usd": 0.15,
+        "output_per_1k_usd": 0.60
+    },
+    "openai:gpt-3.5-turbo": {
+        "input_per_1k_usd": 0.50,
+        "output_per_1k_usd": 1.50
+    },
+    "openai:gpt-4-turbo": {
+        "input_per_1k_usd": 10.00,
+        "output_per_1k_usd": 30.00
+    },
+    "openai:gpt-4": {
+        "input_per_1k_usd": 30.00,
+        "output_per_1k_usd": 60.00
+    },
+    "openai:o1": {
+        "input_per_1k_usd": 5.00,
+        "output_per_1k_usd": 15.00
+    },
+    "anthropic:claude-3-opus": {
+        "input_per_1k_usd": 15.00,
+        "output_per_1k_usd": 75.00
+    },
+    "anthropic:claude-3-sonnet": {
+        "input_per_1k_usd": 3.00,
+        "output_per_1k_usd": 15.00
+    },
+    "anthropic:claude-3-haiku": {
+        "input_per_1k_usd": 0.25,
+        "output_per_1k_usd": 1.25
+    },
+    "anthropic:claude-3-5-sonnet": {
+        "input_per_1k_usd": 3.00,
+        "output_per_1k_usd": 15.00
+    },
+    "anthropic:claude-sonnet-4-20250514": {
+        "input_per_1k_usd": 3.00,
+        "output_per_1k_usd": 15.00
+    },
+    "anthropic:claude-4-sonnet-20250514": {
+        "input_per_1k_usd": 3.00,
+        "output_per_1k_usd": 15.00
+    },
+    "anthropic:claude-3-5-sonnet-latest": {
+        "input_per_1k_usd": 3.00,
+        "output_per_1k_usd": 15.00
+    },
+    "anthropic:claude-3-5-sonnet-20241022": {
+        "input_per_1k_usd": 3.00,
+        "output_per_1k_usd": 15.00
+    },
+    "anthropic:claude-opus-4-20250514": {
+        "input_per_1k_usd": 15.00,
+        "output_per_1k_usd": 75.00
+    },
+    "anthropic:claude-3-opus-20240229": {
+        "input_per_1k_usd": 15.00,
+        "output_per_1k_usd": 75.00
+    },
+    "anthropic:claude-3-haiku-20240307": {
+        "input_per_1k_usd": 0.25,
+        "output_per_1k_usd": 1.25
+    },
+    "anthropic:claude-3-5-haiku-20241022": {
+        "input_per_1k_usd": 0.25,
+        "output_per_1k_usd": 1.25
+    },
+    "mistral:mistral-large-latest": {
+        "input_per_1k_usd": 8.00,
+        "output_per_1k_usd": 24.00
+    },
+    "mistral:mistral-medium-latest": {
+        "input_per_1k_usd": 2.70,
+        "output_per_1k_usd": 8.10
+    },
+    "mistral:mistral-small-latest": {
+        "input_per_1k_usd": 0.20,
+        "output_per_1k_usd": 0.60
+    },
+    "mistral:codestral-latest": {
+        "input_per_1k_usd": 0.20,
+        "output_per_1k_usd": 0.60
+    },
+    "groq:llama-3.1-405b-reasoning": {
+        "input_per_1k_usd": 0.59,
+        "output_per_1k_usd": 0.79
+    },
+    "groq:llama-3.1-70b-versatile": {
+        "input_per_1k_usd": 0.59,
+        "output_per_1k_usd": 0.79
+    },
+    "groq:llama-3.1-8b-instant": {
+        "input_per_1k_usd": 0.05,
+        "output_per_1k_usd": 0.08
+    },
+    "groq:mixtral-8x7b-32768": {
+        "input_per_1k_usd": 0.24,
+        "output_per_1k_usd": 0.24
+    },
+    "groq:gemma-7b-it": {
+        "input_per_1k_usd": 0.07,
+        "output_per_1k_usd": 0.07
+    },
+    "google:gemini-pro": {
+        "input_per_1k_usd": 0.50,
+        "output_per_1k_usd": 1.50
+    },
+    "google:gemini-pro-vision": {
+        "input_per_1k_usd": 0.50,
+        "output_per_1k_usd": 1.50
+    },
+    "google:gemini-1.5-pro": {
+        "input_per_1k_usd": 3.50,
+        "output_per_1k_usd": 10.50
+    },
+    "google:gemini-1.5-flash": {
+        "input_per_1k_usd": 0.075,
+        "output_per_1k_usd": 0.30
+    },
+    "google:gemini-1.5-pro-latest": {
+        "input_per_1k_usd": 3.50,
+        "output_per_1k_usd": 10.50
+    },
+    "google:gemini-1.5-flash-latest": {
+        "input_per_1k_usd": 0.075,
+        "output_per_1k_usd": 0.30
+    },
+    "google:gemini-1.5-pro-001": {
+        "input_per_1k_usd": 3.50,
+        "output_per_1k_usd": 10.50
+    },
+    "google:gemini-1.5-flash-001": {
+        "input_per_1k_usd": 0.075,
+        "output_per_1k_usd": 0.30
+    },
+    "cohere:command": {
+        "input_per_1k_usd": 0.15,
+        "output_per_1k_usd": 0.60
+    },
+    "cohere:command-light": {
+        "input_per_1k_usd": 0.15,
+        "output_per_1k_usd": 0.60
+    },
+    "cohere:command-nightly": {
+        "input_per_1k_usd": 0.15,
+        "output_per_1k_usd": 0.60
+    },
+    "cohere:command-r-plus": {
+        "input_per_1k_usd": 3.00,
+        "output_per_1k_usd": 15.00
+    },
+    "cohere:command-r": {
+        "input_per_1k_usd": 0.50,
+        "output_per_1k_usd": 1.50
+    },
+    "together:llama-2-70b-chat": {
+        "input_per_1k_usd": 0.70,
+        "output_per_1k_usd": 0.80
+    },
+    "together:llama-2-13b-chat": {
+        "input_per_1k_usd": 0.18,
+        "output_per_1k_usd": 0.20
+    },
+    "together:llama-2-7b-chat": {
+        "input_per_1k_usd": 0.09,
+        "output_per_1k_usd": 0.10
+    },
+    "together:meta-llama/Llama-3-70b-chat-hf": {
+        "input_per_1k_usd": 0.90,
+        "output_per_1k_usd": 0.90
+    },
+    "together:meta-llama/Llama-3-8b-chat-hf": {
+        "input_per_1k_usd": 0.20,
+        "output_per_1k_usd": 0.20
+    },
+    "together:mistralai/Mixtral-8x7B-Instruct-v0.1": {
+        "input_per_1k_usd": 0.60,
+        "output_per_1k_usd": 0.60
+    }
+}

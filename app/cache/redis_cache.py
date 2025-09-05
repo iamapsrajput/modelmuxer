@@ -120,22 +120,22 @@ class RedisCache(CacheInterface):
                 if data.startswith(b"compressed:"):
                     # Legacy compressed pickle format
                     import gzip
-                    import pickle  # nosec B403 - controlled legacy fallback
+                    import pickle  # noqa: S403 - controlled legacy fallback
 
                     compressed_data = data[11:]  # Remove "compressed:" prefix
                     decompressed = gzip.decompress(compressed_data)
-                    return pickle.loads(decompressed)  # nosec B301 - controlled legacy fallback
+                    return pickle.loads(decompressed)  # noqa: S301 - controlled legacy fallback
                 elif data.startswith(b"raw:"):
                     # Legacy raw pickle format
-                    import pickle  # nosec B403 - controlled legacy fallback
+                    import pickle  # noqa: S403 - controlled legacy fallback
 
                     raw_data = data[4:]  # Remove "raw:" prefix
-                    return pickle.loads(raw_data)  # nosec B301 - controlled legacy fallback
+                    return pickle.loads(raw_data)  # noqa: S301 - controlled legacy fallback
                 else:
                     # Legacy format - assume raw pickle
-                    import pickle  # nosec B403 - controlled legacy fallback
+                    import pickle  # noqa: S403 - controlled legacy fallback
 
-                    return pickle.loads(data)  # nosec B301 - controlled legacy fallback
+                    return pickle.loads(data)  # noqa: S301 - controlled legacy fallback
 
         except Exception as e:
             raise CacheError(f"Failed to deserialize value: {e}") from e

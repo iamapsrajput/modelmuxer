@@ -35,7 +35,7 @@ class AuthMiddleware:
         # Authentication methods
         self.auth_methods = self.config.get("auth_methods", ["api_key"])
         self.api_keys = set(self.config.get("api_keys", []))
-        self.jwt_secret = self.config.get("jwt_secret", "default-secret-change-in-production")
+        self.jwt_secret = self.config.get("jwt_secret_key", "default-secret-change-in-production")
         self.jwt_algorithm = self.config.get("jwt_algorithm", "HS256")
 
         # Rate limiting
