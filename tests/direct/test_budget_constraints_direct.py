@@ -8,11 +8,12 @@ direct providers, including budget gates, down-routing, cost estimation, and
 error handling.
 """
 
-import pytest
-from unittest.mock import patch, Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
-from app.models import ChatMessage
+import pytest
+
 from app.core.exceptions import BudgetExceededError
+from app.models import ChatMessage
 
 
 @pytest.mark.direct

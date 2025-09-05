@@ -7,6 +7,7 @@ This module contains the enhanced heuristic router that uses rule-based
 logic to determine the optimal provider and model for requests.
 """
 
+import operator
 import re
 from typing import Any
 
@@ -307,7 +308,7 @@ class EnhancedHeuristicRouter(BaseRouter):
             ) / 2
 
         # Find the highest scoring task type
-        best_task = max(task_scores.items(), key=lambda x: x[1])
+        best_task = max(task_scores.items(), key=operator.itemgetter(1))
         if best_task[1] > 0.4:
             analysis["task_type"] = best_task[0]
             analysis["confidence_score"] = best_task[1]

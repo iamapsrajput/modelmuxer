@@ -13,8 +13,8 @@ from typing import Any
 
 from app.models import ChatMessage
 from app.settings import settings
-from .features import extract_features
 
+from .features import extract_features
 
 INTENT_LABELS = {
     "chat_lite",

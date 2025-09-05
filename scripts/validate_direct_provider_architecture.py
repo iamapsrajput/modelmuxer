@@ -32,7 +32,9 @@ try:
     from app.providers.base import LLMProviderAdapter
 except ImportError as e:
     print(f"❌ Import error: {e}")
-    print("Please ensure you're running this script from the project root with all dependencies installed.")
+    print(
+        "Please ensure you're running this script from the project root with all dependencies installed."
+    )
     sys.exit(1)
 
 
@@ -44,7 +46,7 @@ class ValidationResult:
     status: str  # "PASS", "FAIL", "SKIP"
     message: str
     duration: float
-    details: Optional[Dict[str, Any]] = None
+    details: Dict[str, Any] | None = None
 
 
 @dataclass
@@ -111,7 +113,11 @@ class DirectProviderValidator:
         )
 
         # Test 3: Settings validation
-        self._run_test("Settings Validation", self._check_settings, "Check that settings are properly configured")
+        self._run_test(
+            "Settings Validation",
+            self._check_settings,
+            "Check that settings are properly configured",
+        )
 
     def _validate_provider_coverage(self):
         """Validate all direct providers are available and functional."""
@@ -146,16 +152,24 @@ class DirectProviderValidator:
 
         # Test 1: Model selection
         self._run_test(
-            "Model Selection", self._check_model_selection, "Check that router can select models for all task types"
+            "Model Selection",
+            self._check_model_selection,
+            "Check that router can select models for all task types",
         )
 
         # Test 2: Budget constraints
         self._run_test(
-            "Budget Constraints", self._check_budget_constraints, "Check that budget constraints work correctly"
+            "Budget Constraints",
+            self._check_budget_constraints,
+            "Check that budget constraints work correctly",
         )
 
         # Test 3: Fallback logic
-        self._run_test("Fallback Logic", self._check_fallback_logic, "Check that fallback logic works correctly")
+        self._run_test(
+            "Fallback Logic",
+            self._check_fallback_logic,
+            "Check that fallback logic works correctly",
+        )
 
     def _validate_performance(self):
         """Validate performance and benchmarking."""
@@ -163,10 +177,18 @@ class DirectProviderValidator:
         print("-" * 40)
 
         # Test 1: Router latency
-        self._run_test("Router Latency", self._check_router_latency, "Check that router decision latency is acceptable")
+        self._run_test(
+            "Router Latency",
+            self._check_router_latency,
+            "Check that router decision latency is acceptable",
+        )
 
         # Test 2: Memory usage
-        self._run_test("Memory Usage", self._check_memory_usage, "Check that memory usage patterns are acceptable")
+        self._run_test(
+            "Memory Usage",
+            self._check_memory_usage,
+            "Check that memory usage patterns are acceptable",
+        )
 
     def _validate_integration(self):
         """Validate integration tests."""
@@ -174,10 +196,16 @@ class DirectProviderValidator:
         print("-" * 40)
 
         # Test 1: End-to-end flow
-        self._run_test("End-to-End Flow", self._check_end_to_end_flow, "Check that complete request flow works")
+        self._run_test(
+            "End-to-End Flow", self._check_end_to_end_flow, "Check that complete request flow works"
+        )
 
         # Test 2: Error handling
-        self._run_test("Error Handling", self._check_error_handling, "Check that error handling works correctly")
+        self._run_test(
+            "Error Handling",
+            self._check_error_handling,
+            "Check that error handling works correctly",
+        )
 
     def _run_test(self, name: str, test_func, description: str):
         """Run a single test and record the result."""
@@ -191,12 +219,19 @@ class DirectProviderValidator:
 
             if result:
                 self.results.append(
-                    ValidationResult(name=name, status="PASS", message="Test passed successfully", duration=duration)
+                    ValidationResult(
+                        name=name,
+                        status="PASS",
+                        message="Test passed successfully",
+                        duration=duration,
+                    )
                 )
                 print(f"    ✅ PASS ({duration:.3f}s)")
             else:
                 self.results.append(
-                    ValidationResult(name=name, status="FAIL", message="Test failed", duration=duration)
+                    ValidationResult(
+                        name=name, status="FAIL", message="Test failed", duration=duration
+                    )
                 )
                 print(f"    ❌ FAIL ({duration:.3f}s)")
 
@@ -204,7 +239,10 @@ class DirectProviderValidator:
             duration = time.time() - start_time
             self.results.append(
                 ValidationResult(
-                    name=name, status="FAIL", message=f"Test failed with exception: {str(e)}", duration=duration
+                    name=name,
+                    status="FAIL",
+                    message=f"Test failed with exception: {str(e)}",
+                    duration=duration,
                 )
             )
             print(f"    ❌ FAIL ({duration:.3f}s) - {str(e)}")
@@ -414,26 +452,36 @@ class DirectProviderValidator:
             "provider_coverage": f"{passed_tests}/{total_tests} tests passed",
             "router_functionality": "PASS" if failed_tests == 0 else "FAIL",
             "performance_metrics": "Within thresholds" if failed_tests == 0 else "Issues detected",
-            "direct_provider_format": "All models use direct format" if failed_tests == 0 else "Issues detected",
-            "error_handling": "Graceful degradation implemented" if failed_tests == 0 else "Issues detected",
+            "direct_provider_format": (
+                "All models use direct format" if failed_tests == 0 else "Issues detected"
+            ),
+            "error_handling": (
+                "Graceful degradation implemented" if failed_tests == 0 else "Issues detected"
+            ),
             "budget_management": "Working correctly" if failed_tests == 0 else "Issues detected",
-            "cost_estimation": "Accurate across providers" if failed_tests == 0 else "Issues detected",
+            "cost_estimation": (
+                "Accurate across providers" if failed_tests == 0 else "Issues detected"
+            ),
         }
 
         # Generate recommendations
         recommendations = []
         if failed_tests > 0:
-            recommendations.extend([
-                "Review failed tests and fix identified issues",
-                "Ensure all providers implement required interfaces",
-                "Verify budget constraints are working correctly",
-            ])
+            recommendations.extend(
+                [
+                    "Review failed tests and fix identified issues",
+                    "Ensure all providers implement required interfaces",
+                    "Verify budget constraints are working correctly",
+                ]
+            )
         else:
-            recommendations.extend([
-                "Architecture validation successful - no issues found",
-                "All direct providers are working correctly",
-                "Router functionality is validated",
-            ])
+            recommendations.extend(
+                [
+                    "Architecture validation successful - no issues found",
+                    "All direct providers are working correctly",
+                    "Router functionality is validated",
+                ]
+            )
 
         return ValidationReport(
             timestamp=datetime.now(),
@@ -451,13 +499,15 @@ def run_pytest_tests() -> Tuple[int, int]:
     """Run pytest tests and return (passed, failed) counts."""
     try:
         # Run the comprehensive test file via pytest API to avoid subprocess
-        pytest.main([
-            str(project_root / "tests/test_comprehensive_direct_provider_validation.py"),
-            "-q",
-            "--disable-warnings",
-            "--maxfail=1",
-            "--json-report",
-        ])
+        pytest.main(
+            [
+                str(project_root / "tests/test_comprehensive_direct_provider_validation.py"),
+                "-q",
+                "--disable-warnings",
+                "--maxfail=1",
+                "--json-report",
+            ]
+        )
 
         # Parse json-report log.json in .report.json
         import json
@@ -490,7 +540,9 @@ def print_report(report: ValidationReport):
     print("\n📊 SUMMARY:")
     for aspect, status in report.summary.items():
         status_icon = (
-            "✅" if "PASS" in status or "working" in status.lower() or "none found" in status.lower() else "❌"
+            "✅"
+            if "PASS" in status or "working" in status.lower() or "none found" in status.lower()
+            else "❌"
         )
         print(f"  {aspect}: {status} {status_icon}")
 

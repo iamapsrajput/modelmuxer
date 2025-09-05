@@ -7,12 +7,13 @@ This module tests the HeuristicRouter's error handling and fallback behavior
 with direct providers, ensuring graceful degradation and proper error recovery.
 """
 
-import pytest
-from unittest.mock import patch, Mock, AsyncMock
-import aiohttp
+from unittest.mock import AsyncMock, Mock, patch
 
-from app.models import ChatMessage
+import aiohttp
+import pytest
+
 from app.core.exceptions import ConfigurationError, ProviderError
+from app.models import ChatMessage
 from app.providers.base import ProviderResponse
 
 
@@ -80,8 +81,8 @@ class TestErrorHandlingFallbacks:
         self, direct_providers_only_mode, direct_router, simple_messages, monkeypatch
     ):
         """Test scenario where multiple providers fail - router continues down the list."""
-        from app.router import HeuristicRouter
         from app.providers.base import ProviderResponse
+        from app.router import HeuristicRouter
 
         # 1. Setup mocks
         mock_openai = Mock()
@@ -150,9 +151,9 @@ class TestErrorHandlingFallbacks:
         self, direct_providers_only_mode, direct_router, simple_messages, monkeypatch
     ):
         """Test final failure when all preferred providers are unavailable."""
-        from app.router import HeuristicRouter
-        from app.providers.base import ProviderResponse
         from app.core.exceptions import NoProvidersAvailableError
+        from app.providers.base import ProviderResponse
+        from app.router import HeuristicRouter
 
         # 1. Setup mocks
         mock_openai = Mock()

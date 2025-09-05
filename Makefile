@@ -56,15 +56,15 @@ install-dev:
 
 # Run all tests
 test:
-	poetry run pytest tests/ -v
+	DEBUG=false poetry run pytest tests/ -v
 
 # Run unit tests only
 test-unit:
-	poetry run pytest tests/ -v -m "not integration and not performance"
+	DEBUG=false poetry run pytest tests/ -v -m "not integration and not performance"
 
 # Run integration tests only
 test-integration:
-	poetry run pytest tests/ -v -m "integration"
+	DEBUG=false poetry run pytest tests/ -v -m "integration"
 
 # Comprehensive direct provider validation
 validate-direct-providers:
@@ -100,10 +100,10 @@ typecheck:
 	poetry run mypy app/
 
 test-quick:
-	poetry run pytest -q
+	DEBUG=false poetry run pytest -q
 
 test-cov:
-	poetry run pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=70
+	DEBUG=false poetry run pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=70
 
 security:
 	poetry run bandit -q -r app || true

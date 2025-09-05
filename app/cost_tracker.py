@@ -12,6 +12,7 @@ This module provides both basic and advanced cost tracking capabilities includin
 """
 
 import json
+import operator
 import sqlite3
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -20,7 +21,8 @@ from typing import Any
 
 import tiktoken
 
-from app.settings import settings, get_provider_pricing
+from app.settings import get_provider_pricing, settings
+
 from .models import ChatMessage
 
 # Enhanced imports (optional)
@@ -302,7 +304,7 @@ class CostTracker:
             comparisons.append(estimate)
 
         # Sort by estimated cost
-        return sorted(comparisons, key=lambda x: x["estimated_cost"])
+        return sorted(comparisons, key=operator.itemgetter("estimated_cost"))
 
     def get_model_info(self, provider: str, model: str) -> dict[str, Any]:
         """Get detailed information about a model including pricing."""
@@ -709,28 +711,32 @@ class AdvancedCostTracker(CostTracker):
                 for threshold in alert_thresholds:
                     if usage_percentage >= threshold:
                         alert_type = "critical" if threshold >= 90 else "warning"
-                        alerts.append({
-                            "type": alert_type,
-                            "message": f"Budget usage at {usage_percentage:.1f}% (threshold: {threshold}%)",
-                            "threshold": threshold,
-                            "current_usage": usage_percentage,
-                        })
+                        alerts.append(
+                            {
+                                "type": alert_type,
+                                "message": f"Budget usage at {usage_percentage:.1f}% (threshold: {threshold}%)",
+                                "threshold": threshold,
+                                "current_usage": usage_percentage,
+                            }
+                        )
 
                 # Calculate period dates
                 period_start, period_end = self._get_budget_period_dates(budget_type_val)
 
-                budget_statuses.append({
-                    "budget_type": budget_type_val,
-                    "budget_limit": budget_limit,
-                    "current_usage": current_usage,
-                    "usage_percentage": usage_percentage,
-                    "remaining_budget": remaining_budget,
-                    "provider": provider,
-                    "model": model,
-                    "alerts": alerts,
-                    "period_start": period_start,
-                    "period_end": period_end,
-                })
+                budget_statuses.append(
+                    {
+                        "budget_type": budget_type_val,
+                        "budget_limit": budget_limit,
+                        "current_usage": current_usage,
+                        "usage_percentage": usage_percentage,
+                        "remaining_budget": remaining_budget,
+                        "provider": provider,
+                        "model": model,
+                        "alerts": alerts,
+                        "period_start": period_start,
+                        "period_end": period_end,
+                    }
+                )
 
             return budget_statuses
 

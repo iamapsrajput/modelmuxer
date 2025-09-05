@@ -12,7 +12,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-
 CODE_FENCE_RE = re.compile(r"```[\s\S]*?```", re.MULTILINE)
 INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 JSON_OBJECT_RE = re.compile(r"\{\s*\"[\w-]+\"\s*:\s*[\s\S]*?\}")

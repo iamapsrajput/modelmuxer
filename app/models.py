@@ -5,7 +5,7 @@ Pydantic models for request/response schemas and data validation.
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, validator
@@ -163,7 +163,7 @@ class ErrorResponse(BaseModel):
 # Enhanced models for Part 2: Cost-Aware Cascading & Analytics
 
 
-class BudgetPeriodEnum(str, Enum):
+class BudgetPeriodEnum(StrEnum):
     daily = "daily"
     weekly = "weekly"
     monthly = "monthly"

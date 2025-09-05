@@ -5,7 +5,7 @@
 
 import secrets
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 import bcrypt
@@ -25,7 +25,7 @@ MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_DURATION_MINUTES = 15
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     """User roles with hierarchical permissions."""
 
     ADMIN = "admin"
@@ -34,7 +34,7 @@ class UserRole(str, Enum):
     VIEWER = "viewer"
 
 
-class Permission(str, Enum):
+class Permission(StrEnum):
     """Granular permissions for RBAC."""
 
     # System permissions

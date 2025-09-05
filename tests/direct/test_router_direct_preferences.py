@@ -4,9 +4,10 @@
 
 import pytest
 from fastapi.testclient import TestClient
+
 from app.main import app
-from app.router import HeuristicRouter
 from app.providers.registry import get_provider_registry
+from app.router import HeuristicRouter
 
 
 def test_router_preferences_structure():
@@ -41,8 +42,8 @@ def test_router_preferences_structure():
 
 def test_model_name_formatting_no_separators():
     """Test that model names in router preferences don't contain separators."""
-    from app.router import HeuristicRouter
     from app.providers.registry import get_provider_registry
+    from app.router import HeuristicRouter
 
     router = HeuristicRouter(provider_registry_fn=get_provider_registry)
     for _, preferences in router.model_preferences.items():

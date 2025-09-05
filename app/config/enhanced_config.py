@@ -46,8 +46,8 @@ class ProviderConfig(BaseSettings):
 
     def validate_at_least_one_provider(self) -> bool:
         """Validate that at least one provider API key is configured."""
-        import sys
         import os
+        import sys
 
         # Skip validation in test environments
         if "pytest" in sys.modules or "TESTING" in os.environ:
@@ -203,7 +203,7 @@ class ModelMuxerConfig:
         # Use centralized settings for API keys
         return app_settings.api.api_keys
 
-    def get_provider_pricing(self) -> dict[str, dict[str, float]]:
+    def get_provider_pricing(self) -> dict[str, dict[str, dict[str, float]]]:
         """Get provider pricing information for cost calculation."""
         # Use centralized pricing settings
         from ..settings import get_provider_pricing

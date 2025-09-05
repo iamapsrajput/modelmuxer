@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from app.models import ChatCompletionRequest, ChatMessage
 from app.telemetry import metrics as m
 from app.telemetry.tracing import start_span
-from app.models import ChatMessage, ChatCompletionRequest
 
 
 @dataclass
@@ -216,12 +216,12 @@ def enforce_policies(request: ChatCompletionRequest, tenant_id: str) -> PolicyRe
                 }:
                     pii_types.append(kind)
                     total_redactions += cnt
-                    m.POLICY_REDACTIONS.labels(kind).inc(cnt)
+                    m.POLICY_REDACTIONS.labels(pii_type=kind).inc(cnt)
         # Jailbreak detection
         if s.policy.enable_jailbreak_detection and _detect_jailbreak(text, patterns):
             blocked = True
             reasons.append("jailbreak_detected")
-            m.POLICY_VIOLATIONS.labels("jailbreak").inc()
+            m.POLICY_VIOLATIONS.labels(type="jailbreak").inc()
 
         # Allow/deny (model/region)
         region = getattr(request, "region", None)
@@ -230,7 +230,7 @@ def enforce_policies(request: ChatCompletionRequest, tenant_id: str) -> PolicyRe
             blocked = True
             for r in md_reasons:
                 tag = r.replace("_", "")
-                m.POLICY_VIOLATIONS.labels(tag).inc()
+                m.POLICY_VIOLATIONS.labels(type=tag).inc()
             reasons.extend(md_reasons)
 
         # Set span attributes (no raw PII)

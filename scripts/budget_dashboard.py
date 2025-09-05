@@ -13,7 +13,7 @@ Usage:
 
 Requires ModelMuxer to be running on localhost:8000
 """
-import requests
+import requests  # type: ignore
 import json
 import sys
 from datetime import datetime

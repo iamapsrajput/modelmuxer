@@ -4,9 +4,10 @@ Test script to verify ModelMuxer streaming functionality.
 This will test the live response streaming that you're looking for.
 """
 
-import requests
 import json
 import time
+
+import requests
 
 BASE_URL = "http://localhost:8000"
 API_KEY = "sk-test-claude-dev"

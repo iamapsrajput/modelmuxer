@@ -4,7 +4,7 @@
 # Database models for organization management and multi-tenancy
 
 import uuid
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 try:
@@ -15,19 +15,9 @@ except ImportError:
     # Fallback for older SQLAlchemy versions
     SQLALCHEMY_2_0_AVAILABLE = False
 
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Index,
-    Integer,
-    Numeric,
-    String,
-    Text,
-)
+from sqlalchemy import JSON, Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -53,7 +43,7 @@ except (ImportError, AttributeError):
     Base = declarative_base()
 
 
-class PlanType(str, Enum):
+class PlanType(StrEnum):
     """Subscription plan types."""
 
     FREE = "free"
@@ -63,7 +53,7 @@ class PlanType(str, Enum):
     CUSTOM = "custom"
 
 
-class OrganizationStatus(str, Enum):
+class OrganizationStatus(StrEnum):
     """Organization status."""
 
     ACTIVE = "active"
@@ -72,7 +62,7 @@ class OrganizationStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     """User roles within organizations."""
 
     OWNER = "owner"
@@ -81,7 +71,7 @@ class UserRole(str, Enum):
     VIEWER = "viewer"
 
 
-class AuditAction(str, Enum):
+class AuditAction(StrEnum):
     """Audit log action types."""
 
     CREATE = "create"

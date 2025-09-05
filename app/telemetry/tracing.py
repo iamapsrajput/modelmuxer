@@ -1,29 +1,21 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager, contextmanager
-from typing import (
-    Any,
-    AsyncIterator,
-    Iterator,
-    Optional,
-    Protocol,
-    runtime_checkable,
-    TYPE_CHECKING,
-)
+from typing import (TYPE_CHECKING, Any, AsyncIterator, Iterator, Optional,
+                    Protocol, runtime_checkable)
 
 if TYPE_CHECKING:
     # Only import for type checking to avoid runtime dependency issues
     from opentelemetry import trace as trace_module
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
+        OTLPSpanExporter as OtelOTLPSpanExporter
     from opentelemetry.sdk.resources import Resource as OtelResource
     from opentelemetry.sdk.trace import TracerProvider as OtelTracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor as OtelBatchSpanProcessor
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-        OTLPSpanExporter as OtelOTLPSpanExporter,
-    )
-    from opentelemetry.sdk.trace.sampling import (
-        ParentBased as OtelParentBased,
-        TraceIdRatioBased as OtelTraceIdRatioBased,
-    )
+    from opentelemetry.sdk.trace.export import \
+        BatchSpanProcessor as OtelBatchSpanProcessor
+    from opentelemetry.sdk.trace.sampling import ParentBased as OtelParentBased
+    from opentelemetry.sdk.trace.sampling import \
+        TraceIdRatioBased as OtelTraceIdRatioBased
     from opentelemetry.trace import Span as OtelSpan
 else:
     trace_module = None
@@ -38,24 +30,25 @@ else:
 # Runtime imports with proper error handling
 try:
     from opentelemetry import trace
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
+        OTLPSpanExporter
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
     from opentelemetry.trace import get_current_span
 
     OPENTELEMETRY_AVAILABLE = True
 except ImportError:  # pragma: no cover
     # Create proper stub objects that don't cause type issues
-    trace = None
-    Resource = None
-    TracerProvider = None
-    BatchSpanProcessor = None
-    OTLPSpanExporter = None
-    ParentBased = None
-    TraceIdRatioBased = None
-    get_current_span = None
+    trace = None  # type: ignore
+    Resource = None  # type: ignore
+    TracerProvider = None  # type: ignore
+    BatchSpanProcessor = None  # type: ignore
+    OTLPSpanExporter = None  # type: ignore
+    ParentBased = None  # type: ignore
+    TraceIdRatioBased = None  # type: ignore
+    get_current_span = None  # type: ignore
     OPENTELEMETRY_AVAILABLE = False
 
 

@@ -7,19 +7,21 @@ This module provides comprehensive validation of the ModelMuxer direct provider
 architecture, ensuring all direct provider functionality works correctly.
 """
 
-import pytest
 import asyncio
-import inspect
 import importlib
+import inspect
 import os
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from app.router import HeuristicRouter
-from app.providers.base import LLMProviderAdapter
-from app.settings import Settings
-from app.models import ChatCompletionRequest, ChatCompletionResponse, ChatMessage
+import pytest
+
 from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
+from app.models import (ChatCompletionRequest, ChatCompletionResponse,
+                        ChatMessage)
+from app.providers.base import LLMProviderAdapter
+from app.router import HeuristicRouter
+from app.settings import Settings
 
 
 class TestArchitectureValidation:
@@ -35,10 +37,12 @@ class TestArchitectureValidation:
             assert isinstance(prefs, list)
             for provider, model in prefs:
                 # Ensure models are not using proxy prefixes
-                assert not model.startswith((
-                    "proxy:",
-                    "azure:",
-                )), f"Proxy prefix found in {task_type} -> {provider} -> {model}"
+                assert not model.startswith(
+                    (
+                        "proxy:",
+                        "azure:",
+                    )
+                ), f"Proxy prefix found in {task_type} -> {provider} -> {model}"
 
     def test_provider_registry_contains_only_direct_providers(self):
         """Test that provider registry only contains direct providers."""
@@ -94,8 +98,8 @@ class TestCompleteProviderCoverage:
     @pytest.mark.asyncio
     async def test_provider_response_consistency(self):
         """Test that all providers return consistent response formats."""
-        from app.providers.registry import get_provider_registry
         from app.providers.base import ProviderResponse
+        from app.providers.registry import get_provider_registry
 
         registry = get_provider_registry()
 
@@ -148,10 +152,12 @@ class TestRouterModelPreferenceValidation:
 
             # Check that preferences contain direct provider models
             for provider, model in preferences:
-                assert not model.startswith((
-                    "proxy:",
-                    "azure:",
-                )), f"Invalid model format in {task_type} -> {provider}: {model}"
+                assert not model.startswith(
+                    (
+                        "proxy:",
+                        "azure:",
+                    )
+                ), f"Invalid model format in {task_type} -> {provider}: {model}"
 
     @pytest.mark.asyncio
     async def test_model_selection_for_each_task_type(self):
@@ -296,8 +302,9 @@ class TestErrorHandlingAndFallback:
     @pytest.mark.asyncio
     async def test_circuit_breaker_integration(self):
         """Test circuit breaker integration across all providers."""
-        from app.providers.registry import get_provider_registry
         from time import time
+
+        from app.providers.registry import get_provider_registry
 
         registry = get_provider_registry()
         for _name, adapter in registry.items():
@@ -314,8 +321,9 @@ class TestErrorHandlingAndFallback:
     @pytest.mark.asyncio
     async def test_network_error_handling(self):
         """Test network and HTTP error handling."""
-        from app.providers.registry import get_provider_registry
         import httpx
+
+        from app.providers.registry import get_provider_registry
 
         registry = get_provider_registry()
 

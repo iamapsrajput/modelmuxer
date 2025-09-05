@@ -17,8 +17,8 @@ from fastapi.testclient import TestClient
 from app.core.costing import Estimator, LatencyPriors, Price, estimate_tokens
 from app.core.exceptions import BudgetExceededError
 from app.main import app
-from app.router import HeuristicRouter
 from app.models import ChatMessage
+from app.router import HeuristicRouter
 
 
 class TestRouterBudgetIntegration:
@@ -279,8 +279,8 @@ class TestRouterEstimatorIntegration:
         self.estimator = Estimator(self.prices, self.latency_priors, self.settings)
 
         # Create temporary price table file for deterministic testing
-        import tempfile
         import json
+        import tempfile
 
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as temp_file:
             self.temp_file = temp_file
@@ -481,7 +481,8 @@ class TestEndToEndBudgetFlow:
 
         with patch("app.main.HeuristicRouter", return_value=mock_router):
             # Mock provider to return successful response
-            from app.models import ChatCompletionResponse, Choice, ChatMessage, Usage
+            from app.models import (ChatCompletionResponse, ChatMessage,
+                                    Choice, Usage)
 
             mock_provider = AsyncMock()
             from app.models import RouterMetadata
@@ -547,7 +548,8 @@ class TestEndToEndBudgetFlow:
 
         with patch("app.main.HeuristicRouter", return_value=mock_router):
             # Mock provider to return successful response
-            from app.models import ChatCompletionResponse, Choice, ChatMessage, Usage
+            from app.models import (ChatCompletionResponse, ChatMessage,
+                                    Choice, Usage)
 
             mock_provider = AsyncMock()
             from app.models import RouterMetadata

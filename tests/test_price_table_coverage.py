@@ -1,8 +1,9 @@
 """Test price table coverage for router preferences."""
 
 import pytest
-from app.router import HeuristicRouter
+
 from app.providers.registry import get_provider_registry
+from app.router import HeuristicRouter
 
 
 def test_router_preferences_in_price_table():
@@ -33,6 +34,7 @@ def test_router_preferences_in_price_table():
 def test_price_table_json_valid():
     """Test that the price table JSON is valid."""
     import json
+
     from app.settings import settings
 
     # Load and parse the price table

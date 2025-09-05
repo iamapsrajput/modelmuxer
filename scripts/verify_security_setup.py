@@ -75,14 +75,18 @@ def test_with_ml():
         if router.use_ml_mode:
             print("✅ ML dependencies available and working")
             print(f"✅ Model: {router.model_name}")
-            print(f"✅ Embeddings dim: {router.encoder.get_sentence_embedding_dimension() if router.encoder else 'N/A'}")
+            print(
+                f"✅ Embeddings dim: {router.encoder.get_sentence_embedding_dimension() if router.encoder else 'N/A'}"
+            )
         else:
             print("⚠️  ML mode not available, using fallback")
 
         # Test routing
         from app.models import ChatMessage
 
-        messages = [ChatMessage(role="user", content="Analyze this complex system architecture", name=None)]
+        messages = [
+            ChatMessage(role="user", content="Analyze this complex system architecture", name=None)
+        ]
 
         import asyncio
 

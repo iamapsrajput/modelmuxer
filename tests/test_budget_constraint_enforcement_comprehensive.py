@@ -1,5 +1,5 @@
-from unittest.mock import patch, Mock
 from contextlib import contextmanager
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -50,9 +50,7 @@ async def test_down_routing_behavior_and_metrics(direct_router, monkeypatch):
 
     monkeypatch.setattr("app.router.classify_intent", fake_classify_intent)
 
-    with (
-        patch("app.telemetry.metrics.LLM_ROUTER_DOWN_ROUTE_TOTAL") as mock_downroute,
-    ):
+    with (patch("app.telemetry.metrics.LLM_ROUTER_DOWN_ROUTE_TOTAL") as mock_downroute,):
         labeled = Mock()
         labeled.inc = Mock()
         mock_downroute.labels.return_value = labeled

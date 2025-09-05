@@ -7,6 +7,7 @@ This module provides ML-based routing using semantic similarity to classify
 prompts and route them to the most appropriate provider and model.
 """
 
+import operator
 from typing import Any
 
 import numpy as np
@@ -217,7 +218,7 @@ class SemanticRouter(BaseRouter):
                 similarities[route_name] = similarity
 
             # Find the best matching route
-            best_route = max(similarities.items(), key=lambda x: x[1])
+            best_route = max(similarities.items(), key=operator.itemgetter(1))
             route_name, similarity_score = best_route
 
             analysis = {
