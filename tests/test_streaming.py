@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
 """
 Test script to verify ModelMuxer streaming functionality.
 This will test the live response streaming that you're looking for.

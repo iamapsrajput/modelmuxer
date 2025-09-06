@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
 """
 ModelMuxer Security Key Generator
 

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
 """
 Custom Claude CLI wrapper for ModelMuxer
 Provides a Claude-like command-line interface that routes through ModelMuxer

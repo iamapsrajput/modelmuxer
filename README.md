@@ -516,6 +516,12 @@ conduct and the process for submitting pull requests.
 This project is licensed under the Business Source License 1.1 - see the
 [LICENSE](LICENSE) file for details.
 
+## Commercial Licensing
+
+For commercial licensing and enterprise support, contact:
+
+- Email: licensing@modelmuxer.com
+
 ## Support
 
 For support and questions:

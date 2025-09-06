@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# ModelMuxer (c) 2025 Ajay Rajput
+# Licensed under Business Source License 1.1 – see LICENSE for details.
 """
 Chunked file processor for handling large files to avoid 413 Request Entity Too Large errors.
 Reads files in chunks and processes them incrementally.
