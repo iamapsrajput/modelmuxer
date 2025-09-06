@@ -9,7 +9,6 @@ with direct providers, ensuring graceful degradation and proper error recovery.
 
 from unittest.mock import AsyncMock, Mock, patch
 
-import aiohttp
 import pytest
 
 from app.core.exceptions import ConfigurationError, ProviderError
