@@ -1,9 +1,9 @@
 [tool.poetry]
+license = "Business Source License 1.1"
 name = "modelmuxer"
 version = "2.0.0"
 description = "Enterprise-grade intelligent LLM routing engine for cost and performance optimization"
 authors = ["Ajay Rajput <ajay@modelmuxer.com>"]
-license = { text = "Business Source License 1.1" }
 readme = "README.md"
 homepage = "https://github.com/ajayrajput/modelmuxer"
 repository = "https://github.com/ajayrajput/modelmuxer"

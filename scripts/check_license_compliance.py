@@ -127,10 +127,35 @@ class LicenseComplianceChecker:
         if pyproject_file.exists():
             try:
                 content = pyproject_file.read_text(encoding="utf-8")
-                if 'license = { text = "Business Source License 1.1" }' not in content:
-                    self.warnings.append(
-                        "pyproject.toml license field should be 'Business Source License 1.1'"
-                    )
+                # Accept SPDX or prose, as string or as table { text = ... }
+                allowed_patterns = [
+                    'license = "BUSL-1.1"',
+                    'license = "Business Source License 1.1"',
+                    'license = { text = "BUSL-1.1" }',
+                    'license = { text = "Business Source License 1.1" }',
+                ]
+                if any(p in content for p in allowed_patterns):
+                    return
+
+                # Optionally, parse toml if available for robustness
+                try:
+                    import tomllib  # Python 3.11+
+
+                    data = tomllib.loads(content)
+                    lic = data.get("tool", {}).get("poetry", {}).get("license")
+                    if isinstance(lic, str) and lic in ("BUSL-1.1", "Business Source License 1.1"):
+                        return
+                    if isinstance(lic, dict) and lic.get("text") in (
+                        "BUSL-1.1",
+                        "Business Source License 1.1",
+                    ):
+                        return
+                except Exception:
+                    pass
+
+                self.warnings.append(
+                    "pyproject.toml license should reference Business Source License 1.1 (BUSL-1.1)"
+                )
             except Exception as e:
                 self.warnings.append(f"Could not read pyproject.toml: {e}")
 
