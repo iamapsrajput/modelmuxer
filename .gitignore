@@ -351,6 +351,7 @@ security-report.*
 .cursor/
 .roo/
 .kilocode/
+.kilo/
 .benchmarks/
 
 # Generated one-off local reports
