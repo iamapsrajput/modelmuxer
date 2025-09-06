@@ -155,6 +155,8 @@ class BaseRouter(RouterInterface):
         """Update router metrics."""
         if success:
             self.metrics["successful_routes"] += 1
+        else:
+            self.metrics["failed_routes"] += 1
 
         # Update average response time
         total_requests = self.metrics["total_requests"]

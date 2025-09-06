@@ -28,7 +28,7 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
@@ -70,7 +70,7 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
@@ -94,7 +94,7 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
@@ -165,7 +165,7 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
@@ -204,7 +204,7 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
@@ -267,7 +267,7 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
@@ -295,7 +295,7 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
@@ -321,19 +321,24 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
                 }
             ),
         ):
-            # With 0.02 USD budget threshold, this should fail
+            # Use extremely low budget to force BudgetExceededError
             with pytest.raises(BudgetExceededError) as exc_info:
-                await budget_constrained_router.select_model(simple_messages)
+                await budget_constrained_router.select_model(
+                    simple_messages, budget_constraint=0.0001
+                )
 
             # Verify error structure
             assert "budget" in str(exc_info.value).lower()
+
+            # Verify telemetry metrics were called
+            assert mock_telemetry["budget_exceeded_labeled"].inc.called
 
     async def test_budget_exceeded_metrics(
         self,
@@ -347,25 +352,22 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
                 }
             ),
         ):
-            try:
+            # Use extremely low budget to ensure BudgetExceededError
+            with pytest.raises(BudgetExceededError):
                 await budget_constrained_router.select_model(
                     expensive_model_messages,
-                    budget_constraint=0.001,  # Very low budget
+                    budget_constraint=0.00001,  # Extremely low budget
                 )
-            except BudgetExceededError:
-                pass  # Expected
 
-            # With 0.02 USD budget threshold, budget exceeded metrics may not be recorded
-            # because the router fails before reaching the budget check
-            # Just verify that the test completes without error
-            assert True
+            # Verify budget exceeded metric was recorded
+            assert mock_telemetry["budget_exceeded_labeled"].inc.called
 
     async def test_zero_token_estimates_edge_case(
         self, direct_providers_only_mode, direct_router, simple_messages, monkeypatch
@@ -411,7 +413,7 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
@@ -441,7 +443,7 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
@@ -465,7 +467,7 @@ class TestBudgetConstraintsDirect:
             "app.core.intent.classify_intent",
             new=AsyncMock(
                 return_value={
-                    "label": "chat_lite",
+                    "label": "complex",
                     "confidence": 0.9,
                     "signals": {},
                     "method": "heuristic",
@@ -528,12 +530,15 @@ class TestBudgetConstraintsDirect:
                     }
                 ),
             ):
-                # With 0.02 USD budget threshold, this should fail
-                with pytest.raises(BudgetExceededError):
-                    await budget_constrained_router.select_model(
-                        complex_messages,
-                        budget_constraint=0.01,  # Budget that excludes expensive models
-                    )
+                # Use budget that allows down-routing but not the first choice
+                provider, model, _, _, _ = await budget_constrained_router.select_model(
+                    complex_messages,
+                    budget_constraint=0.01,  # Budget that excludes expensive models
+                )
 
-                # With 0.02 USD budget threshold, no down-routing should occur
-                labeled.inc.assert_not_called()
+                # Should have selected a cheaper model, triggering down-routing
+                assert provider in ["openai", "anthropic", "groq"]
+                assert model != "claude-3-5-sonnet-20241022"  # Should not be the most expensive
+
+                # Verify down-routing metric was recorded
+                assert labeled.inc.called

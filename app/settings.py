@@ -8,7 +8,7 @@ and an optional .env file at the repository root.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import AliasChoices, AnyUrl, Field, HttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -65,7 +65,7 @@ class APIKeysSettings(BaseSettings):
 
     @field_validator("api_keys", mode="before")
     @classmethod
-    def _parse_api_keys(cls, value):  # type: ignore[override]
+    def _parse_api_keys(cls, value: Any) -> list[str]:
         if value is None:
             return []
         if isinstance(value, list):
@@ -89,7 +89,7 @@ class DatabaseSettings(BaseSettings):
 
     @field_validator("database_url")
     @classmethod
-    def _validate_database_url(cls, value: str) -> str:  # type: ignore[override]
+    def _validate_database_url(cls, value: str) -> str:
         if not isinstance(value, str) or "://" not in value:
             raise ValueError("DATABASE_URL must be a valid URL (e.g., sqlite:///file.db)")
         return value
@@ -116,7 +116,7 @@ class RedisSettings(BaseSettings):
 
     @field_validator("db")
     @classmethod
-    def _validate_db(cls, value: int) -> int:  # type: ignore[override]
+    def _validate_db(cls, value: int) -> int:
         if value < 0:
             raise ValueError("REDIS_DB must be >= 0")
         return value
@@ -177,7 +177,7 @@ class ObservabilitySettings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def _parse_cors_origins(cls, value):  # type: ignore[override]
+    def _parse_cors_origins(cls, value: Any) -> list[str]:
         if value is None:
             return []
         if isinstance(value, list):
@@ -188,10 +188,10 @@ class ObservabilitySettings(BaseSettings):
 
     @field_validator("log_level", mode="before")
     @classmethod
-    def _normalize_log_level(cls, value):  # type: ignore[override]
+    def _normalize_log_level(cls, value: Any) -> str:
         if isinstance(value, str):
             return value.lower()
-        return value
+        return str(value)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -329,7 +329,7 @@ class ServerSettings(BaseSettings):
 
     @field_validator("port")
     @classmethod
-    def _validate_port(cls, value: int) -> int:  # type: ignore[override]
+    def _validate_port(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("PORT must be > 0")
         return value
@@ -397,7 +397,7 @@ class RouterSettings(BaseSettings):
 
     @field_validator("max_tokens_default", "simple_query_max_length")
     @classmethod
-    def _validate_positive_int(cls, value: int) -> int:  # type: ignore[override]
+    def _validate_positive_int(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("Value must be > 0")
         return value
@@ -442,7 +442,7 @@ class PricingSettings(BaseSettings):
         "min_tokens_in_floor",
     )
     @classmethod
-    def _validate_positive(cls, value: int) -> int:  # type: ignore[override]
+    def _validate_positive(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("Value must be > 0")
         return value
@@ -464,7 +464,7 @@ class RouterThresholds(BaseSettings):
 
     @field_validator("max_estimated_usd_per_request")
     @classmethod
-    def _validate_positive(cls, value: float) -> float:  # type: ignore[override]
+    def _validate_positive(cls, value: float) -> float:
         if value < 0:
             raise ValueError("Budget threshold must be >= 0")
         return value
@@ -633,7 +633,7 @@ class ProviderAdapterSettings(BaseSettings):
         "circuit_cooldown_sec",
     )
     @classmethod
-    def _validate_positive(cls, value: int) -> int:  # type: ignore[override]
+    def _validate_positive(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("Value must be > 0")
         return value
@@ -787,9 +787,27 @@ def get_provider_pricing() -> dict[str, dict[str, dict[str, float]]]:
             },
         },
         "mistral": {
-            "mistral-small-latest": {
+            "mistral-small": {
                 "input": p.mistral_small_input_price,
                 "output": p.mistral_small_output_price,
+            }
+        },
+        "google": {
+            "gemini-pro": {
+                "input": 0.00025,
+                "output": 0.0005,
+            }
+        },
+        "groq": {
+            "llama2-70b-4096": {
+                "input": 0.0007,
+                "output": 0.0008,
+            }
+        },
+        "cohere": {
+            "command": {
+                "input": 0.0015,
+                "output": 0.002,
             }
         },
     }

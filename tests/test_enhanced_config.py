@@ -10,18 +10,11 @@ from unittest.mock import patch
 
 import pytest
 
-from app.config.enhanced_config import (
-    AuthConfig,
-    CacheConfig,
-    ClassificationConfig,
-    LoggingConfig,
-    ModelMuxerConfig,
-    MonitoringConfig,
-    ProviderConfig,
-    RateLimitConfig,
-    RoutingConfig,
-    load_enhanced_config,
-)
+from app.config.enhanced_config import (AuthConfig, CacheConfig,
+                                        ClassificationConfig, LoggingConfig,
+                                        ModelMuxerConfig, MonitoringConfig,
+                                        ProviderConfig, RateLimitConfig,
+                                        RoutingConfig, load_enhanced_config)
 
 
 class TestModelMuxerConfig:
@@ -203,8 +196,7 @@ class TestAuthConfig:
         config = AuthConfig()
 
         assert config.enabled is True
-        # In test environment, JWT secret gets a test value
-        assert config.jwt_secret == "test-jwt-secret-for-testing-only"
+        assert config.jwt_secret is None  # Default is None
         assert config.jwt_algorithm == "HS256"
         assert config.jwt_expiry == 3600
         assert config.methods == "api_key"

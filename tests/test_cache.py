@@ -194,11 +194,7 @@ class TestMemoryCache:
     async def test_get_multiple(self) -> None:
         """Test getting multiple values."""
         # Set up test data
-        test_data = {
-            "key1": "value1",
-            "key2": "value2",
-            "key3": "value3"
-        }
+        test_data = {"key1": "value1", "key2": "value2", "key3": "value3"}
 
         for key, value in test_data.items():
             await self.cache.set(key, value)
@@ -215,11 +211,7 @@ class TestMemoryCache:
 
     async def test_set_multiple(self) -> None:
         """Test setting multiple values."""
-        test_data = {
-            "multi1": "multi_value1",
-            "multi2": "multi_value2",
-            "multi3": "multi_value3"
-        }
+        test_data = {"multi1": "multi_value1", "multi2": "multi_value2", "multi3": "multi_value3"}
 
         # Set multiple
         result = await self.cache.set_multiple(test_data)
@@ -271,7 +263,7 @@ class TestMemoryCache:
         assert info["status"] == "active"
         assert info["cache_size"] >= 2
         assert info["max_size"] == self.cache.max_size
-        assert isinstance(info["memory_usage_mb"], (int, float))
+        assert isinstance(info["memory_usage_mb"], int | float)
         assert isinstance(info["hit_rate"], float)
         assert 0.0 <= info["hit_rate"] <= 1.0
 

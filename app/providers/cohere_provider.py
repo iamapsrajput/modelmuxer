@@ -17,7 +17,8 @@ import structlog
 
 from ..core.utils import estimate_tokens
 from ..models import ChatCompletionResponse, ChatMessage
-from .base import AuthenticationError, LLMProvider, ProviderError, RateLimitError
+from .base import (AuthenticationError, LLMProvider, ProviderError,
+                   RateLimitError)
 
 logger = structlog.get_logger(__name__)
 

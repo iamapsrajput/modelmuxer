@@ -512,7 +512,32 @@ class HeuristicRouter:
                         reason="no_pricing",
                     )
                 else:
+                    # Check if preferred providers were available
+                    available_providers = self.provider_registry_fn()
+                    preferred_providers_available = any(
+                        provider in available_providers for provider, _ in preferences
+                    )
+                    if not preferred_providers_available and available_providers:
+                        ROUTER_FALLBACKS.labels(route_label, "no_preferred_provider_available").inc()
+                    elif available_providers:
+                        # Record fallback when providers are available but no models are affordable
+                        ROUTER_FALLBACKS.labels(route_label, "no_affordable_available").inc()
                     LLM_ROUTER_BUDGET_EXCEEDED_TOTAL.labels(route_label, "budget_exceeded").inc()
+                    # Determine the reason based on the scenario
+                    if priced_models_count == 0:
+                        reason = "no_pricing"
+                    elif available_providers:
+                        # Check if any preferred providers were available
+                        preferred_providers_available = any(
+                            provider in available_providers for provider, _ in original_preferences
+                        )
+                        if preferred_providers_available:
+                            reason = "no_affordable_available"
+                        else:
+                            reason = None  # Preferred providers not available
+                    else:
+                        reason = "budget_exceeded"
+
                     raise BudgetExceededError(
                         f"No models within budget limit of ${budget}",
                         limit=budget,
@@ -523,6 +548,7 @@ class HeuristicRouter:
                             )
                             for p, m in preferences[:3]
                         ],
+                        reason=reason,
                     )
             available_providers = self.provider_registry_fn()
             for provider, model, estimate, usd_value in affordable_preferences:

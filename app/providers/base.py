@@ -16,7 +16,8 @@ from typing import Any, Optional
 
 import httpx
 
-from ..models import ChatCompletionResponse, ChatMessage, Choice, RouterMetadata, Usage
+from ..models import (ChatCompletionResponse, ChatMessage, Choice,
+                      RouterMetadata, Usage)
 from ..security.config import SecurityConfig
 
 
@@ -242,7 +243,6 @@ class LLMProvider(ABC):
 import asyncio
 import random
 import time
-
 # ===================== New Adapter Interface =====================
 from dataclasses import dataclass
 

@@ -36,7 +36,7 @@ class TestHeuristicRouterScope:
 
     async def test_early_exception_does_not_cause_unbound_local_error(self):
         """Test that early exceptions don't cause UnboundLocalError."""
-        messages = [ChatMessage(role="user", content="Hello")]
+        messages = [ChatMessage(role="user", content="Hello", name=None)]
 
         # Mock analyze_prompt to raise an exception early
         with patch.object(self.router, "analyze_prompt", side_effect=Exception("Early failure")):
@@ -49,7 +49,7 @@ class TestHeuristicRouterScope:
 
     async def test_intent_classification_exception_does_not_cause_unbound_local_error(self):
         """Test that intent classification exceptions don't cause UnboundLocalError."""
-        messages = [ChatMessage(role="user", content="Hello")]
+        messages = [ChatMessage(role="user", content="Hello", name=None)]
 
         # Mock classify_intent to raise an exception
         with patch(
@@ -60,10 +60,16 @@ class TestHeuristicRouterScope:
                 self.router,
                 "analyze_prompt",
                 return_value={
-                    "task_type": "general",
+                    "total_length": 5,
+                    "message_count": 1,
+                    "has_code": False,
                     "code_confidence": 0.0,
+                    "has_complexity": False,
                     "complexity_confidence": 0.0,
+                    "is_simple": False,
                     "simple_confidence": 0.0,
+                    "detected_languages": [],
+                    "task_type": "general",
                 },
             ):
                 # Mock estimate_tokens to work normally
@@ -79,25 +85,28 @@ class TestHeuristicRouterScope:
                         mock_estimator.estimate.return_value = mock_estimate
 
                         # Should not raise UnboundLocalError
-                        with pytest.raises(NoProvidersAvailableError):
-                            await self.router.select_model(messages=messages)
+                        result = await self.router.select_model(messages=messages)
+                        assert result[0] == "openai"  # First in general preferences
+                        assert result[1] == "gpt-3.5-turbo"
 
     async def test_span_context_exception_does_not_cause_unbound_local_error(self):
         """Test that span context exceptions don't cause UnboundLocalError."""
-        messages = [ChatMessage(role="user", content="Hello")]
+        messages = [ChatMessage(role="user", content="Hello", name=None)]
 
-        # Mock start_span to raise an exception
-        with patch("app.router.start_span", side_effect=Exception("Span context failed")):
-            with pytest.raises(Exception) as exc_info:
-                await self.router.select_model(messages=messages)
+        # Mock classify_intent to return proper dict to avoid Mock conversion errors
+        with patch("app.router.classify_intent", return_value={"label": "general", "confidence": 0.5, "signals": {}, "method": "test"}):
+            # Mock start_span_async to raise an exception (router uses start_span_async, not start_span)
+            with patch("app.router.start_span_async", side_effect=Exception("Span context failed")):
+                with pytest.raises(Exception) as exc_info:
+                    await self.router.select_model(messages=messages)
 
-            # Should raise the original exception, not UnboundLocalError
-            assert "Span context failed" in str(exc_info.value)
-            assert "UnboundLocalError" not in str(exc_info.value)
+                # Should raise the original exception, not UnboundLocalError
+                assert "Span context failed" in str(exc_info.value)
+                assert "UnboundLocalError" not in str(exc_info.value)
 
     async def test_estimate_tokens_exception_does_not_cause_unbound_local_error(self):
         """Test that estimate_tokens exceptions don't cause UnboundLocalError."""
-        messages = [ChatMessage(role="user", content="Hello")]
+        messages = [ChatMessage(role="user", content="Hello", name=None)]
 
         # Mock estimate_tokens to raise an exception
         with patch("app.router.estimate_tokens", side_effect=Exception("Token estimation failed")):
@@ -106,10 +115,16 @@ class TestHeuristicRouterScope:
                 self.router,
                 "analyze_prompt",
                 return_value={
-                    "task_type": "general",
+                    "total_length": 5,
+                    "message_count": 1,
+                    "has_code": False,
                     "code_confidence": 0.0,
+                    "has_complexity": False,
                     "complexity_confidence": 0.0,
+                    "is_simple": False,
                     "simple_confidence": 0.0,
+                    "detected_languages": [],
+                    "task_type": "general",
                 },
             ):
                 with pytest.raises(Exception) as exc_info:
@@ -121,7 +136,7 @@ class TestHeuristicRouterScope:
 
     async def test_empty_preferences_handled_gracefully(self):
         """Test that empty preferences are handled gracefully."""
-        messages = [ChatMessage(role="user", content="Hello")]
+        messages = [ChatMessage(role="user", content="Hello", name=None)]
 
         # Mock model_preferences to return empty list
         self.router.model_preferences = {"general": []}
@@ -147,7 +162,7 @@ class TestHeuristicRouterScope:
 
     async def test_preferences_initialization_prevents_unbound_local_error(self):
         """Test that preferences initialization prevents UnboundLocalError in fallback logic."""
-        messages = [ChatMessage(role="user", content="Hello")]
+        messages = [ChatMessage(role="user", content="Hello", name=None)]
 
         # Mock analyze_prompt to work normally
         with patch.object(

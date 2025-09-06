@@ -3,9 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from app.core.costing import Estimator, LatencyPriors, Price, estimate_tokens, load_price_table
+from app.core.costing import (Estimator, LatencyPriors, Price, estimate_tokens,
+                               load_price_table)
 from app.models import ChatMessage
 from app.router import HeuristicRouter
+from app.settings import settings
 
 
 @pytest.mark.cost_estimation_comprehensive
@@ -37,23 +39,23 @@ def test_price_table_integration_with_router_preferences(
 @pytest.mark.cost_estimation_comprehensive
 def test_estimate_tokens_various_lengths():
     # Short simple
-    messages = [ChatMessage(role="user", content="Hi")]
+    messages = [ChatMessage(role="user", content="Hi", name=None)]
     tokens_in, tokens_out = estimate_tokens(
-        messages, defaults=__import__("app.settings").settings, floor=1
+        messages, defaults=settings, floor=1
     )
     assert tokens_in >= 1 and tokens_out > 0
 
     # Long content
     long_text = "a" * 1000
-    messages = [ChatMessage(role="user", content=long_text)]
-    tokens_in, _ = estimate_tokens(messages, defaults=__import__("app.settings").settings, floor=1)
+    messages = [ChatMessage(role="user", content=long_text, name=None)]
+    tokens_in, _ = estimate_tokens(messages, defaults=settings, floor=1)
     assert tokens_in >= 250  # 1000 chars ~ 250 tokens
 
 
 @pytest.mark.cost_estimation_comprehensive
 def test_estimator_returns_estimate_fields(deterministic_price_table):
     prices = load_price_table(deterministic_price_table)
-    estimator = Estimator(prices, LatencyPriors(), __import__("app.settings").settings)
+    estimator = Estimator(prices, LatencyPriors(), settings)
     est = estimator.estimate("openai:gpt-4o", tokens_in=100, tokens_out=50)
     assert est.model_key == "openai:gpt-4o"
     assert isinstance(est.eta_ms, int)
@@ -64,7 +66,7 @@ def test_estimator_returns_estimate_fields(deterministic_price_table):
 @pytest.mark.cost_estimation_comprehensive
 def test_cost_calculation_accuracy_known_pricing(deterministic_price_table):
     prices = load_price_table(deterministic_price_table)
-    estimator = Estimator(prices, LatencyPriors(), __import__("app.settings").settings)
+    estimator = Estimator(prices, LatencyPriors(), settings)
 
     # openai:gpt-4o has input=0.005, output=0.015 per 1k
     est = estimator.estimate("openai:gpt-4o", tokens_in=2000, tokens_out=1000)
@@ -81,7 +83,7 @@ def test_error_handling_missing_price_entries(tmp_path):
     prices = load_price_table(str(bad_file))
     assert prices == {}
 
-    estimator = Estimator(prices, LatencyPriors(), __import__("app.settings").settings)
+    estimator = Estimator(prices, LatencyPriors(), settings)
     est = estimator.estimate("unknown:unknown", tokens_in=100, tokens_out=100)
     assert est.usd is None  # Unknown models return None cost
 
@@ -124,7 +126,7 @@ async def test_max_tokens_override_affects_estimate(
     # ensure model exists in pricing
     router.model_preferences["simple"] = [("openai", "gpt-4o-mini")]
 
-    messages = [ChatMessage(role="user", content="Short question")]
+    messages = [ChatMessage(role="user", content="Short question", name=None)]
     provider, model, _, _, estimate_meta = await router.select_model(
         messages, max_tokens=10, budget_constraint=1.0
     )
@@ -170,7 +172,7 @@ async def test_edge_case_very_long_input(direct_router, monkeypatch):
 
     # Very long input (>10k chars)
     long_content = "a" * 15000
-    messages = [ChatMessage(role="user", content=long_content)]
+    messages = [ChatMessage(role="user", content=long_content, name=None)]
 
     provider, model, _, _, estimate_meta = await direct_router.select_model(
         messages, budget_constraint=1.0

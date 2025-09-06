@@ -8,23 +8,15 @@ Tests for core exception classes.
 
 import pytest
 
-from app.core.exceptions import (
-    AuthenticationError,
-    BudgetExceededError,
-    CacheError,
-    ClassificationError,
-    ConfigurationError,
-    ModelMuxerError,
-    ModelNotFoundError,
-    NoProvidersAvailableError,
-    ProviderError,
-    QuotaExceededError,
-    RateLimitError,
-    RouterConfigurationError,
-    RoutingError,
-    TimeoutError as MuxerTimeoutError,
-    ValidationError,
-)
+from app.core.exceptions import (AuthenticationError, BudgetExceededError,
+                                 CacheError, ClassificationError,
+                                 ConfigurationError, ModelMuxerError,
+                                 ModelNotFoundError, NoProvidersAvailableError,
+                                 ProviderError, QuotaExceededError,
+                                 RateLimitError, RouterConfigurationError,
+                                 RoutingError)
+from app.core.exceptions import TimeoutError as MuxerTimeoutError
+from app.core.exceptions import ValidationError
 
 
 class TestModelMuxerError:
@@ -130,10 +122,7 @@ class TestBudgetExceededError:
         """Test budget exceeded error."""
         estimates = [("model1", 0.5), ("model2", None)]
         error = BudgetExceededError(
-            "Budget exceeded",
-            limit=1.0,
-            estimates=estimates,
-            reason="cost_too_high"
+            "Budget exceeded", limit=1.0, estimates=estimates, reason="cost_too_high"
         )
         assert error.limit == 1.0
         assert error.estimates == estimates

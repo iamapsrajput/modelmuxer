@@ -25,32 +25,27 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 import app.providers.registry as providers_registry
 from app.core.exceptions import BudgetExceededError
-from app.core.validation_helpers import reject_proxy_style_model, validate_model_format
+from app.core.validation_helpers import (reject_proxy_style_model,
+                                         validate_model_format)
 from app.policy.rules import enforce_policies  # policy integration
 from app.telemetry.logging import configure_json_logging
 from app.telemetry.metrics import HTTP_LATENCY as HTTP_LATENCY
 from app.telemetry.metrics import HTTP_REQUESTS_TOTAL as HTTP_REQUESTS
-from app.telemetry.metrics import LLM_ROUTER_BUDGET_EXCEEDED_TOTAL, REQUEST_DURATION, REQUESTS_TOTAL
+from app.telemetry.metrics import (LLM_ROUTER_BUDGET_EXCEEDED_TOTAL,
+                                   REQUEST_DURATION, REQUESTS_TOTAL)
 from app.telemetry.tracing import get_trace_id, init_tracing, start_span
 
 # Prometheus not used in basic mode - only in enhanced mode
 # Core imports
-from .auth import SecurityHeaders, auth, sanitize_user_input, validate_request_size
-from .config import settings as legacy_settings  # kept for enhanced mode compatibility
+from .auth import (SecurityHeaders, auth, sanitize_user_input,
+                   validate_request_size)
+from .config import \
+    settings as legacy_settings  # kept for enhanced mode compatibility
 from .cost_tracker import cost_tracker
 from .database import db
-from .models import (
-    ChatCompletionRequest,
-    ChatCompletionResponse,
-    ChatMessage,
-    Choice,
-    ErrorResponse,
-    HealthResponse,
-    MetricsResponse,
-    RouterMetadata,
-    Usage,
-    UserStats,
-)
+from .models import (ChatCompletionRequest, ChatCompletionResponse,
+                     ChatMessage, Choice, ErrorResponse, HealthResponse,
+                     MetricsResponse, RouterMetadata, Usage, UserStats)
 from .providers.base import AuthenticationError, ProviderError, RateLimitError
 from .router import HeuristicRouter
 from .settings import settings as app_settings

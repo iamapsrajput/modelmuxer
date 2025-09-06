@@ -10,7 +10,7 @@ except ImportError:  # pragma: no cover
     otel_get_current_span = None  # type: ignore
 
 
-def get_current_span():
+def get_current_span() -> Any:
     """Get the current OpenTelemetry span, or None if not available."""
     if otel_get_current_span is not None:
         return otel_get_current_span()

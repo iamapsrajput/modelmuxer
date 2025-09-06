@@ -98,7 +98,7 @@ class LatencyPriors:
             window_seconds: Time window for measurements in seconds (default: 1800s = 30min)
         """
         self.window_seconds = window_seconds
-        self.measurements: Dict[str, deque] = {}
+        self.measurements: Dict[str, deque[tuple[float, int]]] = {}
 
     def update(self, model_key: str, ms: int) -> None:
         """

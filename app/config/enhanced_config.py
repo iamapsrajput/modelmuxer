@@ -8,7 +8,7 @@ ModelMuxer features including routing, caching, authentication, and monitoring.
 """
 
 import structlog
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Import centralized settings to avoid duplication
@@ -21,28 +21,28 @@ class ProviderConfig(BaseSettings):
     """Configuration for LLM providers."""
 
     # OpenAI
-    openai_api_key: str | None = Field(default=None, env="OPENAI_API_KEY")
-    openai_base_url: str | None = Field(default=None, env="OPENAI_BASE_URL")
+    openai_api_key: str | None = Field(default=None)
+    openai_base_url: str | None = Field(default=None)
 
     # Anthropic
-    anthropic_api_key: str | None = Field(default=None, env="ANTHROPIC_API_KEY")
+    anthropic_api_key: str | None = Field(default=None)
 
     # Mistral
-    mistral_api_key: str | None = Field(default=None, env="MISTRAL_API_KEY")
+    mistral_api_key: str | None = Field(default=None)
 
     # Google
-    google_api_key: str | None = Field(default=None, env="GOOGLE_API_KEY")
+    google_api_key: str | None = Field(default=None)
 
     # Cohere
-    cohere_api_key: str | None = Field(default=None, env="COHERE_API_KEY")
+    cohere_api_key: str | None = Field(default=None)
 
     # Groq
-    groq_api_key: str | None = Field(default=None, env="GROQ_API_KEY")
+    groq_api_key: str | None = Field(default=None)
 
     # Together AI
-    together_api_key: str | None = Field(default=None, env="TOGETHER_API_KEY")
+    together_api_key: str | None = Field(default=None)
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
 
     def validate_at_least_one_provider(self) -> bool:
         """Validate that at least one provider API key is configured."""
@@ -80,47 +80,52 @@ class ProviderConfig(BaseSettings):
 class RoutingConfig(BaseSettings):
     """Configuration for routing strategies."""
 
-    default_strategy: str = Field(default="hybrid", env="DEFAULT_ROUTING_STRATEGY")
+    default_strategy: str = Field(default="hybrid")
 
     # Heuristic router settings
-    heuristic_enabled: bool = Field(default=True, env="HEURISTIC_ROUTING_ENABLED")
+    heuristic_enabled: bool = Field(default=True)
 
     # Semantic router settings
-    semantic_enabled: bool = Field(default=True, env="SEMANTIC_ROUTING_ENABLED")
-    semantic_model: str = Field(default="all-MiniLM-L6-v2", env="SEMANTIC_MODEL")
-    semantic_threshold: float = Field(default=0.6, env="SEMANTIC_THRESHOLD")
+    semantic_enabled: bool = Field(default=True)
+    semantic_model: str = Field(default="all-MiniLM-L6-v2")
+    semantic_threshold: float = Field(default=0.6)
 
     # Cascade router settings
-    cascade_enabled: bool = Field(default=True, env="CASCADE_ROUTING_ENABLED")
+    cascade_enabled: bool = Field(default=True)
+    cascade_quality_threshold: float = Field(default=0.7)
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
 
 
 class CacheConfig(BaseSettings):
     """Configuration for caching features."""
 
-    enabled: bool = Field(default=True, env="CACHE_ENABLED")
-    backend: str = Field(default="memory", env="CACHE_BACKEND")
-    ttl: int = Field(default=3600, env="CACHE_TTL")
-    max_size: int = Field(default=1000, env="CACHE_MAX_SIZE")
+    enabled: bool = Field(default=True)
+    backend: str = Field(default="memory")
+    ttl: int = Field(default=3600)
+    max_size: int = Field(default=1000)
+    default_ttl: int = Field(default=3600)
+    memory_max_size: int = Field(default=1000)
 
     # Redis settings (if using Redis backend)
-    redis_url: str | None = Field(default=None, env="REDIS_URL")
-    redis_db: int = Field(default=0, env="REDIS_DB")
+    redis_url: str | None = Field(default="redis://localhost:6379")
+    redis_db: int = Field(default=0)
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
 
 
 class AuthConfig(BaseSettings):
     """Configuration for authentication and authorization."""
 
-    enabled: bool = Field(default=True, env="AUTH_ENABLED")
-    api_keys: str = Field(default="", env="API_KEYS")
-    jwt_secret: str | None = Field(default=None, env="JWT_SECRET")
-    jwt_algorithm: str = Field(default="HS256", env="JWT_ALGORITHM")
-    jwt_expiration: int = Field(default=3600, env="JWT_EXPIRATION")
+    enabled: bool = Field(default=True)
+    api_keys: str = Field(default="")
+    jwt_secret: str | None = Field(default=None)
+    jwt_algorithm: str = Field(default="HS256")
+    jwt_expiration: int = Field(default=3600)
+    jwt_expiry: int = Field(default=3600)
+    methods: str = Field(default="api_key")
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
 
     def get_api_keys_list(self) -> list[str]:
         """Get list of allowed API keys."""
@@ -132,54 +137,62 @@ class AuthConfig(BaseSettings):
 class RateLimitConfig(BaseSettings):
     """Configuration for rate limiting."""
 
-    enabled: bool = Field(default=True, env="RATE_LIMIT_ENABLED")
-    requests_per_minute: int = Field(default=60, env="RATE_LIMIT_PER_MINUTE")
-    requests_per_hour: int = Field(default=1000, env="RATE_LIMIT_PER_HOUR")
-    burst_limit: int = Field(default=10, env="RATE_LIMIT_BURST")
+    enabled: bool = Field(default=True)
+    requests_per_minute: int = Field(default=60)
+    requests_per_hour: int = Field(default=1000)
+    burst_limit: int = Field(default=10)
+    burst_size: int = Field(default=20)
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
 
 
 class MonitoringConfig(BaseSettings):
     """Configuration for monitoring and observability."""
 
-    enabled: bool = Field(default=True, env="MONITORING_ENABLED")
-    prometheus_enabled: bool = Field(default=True, env="PROMETHEUS_ENABLED")
-    health_check_enabled: bool = Field(default=True, env="HEALTH_CHECK_ENABLED")
-    metrics_interval: int = Field(default=60, env="METRICS_INTERVAL")
+    enabled: bool = Field(default=True)
+    prometheus_enabled: bool = Field(default=True)
+    health_check_enabled: bool = Field(default=True)
+    metrics_interval: int = Field(default=60)
+    track_performance: bool = Field(default=True)
+    prometheus_port: int = Field(default=9090)
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
 
 
 class LoggingConfig(BaseSettings):
     """Configuration for logging."""
 
-    level: str = Field(default="info", env="LOG_LEVEL")
-    format: str = Field(default="json", env="LOG_FORMAT")
-    structured: bool = Field(default=True, env="LOG_STRUCTURED")
+    level: str = Field(default="INFO")
+    format: str = Field(default="json")
+    structured: bool = Field(default=True)
+    log_requests: bool = Field(default=True)
+    log_responses: bool = Field(default=True)
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
 
 
 class ClassificationConfig(BaseSettings):
     """Configuration for ML-based classification."""
 
-    enabled: bool = Field(default=True, env="CLASSIFICATION_ENABLED")
-    model_name: str = Field(default="all-MiniLM-L6-v2", env="CLASSIFICATION_MODEL")
-    confidence_threshold: float = Field(default=0.6, env="CLASSIFICATION_CONFIDENCE_THRESHOLD")
-    max_history_size: int = Field(default=1000, env="CLASSIFICATION_HISTORY_SIZE")
+    enabled: bool = Field(default=True)
+    model_name: str = Field(default="all-MiniLM-L6-v2")
+    confidence_threshold: float = Field(default=0.6)
+    max_history_size: int = Field(default=1000)
+    embedding_model: str = Field(default="all-MiniLM-L6-v2")
+    embedding_cache_enabled: bool = Field(default=True)
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
 
 
 class ModelMuxerConfig:
     """Main configuration class combining all sub-configurations."""
 
     def __init__(self):
-        # Server settings from centralized settings
-        self.host = app_settings.server.host
-        self.port = app_settings.server.port
-        self.debug = app_settings.server.debug
+        # Server settings - allow environment override for testing
+        import os
+        self.host = os.getenv("HOST", app_settings.server.host)
+        self.port = int(os.getenv("PORT", str(app_settings.server.port)))
+        self.debug = os.getenv("DEBUG", str(app_settings.server.debug)).lower() in ("true", "1", "yes")
 
         # Initialize sub-configurations
         self.providers = ProviderConfig()
@@ -192,11 +205,11 @@ class ModelMuxerConfig:
         self.classification = ClassificationConfig()
 
         # Legacy compatibility attributes from centralized settings
-        self.code_detection_threshold = app_settings.router.code_detection_threshold
+        self.code_detection_threshold = float(os.getenv("CODE_DETECTION_THRESHOLD", str(app_settings.router.code_detection_threshold)))
         self.complexity_threshold = app_settings.router.complexity_threshold
         self.simple_query_threshold = 0.3  # Default value for enhanced mode
         self.simple_query_max_length = app_settings.router.simple_query_max_length
-        self.max_tokens_default = app_settings.router.max_tokens_default
+        self.max_tokens_default = int(os.getenv("MAX_TOKENS_DEFAULT", str(app_settings.router.max_tokens_default)))
 
     def get_allowed_api_keys(self) -> list[str]:
         """Get list of allowed API keys from auth configuration."""

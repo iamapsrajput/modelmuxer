@@ -27,7 +27,6 @@ with patch("app.main.HeuristicRouter") as mock_router_cls:
     mock_router_cls.return_value = mock_router
 
 from app.core.exceptions import BudgetExceededError
-
 # Import app after mocks are applied
 from app.main import app, get_authenticated_user
 from app.models import ChatMessage

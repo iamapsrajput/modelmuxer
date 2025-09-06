@@ -68,7 +68,7 @@ async def test_simple_query_selection(direct_router, monkeypatch):
         ChatMessage(role="user", content="What is the capital of France?"),
     ]
 
-    with patch("app.telemetry.metrics.ROUTER_INTENT_TOTAL") as mock_intent:
+    with patch("app.router.ROUTER_INTENT_TOTAL") as mock_intent:
         labeled = Mock()
         labeled.inc = Mock()
         mock_intent.labels.return_value = labeled
@@ -193,7 +193,7 @@ async def test_production_mode_missing_pricing_raises(monkeypatch):
         with pytest.raises(RouterConfigurationError) as ei:
             HeuristicRouter()
 
-        assert "Price table is empty in production mode" in str(ei.value)
+        assert "Model keys in preferences missing from price table" in str(ei.value)
 
 
 @pytest.mark.asyncio

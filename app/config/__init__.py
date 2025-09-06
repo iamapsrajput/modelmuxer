@@ -46,16 +46,16 @@ load_enhanced_config: Callable[[], Any] | None = None
 # Only try to load enhanced config if we're in enhanced mode
 if app_settings.features.mode in ["enhanced", "production"]:
     try:
-        from .enhanced_config import AuthConfig  # type: ignore[misc]
-        from .enhanced_config import CacheConfig  # type: ignore[misc]
-        from .enhanced_config import ClassificationConfig  # type: ignore[misc]
-        from .enhanced_config import LoggingConfig  # type: ignore[misc]
-        from .enhanced_config import ModelMuxerConfig  # type: ignore[misc]
-        from .enhanced_config import MonitoringConfig  # type: ignore[misc]
-        from .enhanced_config import ProviderConfig  # type: ignore[misc]
-        from .enhanced_config import RateLimitConfig  # type: ignore[misc]
-        from .enhanced_config import RoutingConfig  # type: ignore[misc]
-        from .enhanced_config import enhanced_config  # type: ignore[misc]
+        from .enhanced_config import AuthConfig
+        from .enhanced_config import CacheConfig
+        from .enhanced_config import ClassificationConfig
+        from .enhanced_config import LoggingConfig
+        from .enhanced_config import ModelMuxerConfig
+        from .enhanced_config import MonitoringConfig
+        from .enhanced_config import ProviderConfig
+        from .enhanced_config import RateLimitConfig
+        from .enhanced_config import RoutingConfig
+        from .enhanced_config import enhanced_config
         from .enhanced_config import load_enhanced_config
 
         # Use enhanced config if it loaded successfully

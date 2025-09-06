@@ -7,7 +7,7 @@ is not available.
 """
 
 import logging
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +40,10 @@ except ImportError:
     logger.warning("prometheus_client not available - using no-op metrics")
 
     class _NoopMetric:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def labels(self, *label_values: str, **label_kwargs: str):
+        def labels(self, *label_values: str, **label_kwargs: str) -> "_NoopMetric":
             return self
 
         def inc(self, amount: float = 1.0) -> None:
@@ -55,14 +55,14 @@ except ImportError:
         def set(self, value: float) -> None:
             pass
 
-        def time(self):
+        def time(self) -> "_NoopContext":
             return _NoopContext()
 
     class _NoopContext:
-        def __enter__(self):
+        def __enter__(self) -> "_NoopContext":
             return self
 
-        def __exit__(self, *args):
+        def __exit__(self, *args: Any) -> None:
             pass
 
     Counter = _NoopMetric

@@ -65,7 +65,7 @@ class HealthChecker:
         self._last_check_time: float = 0.0
 
         # Background task
-        self._health_task: asyncio.Task | None = None
+        self._health_task: asyncio.Task[None] | None = None
         self._running = False
 
         logger.info(

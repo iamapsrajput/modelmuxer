@@ -22,7 +22,7 @@ class APIKeyAuth:
         app_settings = settings
 
         if hasattr(app_settings, "get_allowed_api_keys"):
-            allowed_keys = app_settings.get_allowed_api_keys()  # type: ignore[attr-defined]
+            allowed_keys = app_settings.get_allowed_api_keys()
         else:
             allowed_keys = app_settings.api.api_keys
 

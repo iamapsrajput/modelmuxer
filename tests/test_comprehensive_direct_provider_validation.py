@@ -17,7 +17,8 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
-from app.models import ChatCompletionRequest, ChatCompletionResponse, ChatMessage
+from app.models import (ChatCompletionRequest, ChatCompletionResponse,
+                        ChatMessage)
 from app.providers.base import LLMProviderAdapter
 from app.router import HeuristicRouter
 from app.settings import Settings
@@ -292,11 +293,17 @@ class TestErrorHandlingAndFallback:
 
         router = HeuristicRouter()
 
-        # Mock all providers to fail
+        # Mock all providers to fail and clear model preferences to trigger no providers path
         with patch.object(router, "provider_registry_fn", return_value={}):
-            with pytest.raises(NoProvidersAvailableError):
-                messages = [ChatMessage(role="user", content="test")]
-                await router.select_model(messages, budget_constraint=100.0)
+            # Clear preferences to ensure we hit the no providers path
+            original_preferences = router.model_preferences.copy()
+            router.model_preferences = {}
+            try:
+                with pytest.raises(NoProvidersAvailableError):
+                    messages = [ChatMessage(role="user", content="test")]
+                    await router.select_model(messages, budget_constraint=100.0)
+            finally:
+                router.model_preferences = original_preferences
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_integration(self):

@@ -39,7 +39,7 @@ _PATTERNS_TS: float = 0.0
 _PATTERNS_TTL_SEC: int = 15
 
 
-def _get_settings():
+def _get_settings() -> Any:
     # Obtain current settings instance (supports tests that reload module)
     import app.settings as settings_module
 

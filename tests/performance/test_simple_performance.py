@@ -95,7 +95,8 @@ class TestBasicPerformance:
         """Benchmark test for import performance using pytest-benchmark."""
 
         def import_modules():
-            from app.config.enhanced_config import enhanced_config  # noqa: F401
+            from app.config.enhanced_config import \
+                enhanced_config  # noqa: F401
             from app.models import ChatMessage  # noqa: F401
 
             return True

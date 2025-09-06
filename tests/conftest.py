@@ -409,11 +409,11 @@ def mock_latency_priors():
 def mock_telemetry():
     """Mock telemetry components for testing."""
     with (
-        patch("app.telemetry.metrics.ROUTER_REQUESTS") as mock_requests,
-        patch("app.telemetry.metrics.ROUTER_DECISION_LATENCY") as mock_latency,
-        patch("app.telemetry.metrics.ROUTER_FALLBACKS") as mock_fallbacks,
-        patch("app.telemetry.metrics.LLM_ROUTER_COST_ESTIMATE_USD_SUM") as mock_cost_sum,
-        patch("app.telemetry.metrics.LLM_ROUTER_BUDGET_EXCEEDED_TOTAL") as mock_budget_exceeded,
+        patch("app.router.ROUTER_REQUESTS") as mock_requests,
+        patch("app.router.ROUTER_DECISION_LATENCY") as mock_latency,
+        patch("app.router.ROUTER_FALLBACKS") as mock_fallbacks,
+        patch("app.router.LLM_ROUTER_COST_ESTIMATE_USD_SUM") as mock_cost_sum,
+        patch("app.router.LLM_ROUTER_BUDGET_EXCEEDED_TOTAL") as mock_budget_exceeded,
     ):
         # Set up labeled mocks for each metric
         mock_requests_labeled = Mock(inc=Mock())
@@ -468,4 +468,12 @@ def deterministic_env(monkeypatch):
             ),
         },
     ):
+        yield
+
+
+@pytest.fixture
+def mock_settings_max_tokens():
+    """Mock settings.max_tokens_default for provider tests."""
+    with patch("app.providers.anthropic_provider.settings") as mock_settings:
+        mock_settings.max_tokens_default = 1000
         yield
