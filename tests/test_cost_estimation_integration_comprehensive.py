@@ -5,8 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from app.core.costing import (Estimator, LatencyPriors, Price, estimate_tokens,
-                               load_price_table)
+from app.core.costing import Estimator, LatencyPriors, Price, estimate_tokens, load_price_table
 from app.models import ChatMessage
 from app.router import HeuristicRouter
 from app.settings import settings
@@ -42,9 +41,7 @@ def test_price_table_integration_with_router_preferences(
 def test_estimate_tokens_various_lengths():
     # Short simple
     messages = [ChatMessage(role="user", content="Hi", name=None)]
-    tokens_in, tokens_out = estimate_tokens(
-        messages, defaults=settings, floor=1
-    )
+    tokens_in, tokens_out = estimate_tokens(messages, defaults=settings, floor=1)
     assert tokens_in >= 1 and tokens_out > 0
 
     # Long content

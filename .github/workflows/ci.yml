@@ -168,7 +168,10 @@ jobs:
         run: semgrep --error --config p/python --sarif > semgrep.sarif || true
 
       - name: Upload Semgrep SARIF
-        if: ${{ always() && hashFiles('semgrep.sarif') != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        if:
+          ${{ always() && hashFiles('semgrep.sarif') != '' && (github.event_name
+          != 'pull_request' || github.event.pull_request.head.repo.full_name ==
+          github.repository) }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
@@ -193,7 +196,9 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        if:
+          ${{ always() && (github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.full_name == github.repository) }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: "trivy-fs-results.sarif"

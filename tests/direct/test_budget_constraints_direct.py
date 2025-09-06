@@ -38,7 +38,8 @@ class TestBudgetConstraintsDirect:
             # Use impossibly low budget to force BudgetExceededError (models cost ~$0.0002+)
             with pytest.raises(BudgetExceededError) as exc_info:
                 await budget_constrained_router.select_model(
-                    expensive_model_messages, budget_constraint=0.00001  # Below cheapest model cost
+                    expensive_model_messages,
+                    budget_constraint=0.00001,  # Below cheapest model cost
                 )
 
             # Verify error structure
@@ -79,7 +80,8 @@ class TestBudgetConstraintsDirect:
             # Use impossibly low budget to force BudgetExceededError (below all model costs)
             with pytest.raises(BudgetExceededError) as exc_info:
                 await budget_constrained_router.select_model(
-                    simple_messages, budget_constraint=0.00001  # Below cheapest model cost
+                    simple_messages,
+                    budget_constraint=0.00001,  # Below cheapest model cost
                 )
 
             # Verify error structure
@@ -196,7 +198,9 @@ class TestBudgetConstraintsDirect:
         """Test cost estimation with different input/output token counts."""
         # Test with different message lengths
         short_messages = [ChatMessage(role="user", content="Hi", name=None)]
-        long_messages = [ChatMessage(role="user", content="This is a very long message " * 50, name=None)]
+        long_messages = [
+            ChatMessage(role="user", content="This is a very long message " * 50, name=None)
+        ]
 
         with patch(
             "app.core.intent.classify_intent",
@@ -447,7 +451,8 @@ class TestBudgetConstraintsDirect:
             # Use impossibly low budget to ensure BudgetExceededError
             with pytest.raises(BudgetExceededError) as exc_info:
                 await budget_constrained_router.select_model(
-                    complex_messages, budget_constraint=0.00001  # Below all model costs
+                    complex_messages,
+                    budget_constraint=0.00001,  # Below all model costs
                 )
 
             # Verify error structure
@@ -494,7 +499,12 @@ class TestBudgetConstraintsDirect:
             ), f"All budget constraints should fail, got {len(successful_results)} successes: {successful_results}"
 
     async def test_down_routing_metric(
-        self, direct_providers_only_mode, budget_constrained_router, complex_messages, monkeypatch, mock_provider_registry_patch
+        self,
+        direct_providers_only_mode,
+        budget_constrained_router,
+        complex_messages,
+        monkeypatch,
+        mock_provider_registry_patch,
     ):
         """Test that LLM_ROUTER_DOWN_ROUTE_TOTAL metric is incremented on down-routing."""
         with patch("app.telemetry.metrics.LLM_ROUTER_DOWN_ROUTE_TOTAL") as mock_down_route_metric:
@@ -526,12 +536,14 @@ class TestBudgetConstraintsDirect:
             ):
                 # Ensure the first preference has an available adapter by checking the provider registry
                 available_providers = budget_constrained_router.provider_registry_fn()
-                first_pref = budget_constrained_router.model_preferences['complex'][0]
+                first_pref = budget_constrained_router.model_preferences["complex"][0]
                 first_provider, first_model = first_pref
 
                 # If first preference doesn't have an adapter, the test won't work
                 if first_provider not in available_providers:
-                    pytest.skip(f"First preference provider {first_provider} not available in test setup")
+                    pytest.skip(
+                        f"First preference provider {first_provider} not available in test setup"
+                    )
 
                 # Use budget below first preference cost but above cheaper alternative cost
                 # claude-3-5-sonnet-20241022 costs ~$0.003, gpt-4o-mini costs ~$0.00015

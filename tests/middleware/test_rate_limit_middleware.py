@@ -191,8 +191,10 @@ class TestRateLimitMiddleware:
         mock_request.url.path = "/v1/chat/completions"
 
         # Mock psutil at the module level
-        with patch("psutil.cpu_percent", return_value=90.0), \
-             patch("psutil.virtual_memory") as mock_memory:
+        with (
+            patch("psutil.cpu_percent", return_value=90.0),
+            patch("psutil.virtual_memory") as mock_memory,
+        ):
             mock_memory.return_value.percent = 85.0
 
             result = await middleware.check_rate_limit(mock_request, "test_user")

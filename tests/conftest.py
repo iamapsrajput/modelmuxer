@@ -323,9 +323,15 @@ def budget_constrained_router(deterministic_price_table, mock_provider_registry,
 def code_messages():
     """Sample messages for code-related tasks."""
     return [
-        ChatMessage(role="user", content="Write a Python function to sort a list of integers", name=None),
-        ChatMessage(role="assistant", content="Here's a Python function to sort integers:", name=None),
-        ChatMessage(role="user", content="Can you also add error handling for edge cases?", name=None),
+        ChatMessage(
+            role="user", content="Write a Python function to sort a list of integers", name=None
+        ),
+        ChatMessage(
+            role="assistant", content="Here's a Python function to sort integers:", name=None
+        ),
+        ChatMessage(
+            role="user", content="Can you also add error handling for edge cases?", name=None
+        ),
     ]
 
 
@@ -334,13 +340,18 @@ def complex_messages():
     """Sample messages for complex reasoning tasks."""
     return [
         ChatMessage(
-            role="user", content="Explain the implications of quantum computing on cryptography", name=None
+            role="user",
+            content="Explain the implications of quantum computing on cryptography",
+            name=None,
         ),
         ChatMessage(
             role="assistant",
-            content="Quantum computing poses significant challenges to current cryptographic systems...", name=None
+            content="Quantum computing poses significant challenges to current cryptographic systems...",
+            name=None,
         ),
-        ChatMessage(role="user", content="What are the potential solutions and their trade-offs?", name=None),
+        ChatMessage(
+            role="user", content="What are the potential solutions and their trade-offs?", name=None
+        ),
     ]
 
 
@@ -369,7 +380,8 @@ def expensive_model_messages():
     return [
         ChatMessage(
             role="user",
-            content="I need a comprehensive analysis of the entire codebase with detailed architectural recommendations, performance optimization suggestions, security audit findings, and migration strategies for a large-scale enterprise application with microservices architecture, distributed systems, and real-time data processing requirements.", name=None
+            content="I need a comprehensive analysis of the entire codebase with detailed architectural recommendations, performance optimization suggestions, security audit findings, and migration strategies for a large-scale enterprise application with microservices architecture, distributed systems, and real-time data processing requirements.",
+            name=None,
         ),
     ]
 

@@ -187,13 +187,17 @@ class TestTogetherProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        await provider.chat_completion(messages=messages, model="meta-llama/Llama-3-8b-chat-hf", temperature=0.7)
+        await provider.chat_completion(
+            messages=messages, model="meta-llama/Llama-3-8b-chat-hf", temperature=0.7
+        )
 
         call_args = mock_client.post.call_args
         request_data = call_args[1]["json"]
         assert request_data["temperature"] == 0.7
 
-    @pytest.mark.skip(reason="Provider code has IndexError when choices is empty - needs fix in provider")
+    @pytest.mark.skip(
+        reason="Provider code has IndexError when choices is empty - needs fix in provider"
+    )
     @pytest.mark.asyncio
     async def test_chat_completion_no_choices(self, provider, mock_client):
         """Test chat completion when no choices returned."""
@@ -212,7 +216,9 @@ class TestTogetherProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="meta-llama/Llama-3-8b-chat-hf")
+        result = await provider.chat_completion(
+            messages=messages, model="meta-llama/Llama-3-8b-chat-hf"
+        )
 
         assert result.choices[0].message.content == ""
         assert result.usage.completion_tokens == 0
@@ -230,7 +236,10 @@ class TestTogetherProvider:
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
         await provider.chat_completion(
-            messages=messages, model="meta-llama/Llama-3-8b-chat-hf", top_p=0.9, presence_penalty=0.1
+            messages=messages,
+            model="meta-llama/Llama-3-8b-chat-hf",
+            top_p=0.9,
+            presence_penalty=0.1,
         )
 
         call_args = mock_client.post.call_args

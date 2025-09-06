@@ -94,7 +94,10 @@ class TestHeuristicRouterScope:
         messages = [ChatMessage(role="user", content="Hello", name=None)]
 
         # Mock classify_intent to return proper dict to avoid Mock conversion errors
-        with patch("app.router.classify_intent", return_value={"label": "general", "confidence": 0.5, "signals": {}, "method": "test"}):
+        with patch(
+            "app.router.classify_intent",
+            return_value={"label": "general", "confidence": 0.5, "signals": {}, "method": "test"},
+        ):
             # Mock start_span_async to raise an exception (router uses start_span_async, not start_span)
             with patch("app.router.start_span_async", side_effect=Exception("Span context failed")):
                 with pytest.raises(Exception) as exc_info:

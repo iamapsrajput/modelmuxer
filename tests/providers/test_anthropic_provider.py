@@ -82,7 +82,9 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+        )
 
         assert result.choices[0].message.content == "Hello world"
         assert result.model == "claude-3-haiku-20240307"
@@ -114,7 +116,9 @@ class TestAnthropicProvider:
             ChatMessage(role="system", content="You are helpful", name=None),
             ChatMessage(role="user", content="Hello", name=None),
         ]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+        )
 
         # Verify system message was extracted
         call_args = mock_client.post.call_args
@@ -157,7 +161,9 @@ class TestAnthropicProvider:
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
         with pytest.raises(ProviderError, match="No content returned from Anthropic"):
-            await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+            await provider.chat_completion(
+                messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+            )
 
     @pytest.mark.asyncio
     async def test_chat_completion_http_error(self, provider, mock_client):
@@ -168,7 +174,9 @@ class TestAnthropicProvider:
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
         with pytest.raises(ProviderError, match="Anthropic request failed"):
-            await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+            await provider.chat_completion(
+                messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+            )
 
     @pytest.mark.asyncio
     async def test_chat_completion_token_estimation(self, provider, mock_client):
@@ -183,7 +191,9 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello world", name=None)]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+        )
 
         # Should estimate tokens
         assert result.usage.prompt_tokens == 2  # "Hello world" ~ 2 tokens (len/4)
@@ -265,7 +275,9 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=50)
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", max_tokens=50
+        )
 
         call_args = mock_client.post.call_args
         request_data = call_args[1]["json"]
@@ -273,7 +285,9 @@ class TestAnthropicProvider:
         assert result.choices[0].finish_reason == "length"
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_stop_sequences(self, provider, mock_client, mock_settings_max_tokens):
+    async def test_chat_completion_with_stop_sequences(
+        self, provider, mock_client, mock_settings_max_tokens
+    ):
         """Test chat completion with stop sequences."""
 
         mock_response = Mock()
@@ -286,14 +300,18 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", stop=["world"])
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", stop=["world"]
+        )
 
         call_args = mock_client.post.call_args
         request_data = call_args[1]["json"]
         assert request_data["stop"] == ["world"]
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_top_p(self, provider, mock_client, mock_settings_max_tokens):
+    async def test_chat_completion_with_top_p(
+        self, provider, mock_client, mock_settings_max_tokens
+    ):
         """Test chat completion with top_p parameter."""
 
         mock_response = Mock()
@@ -306,14 +324,18 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", top_p=0.9)
+        await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", top_p=0.9
+        )
 
         call_args = mock_client.post.call_args
         request_data = call_args[1]["json"]
         assert request_data["top_p"] == 0.9
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_top_k(self, provider, mock_client, mock_settings_max_tokens):
+    async def test_chat_completion_with_top_k(
+        self, provider, mock_client, mock_settings_max_tokens
+    ):
         """Test chat completion with top_k parameter."""
 
         mock_response = Mock()
@@ -348,7 +370,9 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+        )
 
         assert result.choices[0].message.content == "Hello world!"
 
@@ -368,7 +392,9 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+        )
 
         assert result.choices[0].message.content == "Hello"
 
@@ -386,7 +412,9 @@ class TestAnthropicProvider:
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
         with pytest.raises(ProviderError, match="No content returned from Anthropic"):
-            await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+            await provider.chat_completion(
+                messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+            )
 
     @pytest.mark.asyncio
     async def test_chat_completion_with_invalid_json_response(self, provider, mock_client):
@@ -398,7 +426,9 @@ class TestAnthropicProvider:
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
         with pytest.raises(ProviderError, match="Anthropic unexpected error"):
-            await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+            await provider.chat_completion(
+                messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+            )
 
     @pytest.mark.asyncio
     async def test_chat_completion_with_missing_usage(self, provider, mock_client):
@@ -412,7 +442,9 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+        )
 
         # Should estimate tokens when usage is missing
         assert result.usage.prompt_tokens == 1  # "Hello" ~ 1 token (5//4=1)
@@ -431,7 +463,9 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+        )
 
         assert result.usage.prompt_tokens == 10
         assert result.usage.completion_tokens == 2  # Estimated (11//4=2)
@@ -449,7 +483,9 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+        )
 
         # Should estimate tokens when usage is zero
         assert result.usage.prompt_tokens == 1  # "Hello" ~ 1 token
@@ -458,7 +494,9 @@ class TestAnthropicProvider:
     @pytest.mark.asyncio
     async def test_chat_completion_with_long_content(self, provider, mock_client):
         """Test chat completion with long content for token estimation."""
-        long_content = "This is a very long response that should be properly estimated for tokens. " * 10
+        long_content = (
+            "This is a very long response that should be properly estimated for tokens. " * 10
+        )
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -469,7 +507,9 @@ class TestAnthropicProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="claude-3-haiku-20240307", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="claude-3-haiku-20240307", max_tokens=100
+        )
 
         assert result.usage.prompt_tokens == 50
         assert result.usage.completion_tokens == len(long_content) // 4  # Estimated

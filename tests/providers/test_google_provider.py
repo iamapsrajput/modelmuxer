@@ -137,7 +137,9 @@ class TestGoogleProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="gemini-1.5-flash", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="gemini-1.5-flash", max_tokens=100
+        )
 
         assert result.choices[0].message.content == "Hello world"
         assert result.model == "gemini-1.5-flash"
@@ -181,7 +183,9 @@ class TestGoogleProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="gemini-1.5-flash", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="gemini-1.5-flash", max_tokens=100
+        )
 
         assert result.choices[0].message.content == ""
         assert result.usage.prompt_tokens == 1  # Estimated
@@ -199,7 +203,9 @@ class TestGoogleProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="gemini-1.5-flash", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="gemini-1.5-flash", max_tokens=100
+        )
 
         assert result.choices[0].message.content == ""
         assert result.usage.prompt_tokens == 10
@@ -231,7 +237,9 @@ class TestGoogleProvider:
             mock_client.post.return_value = mock_response
 
             messages = [ChatMessage(role="user", content="Hello", name=None)]
-            result = await provider.chat_completion(messages=messages, model="gemini-1.5-flash", max_tokens=100)
+            result = await provider.chat_completion(
+                messages=messages, model="gemini-1.5-flash", max_tokens=100
+            )
 
             assert result.choices[0].finish_reason == expected_reason
 
@@ -246,7 +254,9 @@ class TestGoogleProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello world", name=None)]
-        result = await provider.chat_completion(messages=messages, model="gemini-1.5-flash", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="gemini-1.5-flash", max_tokens=100
+        )
 
         # Should estimate tokens
         assert result.usage.prompt_tokens == 2  # "Hello world" ~ 2 tokens
@@ -270,7 +280,9 @@ class TestGoogleProvider:
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
         with pytest.raises(RateLimitError, match="Google API rate limit exceeded"):
-            await provider.chat_completion(messages=messages, model="gemini-1.5-flash", max_tokens=100)
+            await provider.chat_completion(
+                messages=messages, model="gemini-1.5-flash", max_tokens=100
+            )
 
     @pytest.mark.asyncio
     async def test_chat_completion_http_error_auth(self, provider, mock_client):
@@ -290,7 +302,9 @@ class TestGoogleProvider:
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
         with pytest.raises(AuthenticationError, match="Google API authentication failed"):
-            await provider.chat_completion(messages=messages, model="gemini-1.5-flash", max_tokens=100)
+            await provider.chat_completion(
+                messages=messages, model="gemini-1.5-flash", max_tokens=100
+            )
 
     @pytest.mark.asyncio
     async def test_chat_completion_http_error_other(self, provider, mock_client):
@@ -310,7 +324,9 @@ class TestGoogleProvider:
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
         with pytest.raises(ProviderError, match="Google API error: 500"):
-            await provider.chat_completion(messages=messages, model="gemini-1.5-flash", max_tokens=100)
+            await provider.chat_completion(
+                messages=messages, model="gemini-1.5-flash", max_tokens=100
+            )
 
     @pytest.mark.asyncio
     async def test_chat_completion_request_error(self, provider, mock_client):
@@ -321,7 +337,9 @@ class TestGoogleProvider:
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
         with pytest.raises(ProviderError, match="Google request failed"):
-            await provider.chat_completion(messages=messages, model="gemini-1.5-flash", max_tokens=100)
+            await provider.chat_completion(
+                messages=messages, model="gemini-1.5-flash", max_tokens=100
+            )
 
     @pytest.mark.skip(reason="Complex mocking issue with httpx stream context manager")
     @pytest.mark.asyncio

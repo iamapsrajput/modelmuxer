@@ -61,7 +61,9 @@ async def test_empty_registry_raises_no_providers(monkeypatch, deterministic_pri
     monkeypatch.setattr("app.router.classify_intent", fake_classify_intent)
 
     with pytest.raises(NoProvidersAvailableError):
-        await router.select_model([ChatMessage(role="user", content="hi", name=None)], budget_constraint=1.0)
+        await router.select_model(
+            [ChatMessage(role="user", content="hi", name=None)], budget_constraint=1.0
+        )
 
 
 @pytest.mark.asyncio
@@ -88,7 +90,9 @@ async def test_fallback_when_preferred_missing(monkeypatch, deterministic_price_
 
     messages = [ChatMessage(role="user", content="class X: pass  # review", name=None)]
     with pytest.raises(BudgetExceededError) as ei:
-        await router.select_model(messages, budget_constraint=0.00001)  # Very low budget to force error
+        await router.select_model(
+            messages, budget_constraint=0.00001
+        )  # Very low budget to force error
     assert getattr(ei.value, "reason", None) is None  # Budget exceeded for preferred model
 
 
@@ -118,7 +122,8 @@ async def test_fallback_metrics_recorded(monkeypatch, deterministic_price_table)
         router.model_preferences["code"] = [("anthropic", "claude-3-haiku-20240307")]
         with pytest.raises(BudgetExceededError) as ei:
             await router.select_model(
-                [ChatMessage(role="user", content="class X: pass", name=None)], budget_constraint=0.00001
+                [ChatMessage(role="user", content="class X: pass", name=None)],
+                budget_constraint=0.00001,
             )
 
         assert labeled.inc.called

@@ -190,9 +190,14 @@ class ModelMuxerConfig:
     def __init__(self):
         # Server settings - allow environment override for testing
         import os
+
         self.host = os.getenv("HOST", app_settings.server.host)
         self.port = int(os.getenv("PORT", str(app_settings.server.port)))
-        self.debug = os.getenv("DEBUG", str(app_settings.server.debug)).lower() in ("true", "1", "yes")
+        self.debug = os.getenv("DEBUG", str(app_settings.server.debug)).lower() in (
+            "true",
+            "1",
+            "yes",
+        )
 
         # Initialize sub-configurations
         self.providers = ProviderConfig()
@@ -205,11 +210,15 @@ class ModelMuxerConfig:
         self.classification = ClassificationConfig()
 
         # Legacy compatibility attributes from centralized settings
-        self.code_detection_threshold = float(os.getenv("CODE_DETECTION_THRESHOLD", str(app_settings.router.code_detection_threshold)))
+        self.code_detection_threshold = float(
+            os.getenv("CODE_DETECTION_THRESHOLD", str(app_settings.router.code_detection_threshold))
+        )
         self.complexity_threshold = app_settings.router.complexity_threshold
         self.simple_query_threshold = 0.3  # Default value for enhanced mode
         self.simple_query_max_length = app_settings.router.simple_query_max_length
-        self.max_tokens_default = int(os.getenv("MAX_TOKENS_DEFAULT", str(app_settings.router.max_tokens_default)))
+        self.max_tokens_default = int(
+            os.getenv("MAX_TOKENS_DEFAULT", str(app_settings.router.max_tokens_default))
+        )
 
     def get_allowed_api_keys(self) -> list[str]:
         """Get list of allowed API keys from auth configuration."""

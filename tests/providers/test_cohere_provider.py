@@ -146,7 +146,9 @@ class TestCohereProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="command-r", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="command-r", max_tokens=100
+        )
 
         assert result.choices[0].message.content == "Hello world"
         assert result.model == "command-r"

@@ -8,13 +8,21 @@ Tests for core exception classes.
 
 import pytest
 
-from app.core.exceptions import (AuthenticationError, BudgetExceededError,
-                                 CacheError, ClassificationError,
-                                 ConfigurationError, ModelMuxerError,
-                                 ModelNotFoundError, NoProvidersAvailableError,
-                                 ProviderError, QuotaExceededError,
-                                 RateLimitError, RouterConfigurationError,
-                                 RoutingError)
+from app.core.exceptions import (
+    AuthenticationError,
+    BudgetExceededError,
+    CacheError,
+    ClassificationError,
+    ConfigurationError,
+    ModelMuxerError,
+    ModelNotFoundError,
+    NoProvidersAvailableError,
+    ProviderError,
+    QuotaExceededError,
+    RateLimitError,
+    RouterConfigurationError,
+    RoutingError,
+)
 from app.core.exceptions import TimeoutError as MuxerTimeoutError
 from app.core.exceptions import ValidationError
 

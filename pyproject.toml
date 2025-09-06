@@ -261,7 +261,7 @@ ignore = [
     "ISC001",  # conflicts with formatter
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 
 [tool.mypy]

@@ -160,7 +160,9 @@ class TestGroqProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        result = await provider.chat_completion(messages=messages, model="llama-3.1-8b-instant", max_tokens=100)
+        result = await provider.chat_completion(
+            messages=messages, model="llama-3.1-8b-instant", max_tokens=100
+        )
 
         assert result.choices[0].message.content == "Hello world"
         assert result.model == "llama-3.1-8b-instant"
@@ -189,7 +191,9 @@ class TestGroqProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        await provider.chat_completion(messages=messages, model="llama-3.1-8b-instant", temperature=0.7)
+        await provider.chat_completion(
+            messages=messages, model="llama-3.1-8b-instant", temperature=0.7
+        )
 
         call_args = mock_client.post.call_args
         request_data = call_args[1]["json"]
@@ -236,7 +240,9 @@ class TestGroqProvider:
         mock_client.post.return_value = mock_response
 
         messages = [ChatMessage(role="user", content="Hello", name=None)]
-        await provider.chat_completion(messages=messages, model="llama-3.1-8b-instant", top_p=0.9, presence_penalty=0.1)
+        await provider.chat_completion(
+            messages=messages, model="llama-3.1-8b-instant", top_p=0.9, presence_penalty=0.1
+        )
 
         call_args = mock_client.post.call_args
         request_data = call_args[1]["json"]

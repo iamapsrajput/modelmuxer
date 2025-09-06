@@ -518,7 +518,9 @@ class HeuristicRouter:
                         provider in available_providers for provider, _ in preferences
                     )
                     if not preferred_providers_available and available_providers:
-                        ROUTER_FALLBACKS.labels(route_label, "no_preferred_provider_available").inc()
+                        ROUTER_FALLBACKS.labels(
+                            route_label, "no_preferred_provider_available"
+                        ).inc()
                     elif available_providers:
                         # Record fallback when providers are available but no models are affordable
                         ROUTER_FALLBACKS.labels(route_label, "no_affordable_available").inc()
