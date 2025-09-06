@@ -550,6 +550,7 @@ class HeuristicRouter:
                         ],
                         reason=reason,
                     )
+            # Only proceed to selection if we have affordable preferences
             available_providers = self.provider_registry_fn()
             for provider, model, estimate, usd_value in affordable_preferences:
                 adapter = available_providers.get(provider)

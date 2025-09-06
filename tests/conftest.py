@@ -281,9 +281,9 @@ def budget_constrained_router(deterministic_price_table, mock_provider_registry,
     monkeypatch.setattr(settings.features, "provider_adapters_enabled", True)
     monkeypatch.setattr(settings.features, "test_mode", True)
 
-    # Create router with mocked provider registry
+    # Create router with mocked provider registry - fix the closure issue
     def mock_provider_registry_fn():
-        return mock_provider_registry
+        return dict(mock_provider_registry)  # Ensure we return a dict, not the fixture
 
     # Create a custom router that uses the test price table
     router = HeuristicRouter(provider_registry_fn=mock_provider_registry_fn)
@@ -323,9 +323,9 @@ def budget_constrained_router(deterministic_price_table, mock_provider_registry,
 def code_messages():
     """Sample messages for code-related tasks."""
     return [
-        ChatMessage(role="user", content="Write a Python function to sort a list of integers"),
-        ChatMessage(role="assistant", content="Here's a Python function to sort integers:"),
-        ChatMessage(role="user", content="Can you also add error handling for edge cases?"),
+        ChatMessage(role="user", content="Write a Python function to sort a list of integers", name=None),
+        ChatMessage(role="assistant", content="Here's a Python function to sort integers:", name=None),
+        ChatMessage(role="user", content="Can you also add error handling for edge cases?", name=None),
     ]
 
 
@@ -334,13 +334,13 @@ def complex_messages():
     """Sample messages for complex reasoning tasks."""
     return [
         ChatMessage(
-            role="user", content="Explain the implications of quantum computing on cryptography"
+            role="user", content="Explain the implications of quantum computing on cryptography", name=None
         ),
         ChatMessage(
             role="assistant",
-            content="Quantum computing poses significant challenges to current cryptographic systems...",
+            content="Quantum computing poses significant challenges to current cryptographic systems...", name=None
         ),
-        ChatMessage(role="user", content="What are the potential solutions and their trade-offs?"),
+        ChatMessage(role="user", content="What are the potential solutions and their trade-offs?", name=None),
     ]
 
 
@@ -348,8 +348,8 @@ def complex_messages():
 def simple_messages():
     """Sample messages for simple tasks."""
     return [
-        ChatMessage(role="user", content="What is the capital of France?"),
-        ChatMessage(role="assistant", content="The capital of France is Paris."),
+        ChatMessage(role="user", content="What is the capital of France?", name=None),
+        ChatMessage(role="assistant", content="The capital of France is Paris.", name=None),
     ]
 
 
@@ -357,9 +357,9 @@ def simple_messages():
 def general_messages():
     """Sample messages for general conversation."""
     return [
-        ChatMessage(role="user", content="Hello, how are you today?"),
-        ChatMessage(role="assistant", content="I'm doing well, thank you for asking!"),
-        ChatMessage(role="user", content="Can you help me with a question?"),
+        ChatMessage(role="user", content="Hello, how are you today?", name=None),
+        ChatMessage(role="assistant", content="I'm doing well, thank you for asking!", name=None),
+        ChatMessage(role="user", content="Can you help me with a question?", name=None),
     ]
 
 
@@ -369,7 +369,7 @@ def expensive_model_messages():
     return [
         ChatMessage(
             role="user",
-            content="I need a comprehensive analysis of the entire codebase with detailed architectural recommendations, performance optimization suggestions, security audit findings, and migration strategies for a large-scale enterprise application with microservices architecture, distributed systems, and real-time data processing requirements.",
+            content="I need a comprehensive analysis of the entire codebase with detailed architectural recommendations, performance optimization suggestions, security audit findings, and migration strategies for a large-scale enterprise application with microservices architecture, distributed systems, and real-time data processing requirements.", name=None
         ),
     ]
 
@@ -378,7 +378,7 @@ def expensive_model_messages():
 def cheap_model_messages():
     """Sample messages that would trigger cheap model selection."""
     return [
-        ChatMessage(role="user", content="Hi"),
+        ChatMessage(role="user", content="Hi", name=None),
     ]
 
 
@@ -476,4 +476,11 @@ def mock_settings_max_tokens():
     """Mock settings.max_tokens_default for provider tests."""
     with patch("app.providers.anthropic_provider.settings") as mock_settings:
         mock_settings.max_tokens_default = 1000
+        yield
+
+
+@pytest.fixture
+def mock_provider_registry_patch(mock_provider_registry):
+    """Patch the global provider registry function to return mock providers."""
+    with patch("app.providers.registry.get_provider_registry", return_value=mock_provider_registry):
         yield

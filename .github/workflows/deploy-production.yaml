@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: 'Docker image tag to deploy'
+        description: "Docker image tag to deploy"
         required: true
       confirm_production:
         description: 'Type "CONFIRM" to deploy to production'
@@ -19,45 +19,48 @@ env:
   KUBE_NAMESPACE: modelmuxer-production
   DEPLOYMENT_NAME: modelmuxer-production
   ENVIRONMENT: production
+  HELM_RELEASE: modelmuxer-production
 
 jobs:
   pre-deployment-checks:
     name: Pre-deployment Security & Quality Checks
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Validate production deployment
-      run: |
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          if [[ "${{ github.event.inputs.confirm_production }}" != "CONFIRM" ]]; then
-            echo "❌ Production deployment not confirmed"
-            exit 1
+      - name: Validate production deployment
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ github.event.inputs.confirm_production }}" != "CONFIRM" ]]; then
+              echo "❌ Production deployment not confirmed"
+              exit 1
+            fi
           fi
-        fi
 
-    - name: Verify image signature
-      run: |
-        IMAGE_TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
+      - name: Verify image signature
+        run: |
+          IMAGE_TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
 
-        # Install Cosign
-        curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
-        sudo mv cosign-linux-amd64 /usr/local/bin/cosign
-        sudo chmod +x /usr/local/bin/cosign
+          # Install Cosign
+          curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
+          sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+          sudo chmod +x /usr/local/bin/cosign
 
-        # Verify image signature
-        cosign verify ghcr.io/${{ github.repository_owner }}/modelmuxer:${IMAGE_TAG} \
-          --certificate-identity-regexp="https://github.com/${{ github.repository }}" \
-          --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+          # Verify image signature
+          cosign verify ghcr.io/${{ github.repository_owner }}/modelmuxer:${IMAGE_TAG} \
+            --certificate-identity-regexp="https://github.com/${{ github.repository }}" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 
-    - name: Run security scan on production image
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }}
-        format: 'table'
-        exit-code: '1'
-        severity: 'CRITICAL,HIGH'
+      - name: Run security scan on production image
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref:
+            ghcr.io/${{ github.repository_owner }}/modelmuxer:${{
+            github.event.inputs.image_tag || github.event.release.tag_name }}
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
 
   deploy:
     name: Deploy to Production Environment
@@ -69,156 +72,156 @@ jobs:
       id-token: write
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_PROD_ROLE_ARN }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PROD_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Configure kubectl
-      run: |
-        aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_PROD_CLUSTER_NAME }}
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_PROD_CLUSTER_NAME }}
 
-    - name: Install Helm
-      uses: azure/setup-helm@v3
-      with:
-        version: '3.12.0'
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: "3.12.0"
 
-    - name: Add Helm repositories
-      run: |
-        helm repo add bitnami https://charts.bitnami.com/bitnami
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo add grafana https://grafana.github.io/helm-charts
-        helm repo update
+      - name: Add Helm repositories
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo update
 
-    - name: Backup current deployment
-      run: |
-        # Create backup of current deployment
-        kubectl get deployment ${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }} -o yaml > deployment-backup.yaml
-        helm get values ${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }} > values-backup.yaml
+      - name: Backup current deployment
+        run: |
+          # Create backup of current deployment
+          kubectl get deployment ${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }} -o yaml > deployment-backup.yaml
+          helm get values ${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }} > values-backup.yaml
 
-    - name: Deploy with Blue-Green strategy
-      run: |
-        IMAGE_TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
+      - name: Deploy with Blue-Green strategy
+        run: |
+          IMAGE_TAG="${{ github.event.inputs.image_tag || github.event.release.tag_name }}"
 
-        # Deploy new version with blue-green strategy
-        helm upgrade ${{ env.HELM_RELEASE }} ./helm/modelmuxer \
-          --namespace ${{ env.KUBE_NAMESPACE }} \
-          --set image.tag="${IMAGE_TAG}" \
-          --set environment="${{ env.ENVIRONMENT }}" \
-          --set replicaCount=5 \
-          --set resources.requests.cpu=500m \
-          --set resources.requests.memory=1Gi \
-          --set resources.limits.cpu=2000m \
-          --set resources.limits.memory=4Gi \
-          --set ingress.enabled=true \
-          --set ingress.hosts[0].host=api.modelmuxer.com \
-          --set ingress.hosts[0].paths[0].path=/ \
-          --set ingress.hosts[0].paths[0].pathType=Prefix \
-          --set ingress.tls[0].secretName=modelmuxer-production-tls \
-          --set ingress.tls[0].hosts[0]=api.modelmuxer.com \
-          --set postgresql.enabled=false \
-          --set redis.enabled=false \
-          --set externalDatabase.host=postgresql-production \
-          --set externalDatabase.database=modelmuxer \
-          --set externalDatabase.existingSecret=modelmuxer-secrets \
-          --set externalRedis.host=redis-production-master \
-          --set externalRedis.existingSecret=modelmuxer-secrets \
-          --set autoscaling.enabled=true \
-          --set autoscaling.minReplicas=5 \
-          --set autoscaling.maxReplicas=20 \
-          --set autoscaling.targetCPUUtilizationPercentage=70 \
-          --set autoscaling.targetMemoryUtilizationPercentage=80 \
-          --set podDisruptionBudget.enabled=true \
-          --set podDisruptionBudget.minAvailable=3 \
-          --set monitoring.enabled=true \
-          --set monitoring.serviceMonitor.enabled=true \
-          --wait --timeout=15m
+          # Deploy new version with blue-green strategy
+          helm upgrade ${{ env.HELM_RELEASE }} ./helm/modelmuxer \
+            --namespace ${{ env.KUBE_NAMESPACE }} \
+            --set image.tag="${IMAGE_TAG}" \
+            --set environment="${{ env.ENVIRONMENT }}" \
+            --set replicaCount=5 \
+            --set resources.requests.cpu=500m \
+            --set resources.requests.memory=1Gi \
+            --set resources.limits.cpu=2000m \
+            --set resources.limits.memory=4Gi \
+            --set ingress.enabled=true \
+            --set ingress.hosts[0].host=api.modelmuxer.com \
+            --set ingress.hosts[0].paths[0].path=/ \
+            --set ingress.hosts[0].paths[0].pathType=Prefix \
+            --set ingress.tls[0].secretName=modelmuxer-production-tls \
+            --set ingress.tls[0].hosts[0]=api.modelmuxer.com \
+            --set postgresql.enabled=false \
+            --set redis.enabled=false \
+            --set externalDatabase.host=postgresql-production \
+            --set externalDatabase.database=modelmuxer \
+            --set externalDatabase.existingSecret=modelmuxer-secrets \
+            --set externalRedis.host=redis-production-master \
+            --set externalRedis.existingSecret=modelmuxer-secrets \
+            --set autoscaling.enabled=true \
+            --set autoscaling.minReplicas=5 \
+            --set autoscaling.maxReplicas=20 \
+            --set autoscaling.targetCPUUtilizationPercentage=70 \
+            --set autoscaling.targetMemoryUtilizationPercentage=80 \
+            --set podDisruptionBudget.enabled=true \
+            --set podDisruptionBudget.minAvailable=3 \
+            --set monitoring.enabled=true \
+            --set monitoring.serviceMonitor.enabled=true \
+            --wait --timeout=15m
 
-    - name: Run database migrations
-      run: |
-        # Run migrations with backup
-        kubectl create job migration-prod-$(date +%s) \
-          --namespace=${{ env.KUBE_NAMESPACE }} \
-          --from=cronjob/backup-database || true
+      - name: Run database migrations
+        run: |
+          # Run migrations with backup
+          kubectl create job migration-prod-$(date +%s) \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --from=cronjob/backup-database || true
 
-        kubectl run migration-job-$(date +%s) \
-          --namespace=${{ env.KUBE_NAMESPACE }} \
-          --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
-          --restart=Never \
-          --env="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
-          --command -- python -m alembic upgrade head
+          kubectl run migration-job-$(date +%s) \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
+            --restart=Never \
+            --env="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
+            --command -- python -m alembic upgrade head
 
-        kubectl wait --for=condition=complete --timeout=600s job/migration-job-* -n ${{ env.KUBE_NAMESPACE }}
+          kubectl wait --for=condition=complete --timeout=600s job/migration-job-* -n ${{ env.KUBE_NAMESPACE }}
 
-    - name: Health check and validation
-      run: |
-        # Wait for deployment to be ready
-        kubectl rollout status deployment/${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }} --timeout=600s
+      - name: Health check and validation
+        run: |
+          # Wait for deployment to be ready
+          kubectl rollout status deployment/${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }} --timeout=600s
 
-        # Comprehensive health checks
-        for i in {1..10}; do
-          echo "Health check attempt $i/10"
+          # Comprehensive health checks
+          for i in {1..10}; do
+            echo "Health check attempt $i/10"
 
-          # Check all pods are ready
-          READY_PODS=$(kubectl get pods -n ${{ env.KUBE_NAMESPACE }} -l app.kubernetes.io/name=modelmuxer --field-selector=status.phase=Running | grep -c "1/1" || echo "0")
-          TOTAL_PODS=$(kubectl get pods -n ${{ env.KUBE_NAMESPACE }} -l app.kubernetes.io/name=modelmuxer --no-headers | wc -l)
+            # Check all pods are ready
+            READY_PODS=$(kubectl get pods -n ${{ env.KUBE_NAMESPACE }} -l app.kubernetes.io/name=modelmuxer --field-selector=status.phase=Running | grep -c "1/1" || echo "0")
+            TOTAL_PODS=$(kubectl get pods -n ${{ env.KUBE_NAMESPACE }} -l app.kubernetes.io/name=modelmuxer --no-headers | wc -l)
 
-          if [[ "$READY_PODS" -eq "$TOTAL_PODS" ]] && [[ "$TOTAL_PODS" -ge 5 ]]; then
-            echo "✅ All pods are ready ($READY_PODS/$TOTAL_PODS)"
-            break
-          else
-            echo "⏳ Waiting for pods to be ready ($READY_PODS/$TOTAL_PODS)"
-            sleep 30
-          fi
+            if [[ "$READY_PODS" -eq "$TOTAL_PODS" ]] && [[ "$TOTAL_PODS" -ge 5 ]]; then
+              echo "✅ All pods are ready ($READY_PODS/$TOTAL_PODS)"
+              break
+            else
+              echo "⏳ Waiting for pods to be ready ($READY_PODS/$TOTAL_PODS)"
+              sleep 30
+            fi
 
-          if [[ $i -eq 10 ]]; then
-            echo "❌ Health check failed after 10 attempts"
-            kubectl get pods -n ${{ env.KUBE_NAMESPACE }} -l app.kubernetes.io/name=modelmuxer
-            exit 1
-          fi
-        done
+            if [[ $i -eq 10 ]]; then
+              echo "❌ Health check failed after 10 attempts"
+              kubectl get pods -n ${{ env.KUBE_NAMESPACE }} -l app.kubernetes.io/name=modelmuxer
+              exit 1
+            fi
+          done
 
-    - name: Production smoke tests
-      run: |
-        # Run comprehensive production smoke tests
-        kubectl run prod-smoke-test-$(date +%s) \
-          --namespace=${{ env.KUBE_NAMESPACE }} \
-          --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
-          --restart=Never \
-          --env="API_BASE_URL=https://api.modelmuxer.com" \
-          --env="ENVIRONMENT=production" \
-          --env="SMOKE_TEST_API_KEY=${{ secrets.SMOKE_TEST_API_KEY }}" \
-          --command -- python -m pytest tests/smoke/ tests/production/ -v --tb=short
+      - name: Production smoke tests
+        run: |
+          # Run comprehensive production smoke tests
+          kubectl run prod-smoke-test-$(date +%s) \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
+            --restart=Never \
+            --env="API_BASE_URL=https://api.modelmuxer.com" \
+            --env="ENVIRONMENT=production" \
+            --env="SMOKE_TEST_API_KEY=${{ secrets.SMOKE_TEST_API_KEY }}" \
+            --command -- python -m pytest tests/smoke/ tests/production/ -v --tb=short
 
-        # Wait for tests to complete
-        kubectl wait --for=condition=complete --timeout=300s job/prod-smoke-test-* -n ${{ env.KUBE_NAMESPACE }}
+          # Wait for tests to complete
+          kubectl wait --for=condition=complete --timeout=300s job/prod-smoke-test-* -n ${{ env.KUBE_NAMESPACE }}
 
-    - name: Performance validation
-      run: |
-        # Run performance tests to ensure no regression
-        kubectl run perf-test-$(date +%s) \
-          --namespace=${{ env.KUBE_NAMESPACE }} \
-          --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
-          --restart=Never \
-          --env="API_BASE_URL=https://api.modelmuxer.com" \
-          --env="PERF_TEST_API_KEY=${{ secrets.PERF_TEST_API_KEY }}" \
-          --command -- python -m pytest tests/performance/ -v --benchmark-only
+      - name: Performance validation
+        run: |
+          # Run performance tests to ensure no regression
+          kubectl run perf-test-$(date +%s) \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --image=ghcr.io/${{ github.repository_owner }}/modelmuxer:${{ github.event.inputs.image_tag || github.event.release.tag_name }} \
+            --restart=Never \
+            --env="API_BASE_URL=https://api.modelmuxer.com" \
+            --env="PERF_TEST_API_KEY=${{ secrets.PERF_TEST_API_KEY }}" \
+            --command -- python -m pytest tests/performance/ -v --benchmark-only
 
-    - name: Update deployment metadata
-      run: |
-        # Record deployment information
-        kubectl create configmap deployment-prod-$(date +%s) \
-          --namespace=${{ env.KUBE_NAMESPACE }} \
-          --from-literal=image_tag="${{ github.event.inputs.image_tag || github.event.release.tag_name }}" \
-          --from-literal=deployed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-          --from-literal=deployed_by="${{ github.actor }}" \
-          --from-literal=commit_sha="${{ github.sha }}" \
-          --from-literal=environment="production" \
-          --from-literal=release_notes="${{ github.event.release.body || 'Manual deployment' }}"
+      - name: Update deployment metadata
+        run: |
+          # Record deployment information
+          kubectl create configmap deployment-prod-$(date +%s) \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --from-literal=image_tag="${{ github.event.inputs.image_tag || github.event.release.tag_name }}" \
+            --from-literal=deployed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --from-literal=deployed_by="${{ github.actor }}" \
+            --from-literal=commit_sha="${{ github.sha }}" \
+            --from-literal=environment="production" \
+            --from-literal=release_notes="${{ github.event.release.body || 'Manual deployment' }}"
 
   rollback:
     name: Rollback on Failure
@@ -227,25 +230,25 @@ jobs:
     if: failure()
     environment: production
     steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_PROD_ROLE_ARN }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PROD_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Configure kubectl
-      run: |
-        aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_PROD_CLUSTER_NAME }}
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_PROD_CLUSTER_NAME }}
 
-    - name: Rollback deployment
-      run: |
-        echo "🔄 Rolling back production deployment..."
-        helm rollback ${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }}
+      - name: Rollback deployment
+        run: |
+          echo "🔄 Rolling back production deployment..."
+          helm rollback ${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }}
 
-        # Wait for rollback to complete
-        kubectl rollout status deployment/${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }} --timeout=300s
+          # Wait for rollback to complete
+          kubectl rollout status deployment/${{ env.HELM_RELEASE }} -n ${{ env.KUBE_NAMESPACE }} --timeout=300s
 
-        echo "✅ Rollback completed successfully"
+          echo "✅ Rollback completed successfully"
 
   notify:
     name: Notify Deployment Status
@@ -253,76 +256,76 @@ jobs:
     needs: [deploy, rollback]
     if: always()
     steps:
-    - name: Notify Slack on success
-      if: needs.deploy.result == 'success'
-      uses: 8398a7/action-slack@v3
-      with:
-        status: success
-        text: |
-          🎉 **PRODUCTION DEPLOYMENT SUCCESSFUL** 🎉
+      - name: Notify Slack on success
+        if: needs.deploy.result == 'success'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: |
+            🎉 **PRODUCTION DEPLOYMENT SUCCESSFUL** 🎉
 
-          Environment: Production
-          Image: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
-          URL: https://api.modelmuxer.com
-          Deployed by: ${{ github.actor }}
+            Environment: Production
+            Image: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
+            URL: https://api.modelmuxer.com
+            Deployed by: ${{ github.actor }}
 
-          All health checks passed ✅
-          Performance validation passed ✅
-          Smoke tests passed ✅
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+            All health checks passed ✅
+            Performance validation passed ✅
+            Smoke tests passed ✅
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-    - name: Notify Slack on failure
-      if: needs.deploy.result == 'failure'
-      uses: 8398a7/action-slack@v3
-      with:
-        status: failure
-        text: |
-          🚨 **PRODUCTION DEPLOYMENT FAILED** 🚨
+      - name: Notify Slack on failure
+        if: needs.deploy.result == 'failure'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: |
+            🚨 **PRODUCTION DEPLOYMENT FAILED** 🚨
 
-          Environment: Production
-          Image: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
-          Workflow: ${{ github.workflow }}
-          Actor: ${{ github.actor }}
+            Environment: Production
+            Image: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
+            Workflow: ${{ github.workflow }}
+            Actor: ${{ github.actor }}
 
-          ${{ needs.rollback.result == 'success' && '✅ Automatic rollback completed' || '❌ Rollback may be required' }}
+            ${{ needs.rollback.result == 'success' && '✅ Automatic rollback completed' || '❌ Rollback may be required' }}
 
-          Please investigate immediately!
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+            Please investigate immediately!
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-    - name: Create incident if deployment failed
-      if: needs.deploy.result == 'failure'
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const title = `🚨 Production Deployment Failed - ${{ github.event.inputs.image_tag || github.event.release.tag_name }}`;
-          const body = `
-          ## Production Deployment Failure
+      - name: Create incident if deployment failed
+        if: needs.deploy.result == 'failure'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = `🚨 Production Deployment Failed - ${{ github.event.inputs.image_tag || github.event.release.tag_name }}`;
+            const body = `
+            ## Production Deployment Failure
 
-          **Image**: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
-          **Deployed by**: ${{ github.actor }}
-          **Workflow**: ${{ github.workflow }}
-          **Run ID**: ${{ github.run_id }}
+            **Image**: ${{ github.event.inputs.image_tag || github.event.release.tag_name }}
+            **Deployed by**: ${{ github.actor }}
+            **Workflow**: ${{ github.workflow }}
+            **Run ID**: ${{ github.run_id }}
 
-          **Rollback Status**: ${{ needs.rollback.result == 'success' && '✅ Completed' || '❌ Failed or not attempted' }}
+            **Rollback Status**: ${{ needs.rollback.result == 'success' && '✅ Completed' || '❌ Failed or not attempted' }}
 
-          ### Immediate Actions Required:
-          1. Investigate deployment failure logs
-          2. Verify system health and user impact
-          3. Determine if manual rollback is needed
-          4. Update stakeholders on status
+            ### Immediate Actions Required:
+            1. Investigate deployment failure logs
+            2. Verify system health and user impact
+            3. Determine if manual rollback is needed
+            4. Update stakeholders on status
 
-          ### Links:
-          - [Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          - [Production Monitoring](https://grafana.modelmuxer.com)
-          - [Production Logs](https://logs.modelmuxer.com)
-          `;
+            ### Links:
+            - [Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - [Production Monitoring](https://grafana.modelmuxer.com)
+            - [Production Logs](https://logs.modelmuxer.com)
+            `;
 
-          await github.rest.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            title: title,
-            body: body,
-            labels: ['incident', 'production', 'deployment-failure']
-          });
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['incident', 'production', 'deployment-failure']
+            });

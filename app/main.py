@@ -723,7 +723,7 @@ async def chat_completions(
             if registry:
                 provider_name = None
                 if len(registry) == 1:
-                    provider_name = next(iter(registry.keys()))
+                    provider_name = next(iter(registry.keys())) if registry else None
                 else:
                     model_lower = (request.model or "").lower()
                     if "gpt" in model_lower or model_lower.startswith("o1"):
@@ -742,7 +742,7 @@ async def chat_completions(
                         provider_name = "cohere" if "cohere" in registry else None
                     elif "mistral" in model_lower:
                         provider_name = "mistral" if "mistral" in registry else None
-                    if provider_name is None:
+                    if provider_name is None and registry:
                         provider_name = next(iter(registry.keys()))
                 if provider_name and provider_name in registry:
                     adapter = registry[provider_name]
@@ -856,7 +856,7 @@ async def chat_completions(
                 # pick provider by model hint or fallback
                 provider_name = None
                 if len(registry) == 1:
-                    provider_name = next(iter(registry.keys()))
+                    provider_name = next(iter(registry.keys())) if registry else None
                 else:
                     model_lower = (request.model or "").lower()
                     if "gpt" in model_lower or model_lower.startswith("o1"):
@@ -875,7 +875,7 @@ async def chat_completions(
                         provider_name = "cohere" if "cohere" in registry else None
                     elif "mistral" in model_lower:
                         provider_name = "mistral" if "mistral" in registry else None
-                    if provider_name is None:
+                    if provider_name is None and registry:
                         provider_name = next(iter(registry.keys()))
                 if provider_name:
                     adapter = registry.get(provider_name)
@@ -1080,7 +1080,7 @@ async def chat_completions(
             if registry is not None:
                 provider_name = None
                 if len(registry) == 1:
-                    provider_name = next(iter(registry.keys()))
+                    provider_name = next(iter(registry.keys())) if registry else None
                 else:
                     model_lower = (request.model or "").lower()
                     if "gpt" in model_lower or model_lower.startswith("o1"):
@@ -1099,7 +1099,7 @@ async def chat_completions(
                         provider_name = "cohere" if "cohere" in registry else None
                     elif "mistral" in model_lower:
                         provider_name = "mistral" if "mistral" in registry else None
-                    if provider_name is None:
+                    if provider_name is None and registry:
                         provider_name = next(iter(registry.keys()))
                 if provider_name and provider_name in registry:
                     adapter = registry[provider_name]
@@ -1234,7 +1234,7 @@ async def chat_completions(
                 # Infer provider by model name if multiple providers are present
                 provider_name = None
                 if len(registry) == 1:
-                    provider_name = next(iter(registry.keys()))
+                    provider_name = next(iter(registry.keys())) if registry else None
                 else:
                     model_lower = (request.model or "").lower()
                     if "gpt" in model_lower or model_lower.startswith("o1"):
@@ -1254,7 +1254,7 @@ async def chat_completions(
                     elif "mistral" in model_lower:
                         provider_name = "mistral" if "mistral" in registry else None
                     # As a last resort in tests, pick any available
-                    if provider_name is None and (
+                    if provider_name is None and registry and (
                         app_settings.features.test_mode or "pytest" in sys.modules
                     ):
                         provider_name = next(iter(registry.keys()))
@@ -1401,11 +1401,7 @@ async def chat_completions(
                     detail=ErrorResponse.create(
                         message=f"Budget exceeded: {e.message}",
                         error_type="budget_exceeded",
-                        code=(
-                            "budget_exceeded"
-                            if app_settings.features.test_mode
-                            else "insufficient_budget"
-                        ),
+                        code="insufficient_budget",  # Standardize on insufficient_budget
                         details={
                             "limit": e.limit,
                             "estimate": e.estimates[0][1] if e.estimates else 0.0,

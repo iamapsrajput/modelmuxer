@@ -105,7 +105,7 @@ class TestRateLimitMiddleware:
                     return
 
         # If we get here, the test failed
-        assert False, "Global rate limit was not enforced"
+        raise AssertionError("Global rate limit was not enforced")
 
     @pytest.mark.asyncio
     async def test_endpoint_rate_limit_exceeded(self):
@@ -123,7 +123,7 @@ class TestRateLimitMiddleware:
                     return
 
         # If we get here, the test failed
-        assert False, "Endpoint rate limit was not enforced"
+        raise AssertionError("Endpoint rate limit was not enforced")
 
     @pytest.mark.asyncio
     async def test_token_bucket_algorithm(self):
@@ -137,7 +137,7 @@ class TestRateLimitMiddleware:
         user_limits = {"burst_size": 5, "requests_per_second": 1}
 
         # Should allow burst requests
-        for i in range(5):
+        for _i in range(5):
             result = await middleware.check_rate_limit(mock_request, "test_user", user_limits)
             assert result["allowed"] is True
 

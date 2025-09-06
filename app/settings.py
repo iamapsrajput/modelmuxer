@@ -327,6 +327,16 @@ class ServerSettings(BaseSettings):
         validation_alias=AliasChoices("DEBUG", "SERVER_DEBUG"),
     )
 
+    @field_validator("debug", mode="before")
+    @classmethod
+    def _parse_debug_flag(cls, value: Any) -> bool:
+        """Parse debug flag from various string/boolean formats."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.lower() in ("true", "1", "yes", "on")
+        return bool(value) if value is not None else False
+
     @field_validator("port")
     @classmethod
     def _validate_port(cls, value: int) -> int:

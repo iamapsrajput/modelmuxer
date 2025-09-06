@@ -339,3 +339,29 @@ bandit-report.json
 *.bandit-report
 security-report.*
 .cursorignore
+.clinerules/byterover-rules.md
+.kilocode/rules/byterover-rules.md
+.roo/rules/byterover-rules.md
+.windsurf/rules/byterover-rules.md
+.cursor/rules/byterover-rules.mdc
+.kiro/steering/byterover-rules.md
+.qoder/rules/byterover-rules.md
+.augment/rules/byterover-rules.md
+.windsurf/
+.cursor/
+.roo/
+.kilocode/
+.benchmarks/
+
+# Generated one-off local reports
+CHUNKED_PROCESSING_LINTING_REPORT*
+compliance_report.json
+compliance/compliance_report.json
+
+# Local env files containing secrets
+.env.security
+
+# Byterover local-only artifacts
+AGENTS.md
+BYTEROVER_MCP_HANDBOOK.md
+.github/copilot-instructions.md

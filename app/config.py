@@ -34,6 +34,16 @@ class Settings(BaseSettings):
     port: int = Field(8000, description="Server port")
     debug: bool = Field(False, description="Debug mode")
 
+    @validator("debug", pre=True, always=True)
+    @classmethod
+    def parse_debug_flag(cls, value):
+        """Parse debug flag from various string/boolean formats."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.lower() in ("true", "1", "yes", "on")
+        return bool(value) if value is not None else False
+
     # Cost Limits (USD)
     default_daily_budget: float = Field(10.0, description="Default daily budget per user")
     default_monthly_budget: float = Field(100.0, description="Default monthly budget per user")

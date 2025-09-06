@@ -17,6 +17,7 @@ env:
   KUBE_NAMESPACE: modelmuxer-staging
   DEPLOYMENT_NAME: modelmuxer-staging
   ENVIRONMENT: staging
+  HELM_RELEASE: modelmuxer-staging
 
 jobs:
   deploy:
@@ -214,7 +215,9 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
       - name: Create deployment comment (if PR)
-        if: github.event_name == 'pull_request' && needs.deploy.result == 'success'
+        if:
+          github.event_name == 'pull_request' && needs.deploy.result ==
+          'success'
         uses: actions/github-script@v6
         with:
           script: |

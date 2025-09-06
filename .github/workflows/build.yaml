@@ -79,7 +79,7 @@ jobs:
           sbom: true
 
       - name: Run Trivy vulnerability scanner on image
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
           format: "sarif"
@@ -130,7 +130,9 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: ${{ needs.build.outputs.image-name }}:latest
-          args: --severity-threshold=high --file=Dockerfile.alpine --exclude-app-vulns
+          args:
+            --severity-threshold=high --file=Dockerfile.alpine
+            --exclude-app-vulns
 
       - name: Upload Snyk results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
@@ -208,7 +210,9 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') && needs.build.result == 'success'
+        if:
+          startsWith(github.ref, 'refs/tags/v') && needs.build.result ==
+          'success'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

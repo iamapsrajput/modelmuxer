@@ -5,12 +5,12 @@ name: License Compliance Check
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   schedule:
     # Run weekly on Sundays at 2 AM UTC
-    - cron: '0 2 * * 0'
+    - cron: "0 2 * * 0"
 
 jobs:
   license-compliance:
@@ -18,144 +18,144 @@ jobs:
     name: Check License Compliance
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
 
-    - name: Check required license files exist
-      run: |
-        echo "Checking for required license files..."
-        files=("LICENSE" "COPYRIGHT" "NOTICE" "TRADEMARKS.md" "THIRD_PARTY_LICENSES.md")
-        missing_files=()
+      - name: Check required license files exist
+        run: |
+          echo "Checking for required license files..."
+          files=("LICENSE" "COPYRIGHT" "NOTICE" "TRADEMARKS.md" "THIRD_PARTY_LICENSES.md")
+          missing_files=()
 
-        for file in "${files[@]}"; do
-          if [ ! -f "$file" ]; then
-            missing_files+=("$file")
-          fi
-        done
+          for file in "${files[@]}"; do
+            if [ ! -f "$file" ]; then
+              missing_files+=("$file")
+            fi
+          done
 
-        if [ ${#missing_files[@]} -gt 0 ]; then
-          echo "❌ Missing required license files:"
-          printf '%s\n' "${missing_files[@]}"
-          exit 1
-        else
-          echo "✅ All required license files are present"
-        fi
-
-    - name: Validate LICENSE file content
-      run: |
-        echo "Validating LICENSE file content..."
-        if ! grep -q "Business Source License 1.1" LICENSE; then
-          echo "❌ LICENSE file does not contain 'Business Source License 1.1'"
-          exit 1
-        fi
-        if ! grep -q "Ajay Rajput" LICENSE; then
-          echo "❌ LICENSE file does not contain 'Ajay Rajput'"
-          exit 1
-        fi
-        if ! grep -q "January 1, 2027" LICENSE; then
-          echo "❌ LICENSE file does not contain correct change date"
-          exit 1
-        fi
-        echo "✅ LICENSE file content is valid"
-
-    - name: Run comprehensive compliance check
-      run: |
-        echo "Running comprehensive license compliance check..."
-        python scripts/check_license_compliance.py
-
-    - name: Check for license header compliance
-      run: |
-        echo "Checking source files for license headers..."
-
-        # Count files missing headers
-        missing_count=0
-        total_checked=0
-
-        # Check Python files
-        for file in $(find . -name "*.py" -not -path "./.venv/*" -not -path "./venv/*" -not -path "./.git/*" -not -path "./__pycache__/*"); do
-          total_checked=$((total_checked + 1))
-          if ! head -10 "$file" | grep -q "ModelMuxer (c) 2025 Ajay Rajput"; then
-            echo "❌ Missing header: $file"
-            missing_count=$((missing_count + 1))
-          fi
-        done
-
-        # Check YAML files
-        for file in $(find . -name "*.yml" -o -name "*.yaml" -not -path "./.venv/*" -not -path "./venv/*" -not -path "./.git/*"); do
-          total_checked=$((total_checked + 1))
-          if ! head -10 "$file" | grep -q "ModelMuxer (c) 2025 Ajay Rajput"; then
-            echo "❌ Missing header: $file"
-            missing_count=$((missing_count + 1))
-          fi
-        done
-
-        echo "Checked $total_checked files"
-        echo "Files missing headers: $missing_count"
-
-        if [ $missing_count -gt 0 ]; then
-          echo "❌ Some files are missing license headers"
-          echo "Run 'python scripts/add_license_headers.py' to fix this"
-          exit 1
-        else
-          echo "✅ All source files have proper license headers"
-        fi
-
-    - name: Validate pyproject.toml license field
-      run: |
-        echo "Checking pyproject.toml license configuration..."
-        if [ -f "pyproject.toml" ]; then
-          if ! grep -q 'license = { text = "Business Source License 1.1" }' pyproject.toml; then
-            echo "⚠️  pyproject.toml license field should be 'Business Source License 1.1'"
+          if [ ${#missing_files[@]} -gt 0 ]; then
+            echo "❌ Missing required license files:"
+            printf '%s\n' "${missing_files[@]}"
+            exit 1
           else
-            echo "✅ pyproject.toml license field is correct"
+            echo "✅ All required license files are present"
           fi
-        fi
 
-    - name: Check README license section
-      run: |
-        echo "Checking README.md license section..."
-        if [ -f "README.md" ]; then
-          if ! grep -q "Business Source License" README.md; then
-            echo "⚠️  README.md should mention Business Source License"
+      - name: Validate LICENSE file content
+        run: |
+          echo "Validating LICENSE file content..."
+          if ! grep -q "Business Source License 1.1" LICENSE; then
+            echo "❌ LICENSE file does not contain 'Business Source License 1.1'"
+            exit 1
+          fi
+          if ! grep -q "Ajay Rajput" LICENSE; then
+            echo "❌ LICENSE file does not contain 'Ajay Rajput'"
+            exit 1
+          fi
+          if ! grep -q "January 1, 2027" LICENSE; then
+            echo "❌ LICENSE file does not contain correct change date"
+            exit 1
+          fi
+          echo "✅ LICENSE file content is valid"
+
+      - name: Run comprehensive compliance check
+        run: |
+          echo "Running comprehensive license compliance check..."
+          python scripts/check_license_compliance.py
+
+      - name: Check for license header compliance
+        run: |
+          echo "Checking source files for license headers..."
+
+          # Count files missing headers
+          missing_count=0
+          total_checked=0
+
+          # Check Python files
+          for file in $(find . -name "*.py" -not -path "./.venv/*" -not -path "./venv/*" -not -path "./.git/*" -not -path "./__pycache__/*"); do
+            total_checked=$((total_checked + 1))
+            if ! head -10 "$file" | grep -q "ModelMuxer (c) 2025 Ajay Rajput"; then
+              echo "❌ Missing header: $file"
+              missing_count=$((missing_count + 1))
+            fi
+          done
+
+          # Check YAML files
+          for file in $(find . -name "*.yml" -o -name "*.yaml" -not -path "./.venv/*" -not -path "./venv/*" -not -path "./.git/*"); do
+            total_checked=$((total_checked + 1))
+            if ! head -10 "$file" | grep -q "ModelMuxer (c) 2025 Ajay Rajput"; then
+              echo "❌ Missing header: $file"
+              missing_count=$((missing_count + 1))
+            fi
+          done
+
+          echo "Checked $total_checked files"
+          echo "Files missing headers: $missing_count"
+
+          if [ $missing_count -gt 0 ]; then
+            echo "❌ Some files are missing license headers"
+            echo "Run 'python scripts/add_license_headers.py' to fix this"
+            exit 1
           else
-            echo "✅ README.md contains license information"
+            echo "✅ All source files have proper license headers"
           fi
-        fi
 
-    - name: Upload compliance report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: license-compliance-report
-        path: compliance_report.json
-        retention-days: 30
+      - name: Validate pyproject.toml license field
+        run: |
+          echo "Checking pyproject.toml license configuration..."
+          if [ -f "pyproject.toml" ]; then
+            if ! grep -q 'license = { text = "Business Source License 1.1" }' pyproject.toml; then
+              echo "⚠️  pyproject.toml license field should be 'Business Source License 1.1'"
+            else
+              echo "✅ pyproject.toml license field is correct"
+            fi
+          fi
 
-    - name: Comment on PR (if compliance failed)
-      if: failure() && github.event_name == 'pull_request'
-      uses: actions/github-script@v6
-      with:
-        script: |
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: `❌ **License Compliance Check Failed**
+      - name: Check README license section
+        run: |
+          echo "Checking README.md license section..."
+          if [ -f "README.md" ]; then
+            if ! grep -q "Business Source License" README.md; then
+              echo "⚠️  README.md should mention Business Source License"
+            else
+              echo "✅ README.md contains license information"
+            fi
+          fi
 
-            This PR has license compliance issues that need to be resolved:
+      - name: Upload compliance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-compliance-report
+          path: compliance_report.json
+          retention-days: 30
 
-            1. Check that all required license files exist (LICENSE, COPYRIGHT, NOTICE, etc.)
-            2. Ensure all source files have proper copyright headers
-            3. Run \`python scripts/add_license_headers.py\` to add missing headers
-            4. Run \`python scripts/check_license_compliance.py\` to verify compliance
+      - name: Comment on PR (if compliance failed)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `❌ **License Compliance Check Failed**
 
-            See the workflow logs for detailed information about the failures.`
-          })
+              This PR has license compliance issues that need to be resolved:
+
+              1. Check that all required license files exist (LICENSE, COPYRIGHT, NOTICE, etc.)
+              2. Ensure all source files have proper copyright headers
+              3. Run \`python scripts/add_license_headers.py\` to add missing headers
+              4. Run \`python scripts/check_license_compliance.py\` to verify compliance
+
+              See the workflow logs for detailed information about the failures.`
+            })
