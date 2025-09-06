@@ -121,13 +121,15 @@ class CascadeRouter(BaseRouter):
                 # Attempt request with current model
                 response, step_cost = await self._execute_step(step, messages, user_id, **kwargs)
 
-                routing_metadata["steps_attempted"].append({
-                    "step": step_idx,
-                    "provider": step.provider,
-                    "model": step.model,
-                    "cost": step_cost,
-                    "success": True,
-                })
+                routing_metadata["steps_attempted"].append(
+                    {
+                        "step": step_idx,
+                        "provider": step.provider,
+                        "model": step.model,
+                        "cost": step_cost,
+                        "success": True,
+                    }
+                )
                 routing_metadata["total_cost"] += step_cost
 
                 # Evaluate response quality and confidence
@@ -153,14 +155,16 @@ class CascadeRouter(BaseRouter):
                     )
 
             except Exception as e:
-                routing_metadata["steps_attempted"].append({
-                    "step": step_idx,
-                    "provider": step.provider,
-                    "model": step.model,
-                    "cost": 0.0,
-                    "success": False,
-                    "error": str(e),
-                })
+                routing_metadata["steps_attempted"].append(
+                    {
+                        "step": step_idx,
+                        "provider": step.provider,
+                        "model": step.model,
+                        "cost": 0.0,
+                        "success": False,
+                        "error": str(e),
+                    }
+                )
                 routing_metadata["escalation_reasons"].append(f"Error in step {step_idx}: {str(e)}")
                 continue
 
