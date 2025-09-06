@@ -135,6 +135,9 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout code
@@ -165,11 +168,20 @@ jobs:
         run: semgrep --error --config p/python --sarif > semgrep.sarif || true
 
       - name: Upload Semgrep SARIF
+        if: ${{ always() && hashFiles('semgrep.sarif') != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif
           category: semgrep-scan
+
+      - name: Upload Semgrep SARIF artifact
+        if: ${{ always() && hashFiles('semgrep.sarif') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@0.20.0
@@ -181,7 +193,16 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy scan results to GitHub Security tab
+        if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
         with:
           sarif_file: "trivy-fs-results.sarif"
+
+      - name: Upload Trivy FS SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-sarif
+          path: trivy-fs-results.sarif
+          if-no-files-found: warn
+          retention-days: 7

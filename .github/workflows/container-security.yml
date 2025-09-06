@@ -17,6 +17,10 @@ jobs:
     name: Container Security Scan
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -35,10 +39,19 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy scan results to GitHub Security tab
+        if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
         with:
           sarif_file: "trivy-results.sarif"
+
+      - name: Upload Trivy SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-container-sarif
+          path: trivy-results.sarif
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0

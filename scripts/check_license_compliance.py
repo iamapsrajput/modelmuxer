@@ -111,9 +111,7 @@ class LicenseComplianceChecker:
             try:
                 content = license_file.read_text(encoding="utf-8")
                 if "Business Source License 1.1" not in content:
-                    self.errors.append(
-                        "LICENSE file does not contain 'Business Source License 1.1'"
-                    )
+                    self.errors.append("LICENSE file does not contain 'Business Source License 1.1'")
                 if "Ajay Rajput" not in content:
                     self.errors.append("LICENSE file does not contain 'Ajay Rajput'")
                 if "January 1, 2027" not in content:
@@ -153,9 +151,7 @@ class LicenseComplianceChecker:
                 except Exception:
                     pass
 
-                self.warnings.append(
-                    "pyproject.toml license should reference Business Source License 1.1 (BUSL-1.1)"
-                )
+                self.warnings.append("pyproject.toml license should reference Business Source License 1.1 (BUSL-1.1)")
             except Exception as e:
                 self.warnings.append(f"Could not read pyproject.toml: {e}")
 
@@ -197,12 +193,8 @@ class LicenseComplianceChecker:
             "summary": {
                 "total_errors": len(errors),
                 "total_warnings": len(warnings),
-                "required_files_check": (
-                    "PASS" if not any("Missing required" in e for e in errors) else "FAIL"
-                ),
-                "header_check": (
-                    "PASS" if not any("missing license headers" in e for e in errors) else "FAIL"
-                ),
+                "required_files_check": ("PASS" if not any("Missing required" in e for e in errors) else "FAIL"),
+                "header_check": ("PASS" if not any("missing license headers" in e for e in errors) else "FAIL"),
                 "content_check": "PASS" if not any("LICENSE file" in e for e in errors) else "FAIL",
             },
         }
