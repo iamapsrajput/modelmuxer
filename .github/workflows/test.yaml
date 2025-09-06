@@ -37,10 +37,10 @@ jobs:
       - name: Install dependencies
         run: poetry install --with dev,ml
 
-      - name: Run ruff (linting and formatting)
+      - name: Run ruff (linting) and black (format check)
         run: |
           poetry run ruff check app/ tests/
-          poetry run ruff format --check app/ tests/
+          poetry run black --check .
 
       - name: Run mypy (type checking)
         run: poetry run mypy app/

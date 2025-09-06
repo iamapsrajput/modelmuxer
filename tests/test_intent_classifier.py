@@ -228,9 +228,9 @@ async def test_signals_extraction():
     settings.router.intent_classifier_enabled = True
     settings.features.test_mode = True
 
-    result = await classify_intent(
-        [ChatMessage(role="user", content="Write a function: def add(a, b): return a + b")]
-    )
+    result = await classify_intent([
+        ChatMessage(role="user", content="Write a function: def add(a, b): return a + b")
+    ])
 
     assert "signals" in result
     signals = result["signals"]

@@ -36,12 +36,10 @@ class TestArchitectureValidation:
             assert isinstance(prefs, list)
             for provider, model in prefs:
                 # Ensure models are not using proxy prefixes
-                assert not model.startswith(
-                    (
-                        "proxy:",
-                        "azure:",
-                    )
-                ), f"Proxy prefix found in {task_type} -> {provider} -> {model}"
+                assert not model.startswith((
+                    "proxy:",
+                    "azure:",
+                )), f"Proxy prefix found in {task_type} -> {provider} -> {model}"
 
     def test_provider_registry_contains_only_direct_providers(self):
         """Test that provider registry only contains direct providers."""
@@ -151,12 +149,10 @@ class TestRouterModelPreferenceValidation:
 
             # Check that preferences contain direct provider models
             for provider, model in preferences:
-                assert not model.startswith(
-                    (
-                        "proxy:",
-                        "azure:",
-                    )
-                ), f"Invalid model format in {task_type} -> {provider}: {model}"
+                assert not model.startswith((
+                    "proxy:",
+                    "azure:",
+                )), f"Invalid model format in {task_type} -> {provider}: {model}"
 
     @pytest.mark.asyncio
     async def test_model_selection_for_each_task_type(self):

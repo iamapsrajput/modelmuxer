@@ -92,12 +92,10 @@ class GoogleProvider(LLMProvider):
             elif msg.role == "user":
                 contents.append({"role": "user", "parts": [{"text": msg.content}]})
             elif msg.role == "assistant":
-                contents.append(
-                    {
-                        "role": "model",  # Google uses "model" instead of "assistant"
-                        "parts": [{"text": msg.content}],
-                    }
-                )
+                contents.append({
+                    "role": "model",  # Google uses "model" instead of "assistant"
+                    "parts": [{"text": msg.content}],
+                })
 
         result = {"contents": contents}
         if system_instruction:
