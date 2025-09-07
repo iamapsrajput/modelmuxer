@@ -59,22 +59,11 @@ class APIKeysSettings(BaseSettings):
         validation_alias=AliasChoices("TOGETHER_API_KEY", "API_TOGETHER_API_KEY"),
     )
 
-    api_keys: list[str] = Field(
-        default_factory=list,
+    api_keys: str | None = Field(
+        default=None,
         description="Comma-separated list of allowed API keys for the built-in API key auth.",
         validation_alias=AliasChoices("API_KEYS", "AUTH_API_KEYS"),
     )
-
-    @field_validator("api_keys", mode="before")
-    @classmethod
-    def _parse_api_keys(cls, value: Any) -> list[str]:
-        if value is None:
-            return []
-        if isinstance(value, list):
-            return value
-        if isinstance(value, str):
-            return [key.strip() for key in value.split(",") if key.strip()]
-        return []
 
 
 class DatabaseSettings(BaseSettings):
@@ -92,6 +81,7 @@ class DatabaseSettings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def _validate_database_url(cls, value: str) -> str:
+        """Validate database URL format."""
         if not isinstance(value, str) or "://" not in value:
             raise ValueError("DATABASE_URL must be a valid URL (e.g., sqlite:///file.db)")
         return value
@@ -119,6 +109,7 @@ class RedisSettings(BaseSettings):
     @field_validator("db")
     @classmethod
     def _validate_db(cls, value: int) -> int:
+        """Validate Redis database index is non-negative."""
         if value < 0:
             raise ValueError("REDIS_DB must be >= 0")
         return value
@@ -127,12 +118,8 @@ class RedisSettings(BaseSettings):
 class ObservabilitySettings(BaseSettings):
     """Observability and telemetry settings."""
 
-    cors_origins: list[str] = Field(
-        default_factory=lambda: [
-            "http://localhost:3000",
-            "http://localhost:8080",
-            "https://modelmuxer.com",
-        ],
+    cors_origins: str | None = Field(
+        default="http://localhost:3000,http://localhost:8080,https://modelmuxer.com",
         description="List of allowed CORS origins (comma-separated).",
         validation_alias=AliasChoices("CORS_ORIGINS", "OBS_CORS_ORIGINS"),
     )
@@ -177,20 +164,10 @@ class ObservabilitySettings(BaseSettings):
         validation_alias=AliasChoices("PROM_METRICS_PATH", "OBS_PROM_METRICS_PATH"),
     )
 
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def _parse_cors_origins(cls, value: Any) -> list[str]:
-        if value is None:
-            return []
-        if isinstance(value, list):
-            return value
-        if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        return []
-
     @field_validator("log_level", mode="before")
     @classmethod
     def _normalize_log_level(cls, value: Any) -> str:
+        """Normalize log level to lowercase string."""
         if isinstance(value, str):
             return value.lower()
         return str(value)
@@ -735,7 +712,7 @@ class Settings(BaseSettings):
         configured.
         """
         if self.api.api_keys:
-            return self.api.api_keys
+            return [key.strip() for key in self.api.api_keys.split(",") if key.strip()]
         # Default test keys accepted across the test suite
         return [
             "test-api-key",

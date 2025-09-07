@@ -24,7 +24,9 @@ class APIKeyAuth:
         if hasattr(app_settings, "get_allowed_api_keys"):
             allowed_keys = app_settings.get_allowed_api_keys()
         else:
-            allowed_keys = app_settings.api.api_keys
+            # Handle potential None value from api_keys setting
+            api_keys_str = app_settings.api.api_keys
+            allowed_keys = [key.strip() for key in api_keys_str.split(",") if key.strip()] if api_keys_str else []
 
         self.allowed_keys = set(allowed_keys)
         # Simple rate limiting storage (in production, use Redis)
@@ -188,10 +190,11 @@ class SecurityHeaders:
         }
 
 
-def validate_request_size(request: Request, max_size_mb: int = 10) -> None:
+async def validate_request_size(request: Request, max_size_mb: int = 10) -> None:
     """Validate request size to prevent abuse."""
     content_length = request.headers.get("content-length")
 
+    # First check content-length header if present
     if content_length:
         size_mb = int(content_length) / (1024 * 1024)
         if size_mb > max_size_mb:
@@ -205,6 +208,26 @@ def validate_request_size(request: Request, max_size_mb: int = 10) -> None:
                     }
                 },
             )
+
+    # Always check actual body size by reading it
+    try:
+        body = await request.body()
+        body_size_mb = len(body) / (1024 * 1024)
+        if body_size_mb > max_size_mb:
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "error": {
+                        "message": f"Request too large. Maximum size is {max_size_mb}MB.",
+                        "type": "request_too_large",
+                        "code": "payload_too_large",
+                    }
+                },
+            )
+    except Exception:
+        # If we can't read the body, fall back to content-length check
+        # This handles cases where the body has already been consumed
+        pass
 
 
 def sanitize_user_input(text: str, max_length: int = 100000) -> str:

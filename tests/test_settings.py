@@ -29,6 +29,10 @@ def reload_settings_module():
 
     import app.settings as settings_module
 
+    # Delete the cached singleton to force recreation
+    if hasattr(settings_module, "settings"):
+        delattr(settings_module, "settings")
+
     importlib.reload(settings_module)
     return settings_module.settings
 
@@ -42,13 +46,11 @@ def test_defaults_load():
 
 
 def test_env_overrides():
-    with temp_env(
-        {
-            "DATABASE_URL": "sqlite:///./test.db",
-            "PORT": "9000",
-            "OPENAI_API_KEY": "sk-abc",
-        }
-    ):
+    with temp_env({
+        "DATABASE_URL": "sqlite:///./test.db",
+        "PORT": "9000",
+        "OPENAI_API_KEY": "sk-abc",
+    }):
         settings = reload_settings_module()
         assert settings.db.database_url.endswith("test.db")
         assert settings.server.port == 9000
@@ -67,7 +69,7 @@ def test_validation_errors():
 
 def test_settings_structure():
     """Test that the settings object has the expected structure."""
-    from app.settings import settings
+    settings = reload_settings_module()
 
     # Test that all expected groups exist
     assert hasattr(settings, "api")

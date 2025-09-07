@@ -53,11 +53,13 @@ try:
     def create_counter(
         name: str, documentation: str, labelnames: list[str], registry: Any
     ) -> CounterProtocol:
+        """Create a Prometheus counter metric."""
         return _PrometheusCounter(name, documentation, labelnames, registry=registry)
 
     def create_gauge(
         name: str, documentation: str, labelnames: list[str] | None = None, registry: Any = None
     ) -> GaugeProtocol:
+        """Create a Prometheus gauge metric."""
         if labelnames is None:
             return _Gauge(name, documentation, registry=registry)
         return _Gauge(name, documentation, labelnames, registry=registry)
@@ -65,12 +67,15 @@ try:
     def create_histogram(
         name: str, documentation: str, labelnames: list[str], buckets: list[float], registry: Any
     ) -> HistogramProtocol:
+        """Create a Prometheus histogram metric."""
         return _Histogram(name, documentation, labelnames, buckets=buckets, registry=registry)
 
     def create_info(name: str, documentation: str, registry: Any) -> InfoProtocol:
+        """Create a Prometheus info metric."""
         return _Info(name, documentation, registry=registry)
 
     def create_registry() -> Any:
+        """Create a Prometheus metrics registry."""
         return _CollectorRegistry()
 
 except ImportError:
@@ -78,52 +83,74 @@ except ImportError:
 
     # Create dummy implementations that match the protocols
     class DummyCounter:
+        """Dummy counter implementation when Prometheus is not available."""
+
         def inc(self, amount: float = 1.0) -> None:
+            """Increment counter (no-op)."""
             pass
 
         def labels(self, **labelkwargs: Any) -> "DummyCounter":
+            """Return self for label chaining (no-op)."""
             return self
 
     class DummyGauge:
+        """Dummy gauge implementation when Prometheus is not available."""
+
         def set(self, value: float) -> None:
+            """Set gauge value (no-op)."""
             pass
 
         def labels(self, **labelkwargs: Any) -> "DummyGauge":
+            """Return self for label chaining (no-op)."""
             return self
 
     class DummyHistogram:
+        """Dummy histogram implementation when Prometheus is not available."""
+
         def observe(self, amount: float) -> None:
+            """Observe value in histogram (no-op)."""
             pass
 
         def labels(self, **labelkwargs: Any) -> "DummyHistogram":
+            """Return self for label chaining (no-op)."""
             return self
 
     class DummyInfo:
+        """Dummy info metric implementation when Prometheus is not available."""
+
         def info(self, val: dict[str, str]) -> None:
+            """Set info values (no-op)."""
             pass
 
     class DummyRegistry:
+        """Dummy registry implementation when Prometheus is not available."""
+
         pass
 
     def create_counter(
         name: str, documentation: str, labelnames: list[str], registry: Any
     ) -> CounterProtocol:
+        """Create a dummy counter when Prometheus is not available."""
         return DummyCounter()
 
     def create_gauge(
         name: str, documentation: str, labelnames: list[str] | None = None, registry: Any = None
     ) -> GaugeProtocol:
+        """Create a dummy gauge when Prometheus is not available."""
         return DummyGauge()
 
     def create_histogram(
         name: str, documentation: str, labelnames: list[str], buckets: list[float], registry: Any
     ) -> HistogramProtocol:
+        """Create a dummy histogram when Prometheus is not available."""
         return DummyHistogram()
 
     def create_info(name: str, documentation: str, registry: Any) -> InfoProtocol:
+        """Create a dummy info metric when Prometheus is not available."""
         return DummyInfo()
 
     def create_registry() -> Any:
+        """Create a dummy registry when Prometheus is not available."""
         return DummyRegistry()
 
 

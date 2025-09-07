@@ -180,9 +180,7 @@ class EmbeddingManager:
                             # Legacy pickle format fallback
                             import pickle  # noqa: S403 - controlled legacy fallback
 
-                            embedding = pickle.loads(
-                                data
-                            )  # noqa: S301 - controlled legacy fallback
+                            embedding = pickle.loads(data)  # noqa: S301 - controlled legacy fallback
 
                         cached_embeddings[i] = embedding
                         self.memory_cache[cache_key] = embedding

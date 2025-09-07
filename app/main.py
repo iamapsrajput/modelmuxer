@@ -440,6 +440,9 @@ class ModelMuxer:
 # Global model muxer instance
 model_muxer = ModelMuxer()
 
+# Import load_price_table for test compatibility
+from .core.costing import load_price_table
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -583,7 +586,7 @@ async def validation_exception_handler(
 
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """Handle HTTP exceptions."""
     return JSONResponse(
         status_code=exc.status_code,
@@ -616,7 +619,7 @@ async def validate_request_middleware(request: Request, call_next) -> None:
         return await call_next(request)
 
     # Validate request size
-    validate_request_size(request)
+    await validate_request_size(request)
 
     return await call_next(request)
 
@@ -633,6 +636,9 @@ async def request_observability_middleware(request: Request, call_next):
         except HTTPException as http_exc:  # type: ignore[name-defined]
             # Allow FastAPI exception handlers to process HTTPException
             status = str(http_exc.status_code)
+            raise
+        except (ProviderError, BudgetExceededError):
+            # Let specific errors pass through to application handlers
             raise
         except Exception:
             status = "500"
@@ -1108,9 +1114,9 @@ async def chat_completions(
                         provider_name = next(iter(registry.keys()))
                 if provider_name and provider_name in registry:
                     adapter = registry[provider_name]
-                    prompt_text = "\n".join(
-                        [msg.content for msg in request.messages if msg.content]
-                    )
+                    prompt_text = "\n".join([
+                        msg.content for msg in request.messages if msg.content
+                    ])
                     try:
                         if hasattr(adapter, "invoke"):
                             adapter_resp = await adapter.invoke(
@@ -1268,9 +1274,9 @@ async def chat_completions(
 
                 if provider_name and provider_name in registry:
                     adapter = registry[provider_name]
-                    prompt_text = "\n".join(
-                        [msg.content for msg in request.messages if msg.content]
-                    )
+                    prompt_text = "\n".join([
+                        msg.content for msg in request.messages if msg.content
+                    ])
                     # Prefer chat_completion when available in tests, else fallback to invoke only if coroutine
                     try:
                         if hasattr(adapter, "chat_completion"):
@@ -1570,9 +1576,9 @@ async def chat_completions(
             try:
                 if app_settings.features.provider_adapters_enabled:
                     # Use router's unified adapter interface for consistency
-                    prompt_text = "\n".join(
-                        [msg.content for msg in request.messages if msg.content]
-                    )
+                    prompt_text = "\n".join([
+                        msg.content for msg in request.messages if msg.content
+                    ])
                     adapter_resp = await _active_router.invoke_via_adapter(
                         provider=provider_name,
                         model=model_name,
@@ -1652,9 +1658,9 @@ async def chat_completions(
                     return JSONResponse(content=resp_dict)
                 else:
                     # Use router's adapter interface for consistent invocation
-                    prompt_text = "\n".join(
-                        [msg.content for msg in request.messages if msg.content]
-                    )
+                    prompt_text = "\n".join([
+                        msg.content for msg in request.messages if msg.content
+                    ])
 
                     # Measure actual provider latency
                     provider_start_time = time.perf_counter()
@@ -1936,7 +1942,6 @@ async def get_providers(user_info: dict[str, Any] = Depends(get_authenticated_us
 @app.get("/v1/models")
 async def list_models(user_info: dict[str, Any] = Depends(get_authenticated_user)):
     """List all available models across providers."""
-    from app.core.costing import load_price_table
 
     models = []
 
@@ -1952,19 +1957,17 @@ async def list_models(user_info: dict[str, Any] = Depends(get_authenticated_user
             if ":" in model or "/" in model:
                 continue
 
-            models.append(
-                {
-                    "id": f"{provider}/{model}",
-                    "object": "model",
-                    "provider": provider,
-                    "model": model,
-                    "pricing": {
-                        "input": price.input_per_1k_usd,
-                        "output": price.output_per_1k_usd,
-                        "unit": "per_1k_tokens",
-                    },
-                }
-            )
+            models.append({
+                "id": f"{provider}/{model}",
+                "object": "model",
+                "provider": provider,
+                "model": model,
+                "pricing": {
+                    "input": price.input_per_1k_usd,
+                    "output": price.output_per_1k_usd,
+                    "unit": "per_1k_tokens",
+                },
+            })
 
     return {"object": "list", "data": models}
 
@@ -2043,20 +2046,18 @@ async def get_budget_status(
                     for alert in status["alerts"]
                 ]
 
-                response_budgets.append(
-                    {
-                        "budget_type": status["budget_type"],
-                        "budget_limit": status["budget_limit"],
-                        "current_usage": status["current_usage"],
-                        "usage_percentage": status["usage_percentage"],
-                        "remaining_budget": status["remaining_budget"],
-                        "provider": status["provider"],
-                        "model": status["model"],
-                        "alerts": alerts,
-                        "period_start": status["period_start"],
-                        "period_end": status["period_end"],
-                    }
-                )
+                response_budgets.append({
+                    "budget_type": status["budget_type"],
+                    "budget_limit": status["budget_limit"],
+                    "current_usage": status["current_usage"],
+                    "usage_percentage": status["usage_percentage"],
+                    "remaining_budget": status["remaining_budget"],
+                    "provider": status["provider"],
+                    "model": status["model"],
+                    "alerts": alerts,
+                    "period_start": status["period_start"],
+                    "period_end": status["period_end"],
+                })
 
             return {
                 "message": "Budget status retrieved successfully",
@@ -2303,12 +2304,24 @@ async def anthropic_messages(
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        logger.error("anthropic_api_error", error=str(e), exc_info=True)
+        # Check if it's a validation error (typically from Pydantic)
+        error_msg = str(e)
+        if "validation error" in error_msg.lower() or "literal_error" in error_msg.lower():
+            logger.warning("anthropic_validation_error", error=error_msg)
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "type": "error",
+                    "error": {"type": "invalid_request_error", "message": error_msg},
+                },
+            )
+
+        logger.error("anthropic_api_error", error=error_msg, exc_info=True)
         return JSONResponse(
             status_code=500,
             content={
                 "type": "error",
-                "error": {"type": "internal_server_error", "message": str(e)},
+                "error": {"type": "internal_server_error", "message": error_msg},
             },
         )
 

@@ -34,18 +34,20 @@ class TestCascadeRouter:
         return [
             ChatMessage(role="user", content="Explain quantum computing"),
             ChatMessage(role="assistant", content="Quantum computing uses quantum mechanics..."),
-            ChatMessage(role="user", content="What are the practical applications?")
+            ChatMessage(role="user", content="What are the practical applications?"),
         ]
 
     @pytest.fixture
     def mock_provider(self):
         """Mock provider for testing."""
         provider = Mock()
-        provider.chat_completion = AsyncMock(return_value={
-            "id": "test-123",
-            "choices": [{"message": {"content": "Mock response"}, "finish_reason": "stop"}],
-            "usage": {"prompt_tokens": 50, "completion_tokens": 20}
-        })
+        provider.chat_completion = AsyncMock(
+            return_value={
+                "id": "test-123",
+                "choices": [{"message": {"content": "Mock response"}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 50, "completion_tokens": 20},
+            }
+        )
         provider.calculate_cost = Mock(return_value=0.002)
         return provider
 
@@ -67,7 +69,7 @@ class TestCascadeRouter:
             "max_cascade_levels": 3,
             "quality_threshold": 0.8,
             "confidence_threshold": 0.8,
-            "enable_quality_check": False
+            "enable_quality_check": False,
         }
         router = CascadeRouter(config=config)
         assert router.max_cascade_levels == 3
@@ -101,14 +103,16 @@ class TestCascadeRouter:
         assert levels[0]["models"][0][0] == "groq"
 
     @pytest.mark.asyncio
-    async def test_route_with_cascade_success_first_step(self, router, sample_messages, mock_provider):
+    async def test_route_with_cascade_success_first_step(
+        self, router, sample_messages, mock_provider
+    ):
         """Test successful routing on first cascade step."""
-        with patch.object(router, '_get_provider', return_value=mock_provider):
+        with patch.object(router, "_get_provider", return_value=mock_provider):
             response, metadata = await router.route_with_cascade(
                 messages=sample_messages,
                 cascade_type="balanced",
                 max_budget=0.1,
-                user_id="test-user"
+                user_id="test-user",
             )
 
             assert response["choices"][0]["message"]["content"] == "Mock response"
@@ -126,13 +130,15 @@ class TestCascadeRouter:
                 messages=sample_messages,
                 cascade_type="balanced",
                 max_budget=0.0001,  # Very low budget
-                user_id="test-user"
+                user_id="test-user",
             )
 
         assert "Cascade routing failed" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_route_with_cascade_fallback_on_failure(self, router, sample_messages, mock_provider):
+    async def test_route_with_cascade_fallback_on_failure(
+        self, router, sample_messages, mock_provider
+    ):
         """Test fallback to next step when first step fails."""
         # Mock provider to fail on first call, succeed on second
         call_count = 0
@@ -145,17 +151,17 @@ class TestCascadeRouter:
             return {
                 "id": "test-123",
                 "choices": [{"message": {"content": "Fallback response"}, "finish_reason": "stop"}],
-                "usage": {"prompt_tokens": 50, "completion_tokens": 20}
+                "usage": {"prompt_tokens": 50, "completion_tokens": 20},
             }
 
         mock_provider.chat_completion = mock_chat_completion
 
-        with patch.object(router, '_get_provider', return_value=mock_provider):
+        with patch.object(router, "_get_provider", return_value=mock_provider):
             response, metadata = await router.route_with_cascade(
                 messages=sample_messages,
                 cascade_type="balanced",
                 max_budget=0.1,
-                user_id="test-user"
+                user_id="test-user",
             )
 
             assert response["choices"][0]["message"]["content"] == "Fallback response"
@@ -164,22 +170,26 @@ class TestCascadeRouter:
             assert metadata["steps_attempted"][1]["success"] is True
 
     @pytest.mark.asyncio
-    async def test_route_with_cascade_quality_below_threshold(self, router, sample_messages, mock_provider):
+    async def test_route_with_cascade_quality_below_threshold(
+        self, router, sample_messages, mock_provider
+    ):
         """Test escalation when quality is below threshold."""
         # Mock low quality response
         mock_provider.chat_completion.return_value = {
             "id": "test-123",
             "choices": [{"message": {"content": "Bad"}, "finish_reason": "stop"}],
-            "usage": {"prompt_tokens": 50, "completion_tokens": 20}
+            "usage": {"prompt_tokens": 50, "completion_tokens": 20},
         }
 
-        with patch.object(router, '_get_provider', return_value=mock_provider), \
-             patch.object(router, '_evaluate_response', return_value=(0.5, 0.8)):
+        with (
+            patch.object(router, "_get_provider", return_value=mock_provider),
+            patch.object(router, "_evaluate_response", return_value=(0.5, 0.8)),
+        ):
             response, metadata = await router.route_with_cascade(
                 messages=sample_messages,
                 cascade_type="balanced",
                 max_budget=0.1,
-                user_id="test-user"
+                user_id="test-user",
             )
 
             # Should attempt multiple steps due to low quality
@@ -201,7 +211,7 @@ class TestCascadeRouter:
         """Test prompt analysis for complex prompts."""
         complex_message = ChatMessage(
             role="user",
-            content="Analyze the quantum algorithm complexity and implement optimization techniques for large-scale quantum computing systems with error correction."
+            content="Analyze the quantum algorithm complexity and implement optimization techniques for large-scale quantum computing systems with error correction.",
         )
         analysis = await router.analyze_prompt([complex_message])
 
@@ -213,7 +223,9 @@ class TestCascadeRouter:
     @pytest.mark.asyncio
     async def test_analyze_prompt_with_code_keywords(self, router):
         """Test prompt analysis detects code-related tasks."""
-        code_message = ChatMessage(role="user", content="Write a function to implement binary search algorithm")
+        code_message = ChatMessage(
+            role="user", content="Write a function to implement binary search algorithm"
+        )
         analysis = await router.analyze_prompt([code_message])
 
         assert analysis["task_type"] == "code"
@@ -296,10 +308,7 @@ class TestCascadeRouter:
 
     def test_generate_reasoning(self, router):
         """Test reasoning generation for routing decisions."""
-        analysis = {
-            "complexity_score": 0.6,
-            "estimated_difficulty": "medium"
-        }
+        analysis = {"complexity_score": 0.6, "estimated_difficulty": "medium"}
 
         reasoning = router._generate_reasoning(analysis, "openai", "gpt-4", 2, 0.05)
 
@@ -343,7 +352,7 @@ class TestCascadeRouter:
         """Test successful step execution."""
         step = CascadeStep("openai", "gpt-4", 0.1, 0.8, 0.7)
 
-        with patch.object(router, '_get_provider', return_value=mock_provider):
+        with patch.object(router, "_get_provider", return_value=mock_provider):
             response, cost = await router._execute_step(step, sample_messages, "test-user")
 
             assert response["choices"][0]["message"]["content"] == "Mock response"
@@ -357,7 +366,7 @@ class TestCascadeRouter:
         mock_provider = Mock()
         mock_provider.chat_completion = AsyncMock(side_effect=Exception("Provider error"))
 
-        with patch.object(router, '_get_provider', return_value=mock_provider):
+        with patch.object(router, "_get_provider", return_value=mock_provider):
             with pytest.raises(Exception) as exc_info:
                 await router._execute_step(step, sample_messages, "test-user")
 
@@ -367,10 +376,18 @@ class TestCascadeRouter:
         """Test response quality score calculation."""
         messages = [{"role": "user", "content": "What is AI?"}]
         response = {
-            "choices": [{"message": {"content": "AI stands for Artificial Intelligence. It is a field of computer science..."}}]
+            "choices": [
+                {
+                    "message": {
+                        "content": "AI stands for Artificial Intelligence. It is a field of computer science..."
+                    }
+                }
+            ]
         }
 
-        quality, confidence = router._evaluate_response(response, messages, CascadeStep("openai", "gpt-4", 0.1, 0.8, 0.7))
+        quality, confidence = router._evaluate_response(
+            response, messages, CascadeStep("openai", "gpt-4", 0.1, 0.8, 0.7)
+        )
 
         assert 0.0 <= quality <= 1.0
         assert 0.0 <= confidence <= 1.0
@@ -466,11 +483,11 @@ class TestCascadeRouter:
             "initial_cascade_level": 1,
             "complexity_score": 0.3,
             "estimated_difficulty": "easy",
-            "task_type": "general"
+            "task_type": "general",
         }
         constraints = {"max_cost": 0.01}
 
-        with patch.object(router, '_is_provider_available', return_value=True):
+        with patch.object(router, "_is_provider_available", return_value=True):
             provider, model, reasoning, confidence = await router._route_request(
                 sample_messages, analysis, "test-user", constraints
             )
@@ -486,7 +503,7 @@ class TestCascadeRouter:
         analysis = {"initial_cascade_level": 1}
         constraints = {"max_cost": 0.01}
 
-        with patch.object(router, '_is_provider_available', return_value=False):
+        with patch.object(router, "_is_provider_available", return_value=False):
             provider, model, reasoning, confidence = await router._route_request(
                 sample_messages, analysis, "test-user", constraints
             )
@@ -572,12 +589,12 @@ class TestCascadeRouter:
         models = [
             ("openai", "gpt-4", 0.1, 0.9),
             ("anthropic", "claude-3", 0.05, 0.8),
-            ("groq", "llama", 0.001, 0.6)
+            ("groq", "llama", 0.001, 0.6),
         ]
         constraints = {
             "max_cost": 0.06,
             "preferred_providers": ["anthropic", "openai"],
-            "min_quality": 0.7
+            "min_quality": 0.7,
         }
 
         result = router._filter_models_by_constraints(models, constraints)
@@ -609,7 +626,9 @@ class TestCascadeRouter:
 
         # Very long content
         long_content = "This is a very detailed response. " * 100
-        score_long = router._calculate_quality_score(long_content, [{"role": "user", "content": "Explain"}])
+        score_long = router._calculate_quality_score(
+            long_content, [{"role": "user", "content": "Explain"}]
+        )
         assert 0.0 <= score_long <= 1.0
 
     def test_calculate_relevance_score_empty_inputs(self, router):
@@ -634,13 +653,15 @@ class TestCascadeRouter:
     @pytest.mark.asyncio
     async def test_route_with_cascade_invalid_cascade_type(self, router, sample_messages):
         """Test routing with invalid cascade type defaults to balanced."""
-        with patch.object(router, '_get_provider') as mock_get_provider:
+        with patch.object(router, "_get_provider") as mock_get_provider:
             mock_provider = Mock()
-            mock_provider.chat_completion = AsyncMock(return_value={
-                "id": "test-123",
-                "choices": [{"message": {"content": "Response"}, "finish_reason": "stop"}],
-                "usage": {"prompt_tokens": 50, "completion_tokens": 20}
-            })
+            mock_provider.chat_completion = AsyncMock(
+                return_value={
+                    "id": "test-123",
+                    "choices": [{"message": {"content": "Response"}, "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 50, "completion_tokens": 20},
+                }
+            )
             mock_provider.calculate_cost = Mock(return_value=0.002)
             mock_get_provider.return_value = mock_provider
 
@@ -648,10 +669,12 @@ class TestCascadeRouter:
                 messages=sample_messages,
                 cascade_type="invalid_type",
                 max_budget=0.1,
-                user_id="test-user"
+                user_id="test-user",
             )
 
-            assert metadata["cascade_type"] == "invalid_type"  # Should still record the requested type
+            assert (
+                metadata["cascade_type"] == "invalid_type"
+            )  # Should still record the requested type
             assert response is not None
 
     @pytest.mark.asyncio
@@ -662,7 +685,7 @@ class TestCascadeRouter:
                 messages=sample_messages,
                 cascade_type="balanced",
                 max_budget=0.0,
-                user_id="test-user"
+                user_id="test-user",
             )
 
         assert "Cascade routing failed" in str(exc_info.value)
@@ -671,8 +694,8 @@ class TestCascadeRouter:
         """Test the mock provider implementation."""
         provider = router._get_provider("test_provider")
 
-        assert hasattr(provider, 'chat_completion')
-        assert hasattr(provider, 'calculate_cost')
+        assert hasattr(provider, "chat_completion")
+        assert hasattr(provider, "calculate_cost")
 
     @pytest.mark.asyncio
     async def test_evaluate_response_with_different_finish_reasons(self, router):
@@ -683,7 +706,9 @@ class TestCascadeRouter:
         response_length = {
             "choices": [{"message": {"content": "Response"}, "finish_reason": "length"}]
         }
-        quality, confidence = await router._evaluate_response(response_length, messages, CascadeStep("openai", "gpt-4", 0.1, 0.8, 0.7))
+        quality, confidence = await router._evaluate_response(
+            response_length, messages, CascadeStep("openai", "gpt-4", 0.1, 0.8, 0.7)
+        )
         assert 0.0 <= quality <= 1.0
         assert 0.0 <= confidence <= 1.0
 
@@ -691,6 +716,8 @@ class TestCascadeRouter:
         response_filter = {
             "choices": [{"message": {"content": "Response"}, "finish_reason": "content_filter"}]
         }
-        quality, confidence = await router._evaluate_response(response_filter, messages, CascadeStep("openai", "gpt-4", 0.1, 0.8, 0.7))
+        quality, confidence = await router._evaluate_response(
+            response_filter, messages, CascadeStep("openai", "gpt-4", 0.1, 0.8, 0.7)
+        )
         assert 0.0 <= quality <= 1.0
         assert 0.0 <= confidence <= 1.0

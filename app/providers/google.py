@@ -73,12 +73,10 @@ class GoogleAdapter(LLMProviderAdapter):
             elif role == "user":
                 contents.append({"role": "user", "parts": [{"text": content}]})
             elif role == "assistant":
-                contents.append(
-                    {
-                        "role": "model",  # Google uses "model" instead of "assistant"
-                        "parts": [{"text": content}],
-                    }
-                )
+                contents.append({
+                    "role": "model",  # Google uses "model" instead of "assistant"
+                    "parts": [{"text": content}],
+                })
 
         result = {"contents": contents}
         if not contents:

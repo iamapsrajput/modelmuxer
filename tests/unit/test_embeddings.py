@@ -39,31 +39,28 @@ class TestEmbeddingManager:
         """Create a mock sentence transformer encoder."""
         mock_encoder = MagicMock()
         mock_encoder.get_sentence_embedding_dimension.return_value = 384
-        mock_encoder.encode.return_value = np.random.rand(1, 384).astype(np.float32)
+        mock_encoder.encode.return_value = (
+            np.random.default_rng().random((1, 384)).astype(np.float32)
+        )
         return mock_encoder
 
     @pytest.fixture
     async def embedding_manager(self, temp_cache_dir, mock_encoder):
         """Create an EmbeddingManager instance with mocked dependencies."""
-        with patch('app.classification.embeddings.SentenceTransformer', return_value=mock_encoder):
+        with patch("app.classification.embeddings.SentenceTransformer", return_value=mock_encoder):
             manager = EmbeddingManager(
-                model_name="test-model",
-                cache_dir=str(temp_cache_dir),
-                enable_cache=True
+                model_name="test-model", cache_dir=str(temp_cache_dir), enable_cache=True
             )
             yield manager
 
     @pytest.mark.asyncio
     async def test_initialization_success(self, temp_cache_dir, mock_encoder):
         """Test successful initialization of EmbeddingManager."""
-        with patch('app.classification.embeddings.SentenceTransformer', return_value=mock_encoder):
-            manager = EmbeddingManager(
-                model_name="test-model",
-                cache_dir=str(temp_cache_dir)
-            )
+        with patch("app.classification.embeddings.SentenceTransformer", return_value=mock_encoder):
+            manager = EmbeddingManager(model_name="test-model", cache_dir=str(temp_cache_dir))
 
             assert manager.model_name == "test-model"
-            assert manager.enable_cache == True
+            assert manager.enable_cache
             assert manager.embedding_dim == 384
             assert manager.cache_dir == temp_cache_dir
             assert isinstance(manager.memory_cache, dict)
@@ -72,8 +69,13 @@ class TestEmbeddingManager:
     @pytest.mark.asyncio
     async def test_initialization_model_failure(self, temp_cache_dir):
         """Test initialization failure when model loading fails."""
-        with patch('app.classification.embeddings.SentenceTransformer', side_effect=Exception("Model load failed")):
-            with pytest.raises(ClassificationError, match="Failed to initialize sentence transformer"):
+        with patch(
+            "app.classification.embeddings.SentenceTransformer",
+            side_effect=Exception("Model load failed"),
+        ):
+            with pytest.raises(
+                ClassificationError, match="Failed to initialize sentence transformer"
+            ):
                 EmbeddingManager(model_name="invalid-model", cache_dir=str(temp_cache_dir))
 
     @pytest.mark.asyncio
@@ -134,11 +136,9 @@ class TestEmbeddingManager:
         result1 = await embedding_manager.get_embedding("disk test")
 
         # Create new manager instance to test disk loading
-        with patch('app.classification.embeddings.SentenceTransformer', return_value=mock_encoder):
+        with patch("app.classification.embeddings.SentenceTransformer", return_value=mock_encoder):
             new_manager = EmbeddingManager(
-                model_name="test-model",
-                cache_dir=str(temp_cache_dir),
-                enable_cache=True
+                model_name="test-model", cache_dir=str(temp_cache_dir), enable_cache=True
             )
 
             # Should load from disk
@@ -158,10 +158,9 @@ class TestEmbeddingManager:
     @pytest.mark.asyncio
     async def test_get_embeddings_batch_basic(self, embedding_manager, mock_encoder):
         """Test batch embedding generation."""
-        mock_encoder.encode.return_value = np.array([
-            [0.1, 0.2, 0.3, 0.4],
-            [0.5, 0.6, 0.7, 0.8]
-        ], dtype=np.float32)
+        mock_encoder.encode.return_value = np.array(
+            [[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]], dtype=np.float32
+        )
 
         texts = ["text1", "text2"]
         results = await embedding_manager.get_embeddings_batch(texts)
@@ -182,7 +181,7 @@ class TestEmbeddingManager:
     async def test_get_embeddings_batch_with_empty_texts(self, embedding_manager, mock_encoder):
         """Test batch embedding with some empty texts."""
         # Mock returns embedding with correct dimension (384)
-        mock_embedding = np.random.rand(384).astype(np.float32)
+        mock_embedding = np.random.default_rng().random(384).astype(np.float32)
         mock_encoder.encode.return_value = np.array([mock_embedding], dtype=np.float32)
 
         texts = ["", "valid text", "   "]
@@ -279,7 +278,7 @@ class TestEmbeddingManager:
         """Test finding most similar texts."""
         mock_encoder.encode.side_effect = [
             np.array([[1.0, 0.0, 0.0]]),  # Query embedding
-            np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.7, 0.7, 0.0]])  # Batch candidates
+            np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.7, 0.7, 0.0]]),  # Batch candidates
         ]
 
         candidates = ["text1", "text2", "text3"]
@@ -288,7 +287,7 @@ class TestEmbeddingManager:
         assert len(results) == 2
         assert results[0][0] == "text1"  # Most similar
         assert results[1][0] == "text3"  # Second most similar
-        assert results[0][1] == 1.0      # Perfect similarity
+        assert results[0][1] == 1.0  # Perfect similarity
         assert results[1][1] < results[0][1]  # Sorted by similarity (descending)
 
     @pytest.mark.asyncio
@@ -305,10 +304,10 @@ class TestEmbeddingManager:
             np.array([1.0, 0.0, 0.0]),
             np.array([0.9, 0.1, 0.0]),
             np.array([0.0, 1.0, 0.0]),
-            np.array([0.1, 0.9, 0.0])
+            np.array([0.1, 0.9, 0.0]),
         ]
 
-        with patch('sklearn.cluster.KMeans') as mock_kmeans:
+        with patch("sklearn.cluster.KMeans") as mock_kmeans:
             mock_kmeans.return_value.fit_predict.return_value = np.array([0, 0, 1, 1])
             labels = embedding_manager.cluster_embeddings(embeddings, n_clusters=2)
 
@@ -328,8 +327,10 @@ class TestEmbeddingManager:
         """Test clustering when sklearn is not available."""
         embeddings = [np.array([1.0, 2.0, 3.0])]
 
-        with patch.dict('sys.modules', {'sklearn.cluster': None}):
-            with pytest.raises(ClassificationError, match="scikit-learn is required for clustering"):
+        with patch.dict("sys.modules", {"sklearn.cluster": None}):
+            with pytest.raises(
+                ClassificationError, match="scikit-learn is required for clustering"
+            ):
                 embedding_manager.cluster_embeddings(embeddings)
 
     @pytest.mark.asyncio
@@ -367,7 +368,12 @@ class TestEmbeddingManager:
         embedding_manager.clear_cache(memory_only=True)
 
         assert len(embedding_manager.memory_cache) == 0
-        assert embedding_manager.cache_stats == {"hits": 0, "misses": 0, "disk_loads": 0, "disk_saves": 0}
+        assert embedding_manager.cache_stats == {
+            "hits": 0,
+            "misses": 0,
+            "disk_loads": 0,
+            "disk_saves": 0,
+        }
 
     @pytest.mark.asyncio
     async def test_clear_cache_full(self, embedding_manager, temp_cache_dir):
@@ -383,7 +389,12 @@ class TestEmbeddingManager:
 
         assert len(embedding_manager.memory_cache) == 0
         assert not cache_file.exists()
-        assert embedding_manager.cache_stats == {"hits": 0, "misses": 0, "disk_loads": 0, "disk_saves": 0}
+        assert embedding_manager.cache_stats == {
+            "hits": 0,
+            "misses": 0,
+            "disk_loads": 0,
+            "disk_saves": 0,
+        }
 
     @pytest.mark.asyncio
     async def test_cache_key_generation(self, embedding_manager):
@@ -409,7 +420,7 @@ class TestEmbeddingManager:
     @pytest.mark.asyncio
     async def test_large_embeddings_handling(self, embedding_manager, mock_encoder):
         """Test handling of large embedding dimensions."""
-        large_embedding = np.random.rand(1536).astype(np.float32)  # GPT-3 size
+        large_embedding = np.random.default_rng().random(1536).astype(np.float32)  # GPT-3 size
         mock_encoder.encode.return_value = np.array([large_embedding])
 
         result = await embedding_manager.get_embedding("large test")
@@ -420,14 +431,14 @@ class TestEmbeddingManager:
     @pytest.mark.asyncio
     async def test_concurrent_embedding_generation(self, embedding_manager, mock_encoder):
         """Test concurrent embedding generation."""
-        mock_encoder.encode.side_effect = lambda texts: np.random.rand(len(texts), 384).astype(np.float32)
+        mock_encoder.encode.side_effect = (
+            lambda texts: np.random.default_rng().random((len(texts), 384)).astype(np.float32)
+        )
 
         texts = ["text1", "text2", "text3"]
 
         # Run concurrent operations
-        results = await asyncio.gather(*[
-            embedding_manager.get_embedding(text) for text in texts
-        ])
+        results = await asyncio.gather(*[embedding_manager.get_embedding(text) for text in texts])
 
         assert len(results) == 3
         assert all(isinstance(r, np.ndarray) for r in results)
@@ -477,11 +488,14 @@ class TestEmbeddingManager:
     @pytest.mark.asyncio
     async def test_batch_processing_order_preservation(self, embedding_manager, mock_encoder):
         """Test that batch processing preserves input order."""
-        mock_encoder.encode.return_value = np.array([
-            [0.1, 0.2],  # For "second"
-            [0.3, 0.4],  # For "first"
-            [0.5, 0.6]   # For "third"
-        ], dtype=np.float32)
+        mock_encoder.encode.return_value = np.array(
+            [
+                [0.1, 0.2],  # For "second"
+                [0.3, 0.4],  # For "first"
+                [0.5, 0.6],  # For "third"
+            ],
+            dtype=np.float32,
+        )
 
         texts = ["first", "second", "third"]
         results = await embedding_manager.get_embeddings_batch(texts)
@@ -513,11 +527,13 @@ class TestEmbeddingManager:
         assert result.shape == (4,)
 
     @pytest.mark.asyncio
-    async def test_find_most_similar_with_top_k_larger_than_candidates(self, embedding_manager, mock_encoder):
+    async def test_find_most_similar_with_top_k_larger_than_candidates(
+        self, embedding_manager, mock_encoder
+    ):
         """Test find_most_similar when top_k exceeds number of candidates."""
         mock_encoder.encode.side_effect = [
             np.array([[1.0, 0.0]]),  # Query
-            np.array([[0.9, 0.1], [0.8, 0.2]])  # Batch candidates
+            np.array([[0.9, 0.1], [0.8, 0.2]]),  # Batch candidates
         ]
 
         candidates = ["text1", "text2"]
@@ -533,10 +549,10 @@ class TestEmbeddingManager:
         embeddings = [
             np.array([1.0, 2.0, 3.0]),
             np.array([1.1, 2.1, 3.1]),
-            np.array([0.9, 1.9, 2.9])
+            np.array([0.9, 1.9, 2.9]),
         ]
 
-        with patch('sklearn.cluster.KMeans') as mock_kmeans:
+        with patch("sklearn.cluster.KMeans") as mock_kmeans:
             mock_kmeans.return_value.fit_predict.return_value = np.array([0, 0, 0])
             labels = embedding_manager.cluster_embeddings(embeddings, n_clusters=1)
 
@@ -549,17 +565,19 @@ class TestEmbeddingManager:
         mock_encoder.encode.return_value = np.array([[0.1, 0.2, 0.3, 0.4]], dtype=np.float32)
 
         # Mock Path.write_bytes to raise an exception
-        with patch('pathlib.Path.write_bytes', side_effect=Exception("Disk write failed")):
-            with patch('app.classification.embeddings.logger') as mock_logger:
+        with patch("pathlib.Path.write_bytes", side_effect=Exception("Disk write failed")):
+            with patch("app.classification.embeddings.logger") as mock_logger:
                 await embedding_manager.get_embedding("test text")
 
                 # Verify warning was logged
-                mock_logger.warning.assert_called_with("failed_to_save_embedding_cache", error=str)
+                mock_logger.warning.assert_called_once_with(
+                    "failed_to_save_embedding_cache", error="Disk write failed"
+                )
 
     @pytest.mark.asyncio
     async def test_legacy_pickle_deserialization(self, embedding_manager, temp_cache_dir):
         """Test legacy pickle deserialization fallback."""
-        import pickle
+        import pickle  # noqa: S403
 
         # Create a cache file with pickle format
         cache_key = embedding_manager._get_cache_key("legacy test")
@@ -567,28 +585,37 @@ class TestEmbeddingManager:
         test_embedding = np.array([0.5, 0.6, 0.7, 0.8])
 
         # Write using pickle (legacy format)
-        with open(cache_path, 'wb') as f:
+        with open(cache_path, "wb") as f:  # noqa: ASYNC230
             pickle.dump(test_embedding, f)
 
         # Mock secure deserialization to fail
-        with patch('app.classification.embeddings.secure_serializer.deserialize', side_effect=ValueError):
+        with patch(
+            "app.classification.embeddings.secure_serializer.deserialize", side_effect=ValueError
+        ):
             result = await embedding_manager.get_embedding("legacy test")
 
             np.testing.assert_array_equal(result, test_embedding)
 
     @pytest.mark.asyncio
-    async def test_batch_disk_cache_save_warning(self, embedding_manager, mock_encoder, temp_cache_dir):
+    async def test_batch_disk_cache_save_warning(
+        self, embedding_manager, mock_encoder, temp_cache_dir
+    ):
         """Test batch disk cache save warning is logged."""
-        mock_encoder.encode.return_value = np.array([[0.1, 0.2, 0.3, 0.4]], dtype=np.float32)
+        # Mock encoder should return two embeddings for two texts
+        mock_encoder.encode.return_value = np.array(
+            [[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]], dtype=np.float32
+        )
 
         # Mock Path.write_bytes to raise an exception
-        with patch('pathlib.Path.write_bytes', side_effect=Exception("Batch disk write failed")):
-            with patch('app.classification.embeddings.logger') as mock_logger:
+        with patch("pathlib.Path.write_bytes", side_effect=Exception("Batch disk write failed")):
+            with patch("app.classification.embeddings.logger") as mock_logger:
                 await embedding_manager.get_embeddings_batch(["test1", "test2"])
 
                 # Verify warning was logged for each save attempt
-                assert mock_logger.warning.call_count >= 1
-                mock_logger.warning.assert_called_with("failed_to_save_embedding_cache", error=str)
+                assert mock_logger.warning.call_count == 2
+                mock_logger.warning.assert_called_with(
+                    "failed_to_save_embedding_cache", error="Batch disk write failed"
+                )
 
     @pytest.mark.asyncio
     async def test_clear_cache_disk_cleanup_warning(self, embedding_manager, temp_cache_dir):
@@ -598,13 +625,11 @@ class TestEmbeddingManager:
         cache_file.write_text("fake cache")
 
         # Mock unlink to raise an exception
-        with patch('pathlib.Path.unlink', side_effect=Exception("Delete failed")):
-            with patch('app.classification.embeddings.logger') as mock_logger:
+        with patch("pathlib.Path.unlink", side_effect=Exception("Delete failed")):
+            with patch("app.classification.embeddings.logger") as mock_logger:
                 embedding_manager.clear_cache(memory_only=False)
 
                 # Verify warning was logged
                 mock_logger.warning.assert_called_with(
-                    "failed_to_delete_cache_file",
-                    file=str(cache_file),
-                    error=str
+                    "failed_to_delete_cache_file", file=str(cache_file), error="Delete failed"
                 )

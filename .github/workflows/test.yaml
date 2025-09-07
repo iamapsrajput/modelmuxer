@@ -125,6 +125,15 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
+          TEST_MODE: true
+          # Mock API keys to enable provider registry population in CI
+          OPENAI_API_KEY: mock-openai-key-for-ci-testing
+          ANTHROPIC_API_KEY: mock-anthropic-key-for-ci-testing
+          MISTRAL_API_KEY: mock-mistral-key-for-ci-testing
+          GROQ_API_KEY: mock-groq-key-for-ci-testing
+          GOOGLE_API_KEY: mock-google-key-for-ci-testing
+          COHERE_API_KEY: mock-cohere-key-for-ci-testing
+          TOGETHER_API_KEY: mock-together-key-for-ci-testing
         run: |
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           poetry run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html -m "not integration"
@@ -134,6 +143,15 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
+          TEST_MODE: true
+          # Mock API keys to enable provider registry population in CI
+          OPENAI_API_KEY: mock-openai-key-for-ci-testing
+          ANTHROPIC_API_KEY: mock-anthropic-key-for-ci-testing
+          MISTRAL_API_KEY: mock-mistral-key-for-ci-testing
+          GROQ_API_KEY: mock-groq-key-for-ci-testing
+          GOOGLE_API_KEY: mock-google-key-for-ci-testing
+          COHERE_API_KEY: mock-cohere-key-for-ci-testing
+          TOGETHER_API_KEY: mock-together-key-for-ci-testing
         run: |
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           poetry run pytest tests/ -v --cov=app --cov-append --cov-report=xml -m "integration"
@@ -143,6 +161,15 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
+          TEST_MODE: true
+          # Mock API keys to enable provider registry population in CI
+          OPENAI_API_KEY: mock-openai-key-for-ci-testing
+          ANTHROPIC_API_KEY: mock-anthropic-key-for-ci-testing
+          MISTRAL_API_KEY: mock-mistral-key-for-ci-testing
+          GROQ_API_KEY: mock-groq-key-for-ci-testing
+          GOOGLE_API_KEY: mock-google-key-for-ci-testing
+          COHERE_API_KEY: mock-cohere-key-for-ci-testing
+          TOGETHER_API_KEY: mock-together-key-for-ci-testing
         run: |
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           # Run performance tests but don't fail the build if they're slow

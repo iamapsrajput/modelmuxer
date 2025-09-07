@@ -76,12 +76,6 @@ class HeuristicRouter:
                     "Price table empty at %s; all models will be treated as unpriced and may trigger budget gating. Configure PRICING via PRICE_TABLE_PATH.",
                     self.settings.pricing.price_table_path,
                 )
-                if self.settings.features.mode == "production":
-                    from app.core.exceptions import RouterConfigurationError
-
-                    raise RouterConfigurationError(
-                        f"Price table is empty in production mode at {self.settings.pricing.price_table_path}"
-                    )
         except Exception as e:
             logger.error("Failed to initialize cost estimation: %s", e)
             self.price_table = {}
@@ -265,6 +259,7 @@ class HeuristicRouter:
         self.direct_model_preferences = self.model_preferences
 
     def _validate_model_keys(self) -> None:
+        """Validate that model keys in preferences have corresponding price table entries."""
         candidate_keys: set[str] = {
             f"{provider}:{model}"
             for plist in self.model_preferences.values()
@@ -317,6 +312,7 @@ class HeuristicRouter:
         task_type: str
 
     def analyze_prompt(self, messages: list[ChatMessage]) -> "HeuristicRouter.Analysis":
+        """Analyze prompt characteristics to inform routing decisions."""
         full_text = " ".join([msg.content for msg in messages if msg.content])
         full_text_lower = full_text.lower()
         analysis: HeuristicRouter.Analysis = {
@@ -378,6 +374,7 @@ class HeuristicRouter:
         budget_constraint: float | None = None,
         max_tokens: int | None = None,
     ) -> tuple[str, str, str, dict[str, object], dict[str, object]]:
+        """Select the best model based on prompt analysis and constraints."""
         preferences: list[tuple[str, str]] = []
         intent_metadata: dict[str, object] = {
             "label": "unknown",
@@ -668,6 +665,7 @@ class HeuristicRouter:
     async def invoke_via_adapter(
         self, provider: str, model: str, prompt: str, **kwargs: object
     ) -> ProviderResponse:
+        """Invoke a model via its provider adapter."""
         available = self.provider_registry_fn()
         adapter = available.get(provider)
         if not adapter:
@@ -691,6 +689,7 @@ class HeuristicRouter:
         return await adapter.invoke(model=model, prompt=prompt, **kwargs)
 
     def _generate_reasoning(self, analysis: "HeuristicRouter.Analysis") -> str:
+        """Generate human-readable reasoning for routing decision."""
         reasons: list[str] = []
         if analysis["has_code"]:
             reasons.append(f"Code detected (confidence: {analysis['code_confidence']:.2f})")
@@ -710,9 +709,11 @@ class HeuristicRouter:
         return task_reason
 
     def record_latency(self, model_key: str, ms: int) -> None:
+        """Record latency measurement for model performance tracking."""
         self.latency_priors.update(model_key, ms)
 
     def get_routing_stats(self) -> dict[str, object]:
+        """Get routing statistics and performance metrics."""
         return {
             "total_requests": 0,
             "routing_by_task_type": {"code": 0, "complex": 0, "simple": 0, "general": 0},

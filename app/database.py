@@ -392,3 +392,6 @@ class Database:
 
 # Global database instance
 db = Database()
+
+# Import settings for test compatibility
+from .settings import settings

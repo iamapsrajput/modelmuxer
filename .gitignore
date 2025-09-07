@@ -181,6 +181,9 @@ secrets/
 tmp/
 temp/
 *.tmp
+*.tmp.md
+temp*.md
+*.temp.md
 debug_*.py
 .claude*
 temp_*
@@ -258,6 +261,7 @@ performance_reports/
 docs/build/
 site/
 claude.md
+GEMINI.md
 
 # Package files
 *.tar.gz
