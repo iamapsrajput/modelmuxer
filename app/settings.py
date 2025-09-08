@@ -118,11 +118,24 @@ class RedisSettings(BaseSettings):
 class ObservabilitySettings(BaseSettings):
     """Observability and telemetry settings."""
 
-    cors_origins: str | None = Field(
-        default="http://localhost:3000,http://localhost:8080,https://modelmuxer.com",
-        description="List of allowed CORS origins (comma-separated).",
+    cors_origins: list[str] = Field(
+        default=["http://localhost:3000", "http://localhost:8080", "https://modelmuxer.com"],
+        description="List of allowed CORS origins (comma-separated string or list).",
         validation_alias=AliasChoices("CORS_ORIGINS", "OBS_CORS_ORIGINS"),
     )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, value):
+        """Parse CORS origins from comma-separated string or list."""
+        if isinstance(value, str):
+            # Split comma-separated string into list
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        elif isinstance(value, list):
+            return value
+        elif value is None:
+            return []
+        return value
     log_level: str = Field(
         default="info",
         description="Log level for application logs.",

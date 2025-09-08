@@ -1,0 +1,10 @@
+{"text": "What is machine learning?", "label": "chat_lite", "difficulty": "easy"}
+{"text": "Explain neural networks", "label": "deep_reason", "difficulty": "medium"}
+{"text": "Write a Python function to sort a list", "label": "code_gen", "difficulty": "easy"}
+{"text": "Debug this complex algorithm", "label": "code_gen", "difficulty": "hard"}
+{"text": "Create a detailed analysis of economic trends", "label": "code_gen", "difficulty": "hard"}
+{"text": "What's the weather today?", "label": "chat_lite", "difficulty": "easy"}
+{"text": "Solve this math equation: 2+2", "label": "chat_lite", "difficulty": "easy"}
+{"text": "Implement a distributed caching system", "label": "code_gen", "difficulty": "hard"}
+{"text": "Compare and contrast different ML algorithms", "label": "code_gen", "difficulty": "medium"}
+{"text": "Hello, how are you?", "label": "chat_lite", "difficulty": "easy"}
