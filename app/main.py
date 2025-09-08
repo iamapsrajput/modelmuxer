@@ -1114,9 +1114,9 @@ async def chat_completions(
                         provider_name = next(iter(registry.keys()))
                 if provider_name and provider_name in registry:
                     adapter = registry[provider_name]
-                    prompt_text = "\n".join([
-                        msg.content for msg in request.messages if msg.content
-                    ])
+                    prompt_text = "\n".join(
+                        [msg.content for msg in request.messages if msg.content]
+                    )
                     try:
                         if hasattr(adapter, "invoke"):
                             adapter_resp = await adapter.invoke(
@@ -1274,9 +1274,9 @@ async def chat_completions(
 
                 if provider_name and provider_name in registry:
                     adapter = registry[provider_name]
-                    prompt_text = "\n".join([
-                        msg.content for msg in request.messages if msg.content
-                    ])
+                    prompt_text = "\n".join(
+                        [msg.content for msg in request.messages if msg.content]
+                    )
                     # Prefer chat_completion when available in tests, else fallback to invoke only if coroutine
                     try:
                         if hasattr(adapter, "chat_completion"):
@@ -1576,9 +1576,9 @@ async def chat_completions(
             try:
                 if app_settings.features.provider_adapters_enabled:
                     # Use router's unified adapter interface for consistency
-                    prompt_text = "\n".join([
-                        msg.content for msg in request.messages if msg.content
-                    ])
+                    prompt_text = "\n".join(
+                        [msg.content for msg in request.messages if msg.content]
+                    )
                     adapter_resp = await _active_router.invoke_via_adapter(
                         provider=provider_name,
                         model=model_name,
@@ -1658,9 +1658,9 @@ async def chat_completions(
                     return JSONResponse(content=resp_dict)
                 else:
                     # Use router's adapter interface for consistent invocation
-                    prompt_text = "\n".join([
-                        msg.content for msg in request.messages if msg.content
-                    ])
+                    prompt_text = "\n".join(
+                        [msg.content for msg in request.messages if msg.content]
+                    )
 
                     # Measure actual provider latency
                     provider_start_time = time.perf_counter()
@@ -1957,17 +1957,19 @@ async def list_models(user_info: dict[str, Any] = Depends(get_authenticated_user
             if ":" in model or "/" in model:
                 continue
 
-            models.append({
-                "id": f"{provider}/{model}",
-                "object": "model",
-                "provider": provider,
-                "model": model,
-                "pricing": {
-                    "input": price.input_per_1k_usd,
-                    "output": price.output_per_1k_usd,
-                    "unit": "per_1k_tokens",
-                },
-            })
+            models.append(
+                {
+                    "id": f"{provider}/{model}",
+                    "object": "model",
+                    "provider": provider,
+                    "model": model,
+                    "pricing": {
+                        "input": price.input_per_1k_usd,
+                        "output": price.output_per_1k_usd,
+                        "unit": "per_1k_tokens",
+                    },
+                }
+            )
 
     return {"object": "list", "data": models}
 
@@ -2046,18 +2048,20 @@ async def get_budget_status(
                     for alert in status["alerts"]
                 ]
 
-                response_budgets.append({
-                    "budget_type": status["budget_type"],
-                    "budget_limit": status["budget_limit"],
-                    "current_usage": status["current_usage"],
-                    "usage_percentage": status["usage_percentage"],
-                    "remaining_budget": status["remaining_budget"],
-                    "provider": status["provider"],
-                    "model": status["model"],
-                    "alerts": alerts,
-                    "period_start": status["period_start"],
-                    "period_end": status["period_end"],
-                })
+                response_budgets.append(
+                    {
+                        "budget_type": status["budget_type"],
+                        "budget_limit": status["budget_limit"],
+                        "current_usage": status["current_usage"],
+                        "usage_percentage": status["usage_percentage"],
+                        "remaining_budget": status["remaining_budget"],
+                        "provider": status["provider"],
+                        "model": status["model"],
+                        "alerts": alerts,
+                        "period_start": status["period_start"],
+                        "period_end": status["period_end"],
+                    }
+                )
 
             return {
                 "message": "Budget status retrieved successfully",

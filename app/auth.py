@@ -26,7 +26,11 @@ class APIKeyAuth:
         else:
             # Handle potential None value from api_keys setting
             api_keys_str = app_settings.api.api_keys
-            allowed_keys = [key.strip() for key in api_keys_str.split(",") if key.strip()] if api_keys_str else []
+            allowed_keys = (
+                [key.strip() for key in api_keys_str.split(",") if key.strip()]
+                if api_keys_str
+                else []
+            )
 
         self.allowed_keys = set(allowed_keys)
         # Simple rate limiting storage (in production, use Redis)

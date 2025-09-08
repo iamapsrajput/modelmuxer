@@ -32,7 +32,9 @@ class AnthropicAdapter(LLMProviderAdapter):
         )
         self._client = httpx.AsyncClient(timeout=settings.providers.timeout_ms / 1000)
 
-    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:  # noqa: D401
+    async def invoke(
+        self, model: str, prompt: str, **kwargs: Any
+    ) -> ProviderResponse:  # noqa: D401
         start = time.perf_counter()
         provider = "anthropic"
 
@@ -55,14 +57,18 @@ class AnthropicAdapter(LLMProviderAdapter):
                         # Build messages with optional system prompt
                         messages = []
                         if kwargs.get("system"):
-                            messages.append({
-                                "role": "system",
-                                "content": [{"type": "text", "text": kwargs["system"]}],
-                            })
-                        messages.append({
-                            "role": "user",
-                            "content": [{"type": "text", "text": prompt}],
-                        })
+                            messages.append(
+                                {
+                                    "role": "system",
+                                    "content": [{"type": "text", "text": kwargs["system"]}],
+                                }
+                            )
+                        messages.append(
+                            {
+                                "role": "user",
+                                "content": [{"type": "text", "text": prompt}],
+                            }
+                        )
 
                         payload = {
                             "model": model,

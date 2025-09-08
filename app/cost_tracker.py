@@ -711,28 +711,32 @@ class AdvancedCostTracker(CostTracker):
                 for threshold in alert_thresholds:
                     if usage_percentage >= threshold:
                         alert_type = "critical" if threshold >= 90 else "warning"
-                        alerts.append({
-                            "type": alert_type,
-                            "message": f"Budget usage at {usage_percentage:.1f}% (threshold: {threshold}%)",
-                            "threshold": threshold,
-                            "current_usage": usage_percentage,
-                        })
+                        alerts.append(
+                            {
+                                "type": alert_type,
+                                "message": f"Budget usage at {usage_percentage:.1f}% (threshold: {threshold}%)",
+                                "threshold": threshold,
+                                "current_usage": usage_percentage,
+                            }
+                        )
 
                 # Calculate period dates
                 period_start, period_end = self._get_budget_period_dates(budget_type_val)
 
-                budget_statuses.append({
-                    "budget_type": budget_type_val,
-                    "budget_limit": budget_limit,
-                    "current_usage": current_usage,
-                    "usage_percentage": usage_percentage,
-                    "remaining_budget": remaining_budget,
-                    "provider": provider,
-                    "model": model,
-                    "alerts": alerts,
-                    "period_start": period_start,
-                    "period_end": period_end,
-                })
+                budget_statuses.append(
+                    {
+                        "budget_type": budget_type_val,
+                        "budget_limit": budget_limit,
+                        "current_usage": current_usage,
+                        "usage_percentage": usage_percentage,
+                        "remaining_budget": remaining_budget,
+                        "provider": provider,
+                        "model": model,
+                        "alerts": alerts,
+                        "period_start": period_start,
+                        "period_end": period_end,
+                    }
+                )
 
             return budget_statuses
 

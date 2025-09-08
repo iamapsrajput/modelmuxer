@@ -30,7 +30,9 @@ class OpenAIAdapter(LLMProviderAdapter):
         )
         self._client = httpx.AsyncClient(timeout=settings.providers.timeout_ms / 1000)
 
-    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:  # noqa: D401
+    async def invoke(
+        self, model: str, prompt: str, **kwargs: Any
+    ) -> ProviderResponse:  # noqa: D401
         start = time.perf_counter()
         provider = "openai"
 
