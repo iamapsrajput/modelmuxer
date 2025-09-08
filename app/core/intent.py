@@ -35,15 +35,22 @@ def _heuristic_classify(text: str) -> tuple[str, float, dict[str, Any]]:
         return "safety_risk", 0.95, f
     if f["signals"]["vision"]:
         return "vision", 0.85, f
-    if f["signals"]["translation"]:
+
+    # Check for code BEFORE translation to avoid false positives
+    # Many code examples contain " to " or " in " which shouldn't be treated as translation
+    if f["signals"]["code"] or f["has_inline_code"] or f["has_code_fence"]:
+        base = 0.8 + min(0.15, 0.05 * (f["code_fence_count"] + f["programming_keywords_count"]))
+        return "code_gen", min(base, 0.95), f
+
+    # Only classify as translation if there are strong translation signals
+    # and no conflicting code signals
+    if f["signals"]["translation"] and f["translation_hint_count"] >= 2:
         return "translation", 0.9, f
+
     if f["signals"]["json"]:
         # Favor json_extract when explicit JSON/tool signals present
         base = 0.8 + min(0.15, 0.05 * f["json_hint_count"])
         return "json_extract", min(base, 0.95), f
-    if f["signals"]["code"] or f["has_inline_code"] or f["has_code_fence"]:
-        base = 0.8 + min(0.15, 0.05 * (f["code_fence_count"] + f["programming_keywords_count"]))
-        return "code_gen", min(base, 0.95), f
 
     # Deep reasoning if text is long or uses analytical language
     text_l = text.lower()

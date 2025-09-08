@@ -396,7 +396,11 @@ class CascadeRouter(BaseRouter):
         return False
 
     async def _execute_step(
-        self, step: CascadeStep, messages: list[dict[str, Any] | ChatMessage], user_id: str | None = None, **kwargs
+        self,
+        step: CascadeStep,
+        messages: list[dict[str, Any] | ChatMessage],
+        user_id: str | None = None,
+        **kwargs,
     ) -> tuple[dict[str, Any], float]:
         """Execute a single cascade step"""
         provider = self._get_provider(step.provider)
@@ -409,7 +413,9 @@ class CascadeRouter(BaseRouter):
             else:
                 messages_dict.append(msg)
 
-        response = await provider.chat_completion(messages=messages_dict, model=step.model, **kwargs)
+        response = await provider.chat_completion(
+            messages=messages_dict, model=step.model, **kwargs
+        )
 
         # Calculate actual cost
         usage = response.get("usage", {})
@@ -423,7 +429,7 @@ class CascadeRouter(BaseRouter):
         """Get provider instance from registry"""
         try:
             from app.providers.registry import get_provider_registry
-            
+
             registry = get_provider_registry()
             if provider_name in registry:
                 return registry[provider_name]
@@ -433,15 +439,23 @@ class CascadeRouter(BaseRouter):
         except ImportError:
             # Fallback for testing environments
             return self._create_mock_provider()
-    
+
     def _create_mock_provider(self):
         """Create mock provider for testing"""
+
         class MockProvider:
             async def chat_completion(self, **kwargs):
                 # Generate a high-quality response that will pass thresholds
                 return {
                     "id": "test-123",
-                    "choices": [{"message": {"content": "Quantum computing is a revolutionary technology that leverages quantum mechanical phenomena such as superposition and entanglement to process information. Unlike classical computers that use bits (0 or 1), quantum computers use quantum bits or qubits that can exist in multiple states simultaneously. This enables quantum computers to potentially solve certain complex problems exponentially faster than classical computers."}, "finish_reason": "stop"}],
+                    "choices": [
+                        {
+                            "message": {
+                                "content": "Quantum computing is a revolutionary technology that leverages quantum mechanical phenomena such as superposition and entanglement to process information. Unlike classical computers that use bits (0 or 1), quantum computers use quantum bits or qubits that can exist in multiple states simultaneously. This enables quantum computers to potentially solve certain complex problems exponentially faster than classical computers."
+                            },
+                            "finish_reason": "stop",
+                        }
+                    ],
                     "usage": {"prompt_tokens": 50, "completion_tokens": 60},
                 }
 
@@ -451,7 +465,10 @@ class CascadeRouter(BaseRouter):
         return MockProvider()
 
     async def _evaluate_response(
-        self, response: dict[str, Any], original_messages: list[dict[str, Any] | ChatMessage], step: CascadeStep
+        self,
+        response: dict[str, Any],
+        original_messages: list[dict[str, Any] | ChatMessage],
+        step: CascadeStep,
     ) -> tuple[float, float]:
         """
         Evaluate response quality and confidence

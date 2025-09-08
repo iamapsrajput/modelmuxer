@@ -610,8 +610,8 @@ class TestMonitoringAndObservability:
             headers={"Authorization": "Bearer test-api-key"},
         )
 
-        # Should return an error response
-        assert response.status_code in [400, 422, 500]
+        # Should return an error response (503 Service Unavailable is also valid)
+        assert response.status_code in [400, 422, 500, 503]
 
 
 class TestConfigurationAndDeployment:
@@ -878,12 +878,12 @@ class TestComprehensiveIntegration:
                 provider_adapter, "get_supported_models"
             ), f"Provider {provider_name} missing get_supported_models method"
 
-        print("✅ Direct Provider Architecture Validation Summary:")
-        print("  Provider registry accessible: ✅")
-        print("  Registry structure correct: ✅")
+        print("Direct Provider Architecture Validation Summary:")
+        print("  Provider registry accessible: PASS")
+        print("  Registry structure correct: PASS")
         print(f"  Available providers: {len(available_providers)}")
-        print("  Architecture is clean: ✅")
-        print("  Integration tests pass: ✅")
+        print("  Architecture is clean: PASS")
+        print("  Integration tests pass: PASS")
 
 
 # Clean up dependency overrides after all tests

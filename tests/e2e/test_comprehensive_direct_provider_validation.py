@@ -544,7 +544,7 @@ class TestComprehensiveValidation:
                 or "accurate" in status.lower()
             ), f"Validation failed for {aspect}: {status}"
 
-        print("🎉 Comprehensive Direct Provider Architecture Validation Report:")
+        print("Comprehensive Direct Provider Architecture Validation Report:")
         for aspect, status in report.items():
             print(f"  {aspect}: {status}")
 

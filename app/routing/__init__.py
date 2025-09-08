@@ -11,12 +11,20 @@ from .base_router import BaseRouter
 from .cascade_router import CascadeRouter
 from .heuristic_router import EnhancedHeuristicRouter
 from .hybrid_router import HybridRouter
-from .semantic_router import SemanticRouter
+
+# Import SemanticRouter only if numpy is available
+try:
+    from .semantic_router import SemanticRouter
+except ImportError:
+    # SemanticRouter requires numpy which might not be available in test environment
+    SemanticRouter = None
 
 __all__ = [
     "BaseRouter",
     "EnhancedHeuristicRouter",
-    "SemanticRouter",
     "CascadeRouter",
     "HybridRouter",
 ]
+
+if SemanticRouter is not None:
+    __all__.append("SemanticRouter")

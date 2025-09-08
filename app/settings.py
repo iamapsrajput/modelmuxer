@@ -136,6 +136,7 @@ class ObservabilitySettings(BaseSettings):
         elif value is None:
             return []
         return value
+
     log_level: str = Field(
         default="info",
         description="Log level for application logs.",
