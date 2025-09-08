@@ -126,7 +126,7 @@ run:
 
 # Build Docker image
 docker-build:
-	docker build -f Dockerfile.production -t modelmuxer:latest .
+	docker build -f infra/docker/Dockerfile.production -t modelmuxer:latest .
 
 # Run Docker container
 docker-run:

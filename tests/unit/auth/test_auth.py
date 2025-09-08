@@ -12,7 +12,7 @@ import pytest
 from fastapi import HTTPException, Request
 
 from app.auth import APIKeyAuth
-from tests.test_constants import (
+from tests.unit.core.test_constants import (
     TEST_API_KEY_1,
     TEST_API_KEY_INVALID,
     TEST_API_KEY_SAMPLE,

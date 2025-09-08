@@ -38,7 +38,7 @@ check_macos_version() {
 # Function to build the image
 build_image() {
     echo "🔨 Building modelmuxer image with Apple Container..."
-    container build -t modelmuxer:latest -f Dockerfile.apple .
+    container build -t modelmuxer:latest -f infra/docker/Dockerfile.apple .
     echo "✅ Image built successfully"
 }
 
@@ -49,11 +49,11 @@ run_with_compose() {
     # Create volumes
     mkdir -p data logs
 
-    if [[ -f "container-compose.yaml" ]]; then
-        container compose -f container-compose.yaml up -d
+    if [[ -f "infra/docker/container-compose.yaml" ]]; then
+        container compose -f infra/docker/container-compose.yaml up -d
         echo "✅ Container started with compose"
     else
-        echo "❌ container-compose.yaml not found"
+        echo "❌ infra/docker/container-compose.yaml not found"
         exit 1
     fi
 }
