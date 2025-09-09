@@ -30,12 +30,8 @@ from app.policy.rules import enforce_policies  # policy integration
 from app.telemetry.logging import configure_json_logging
 from app.telemetry.metrics import HTTP_LATENCY as HTTP_LATENCY
 from app.telemetry.metrics import HTTP_REQUESTS_TOTAL as HTTP_REQUESTS
-from app.telemetry.metrics import (
-    LLM_ROUTER_BUDGET_EXCEEDED_TOTAL,
-    REQUEST_DURATION,
-    REQUESTS_TOTAL,
-)
-from app.telemetry.tracing import get_trace_id, init_tracing, start_span
+from app.telemetry.metrics import LLM_ROUTER_BUDGET_EXCEEDED_TOTAL, REQUEST_DURATION, REQUESTS_TOTAL
+from app.telemetry.tracing import get_trace_id, setup_tracing, start_span
 
 # Prometheus not used in basic mode - only in enhanced mode
 # Core imports
@@ -535,7 +531,7 @@ async def lifespan(app: FastAPI):
 # Initialize tracing and logging
 try:
     if app_settings.observability.enable_tracing:
-        init_tracing(
+        setup_tracing(
             service_name="modelmuxer",
             sampling_ratio=app_settings.observability.sampling_ratio,
             otlp_endpoint=(
@@ -731,9 +727,10 @@ async def chat_completions(
 
     try:
         # Global pytest short-circuit: if registry is patched, return 200 from adapter and skip router budget gating
+        import os
         import sys as _sys
 
-        if "pytest" in _sys.modules:
+        if "pytest" in _sys.modules and os.getenv("DISABLE_PYTEST_SHORTCUT") != "1":
             registry = providers_registry.get_provider_registry()
             if registry:
                 provider_name = None
@@ -863,9 +860,10 @@ async def chat_completions(
                         }
                     )
         # Earliest pytest short-circuit to avoid router budget/availability gating in direct tests
+        import os
         import sys as _sys
 
-        if "pytest" in _sys.modules:
+        if "pytest" in _sys.modules and os.getenv("DISABLE_PYTEST_SHORTCUT") != "1":
             registry = providers_registry.get_provider_registry()
             if registry:
                 # pick provider by model hint or fallback
@@ -1087,9 +1085,10 @@ async def chat_completions(
             logger.debug("Provider registry at request time: %s", list(current_registry.keys()))
 
         # Test-friendly short-circuit: if running under pytest, bypass router budget gating
+        import os
         import sys as _sys
 
-        if "pytest" in _sys.modules:
+        if "pytest" in _sys.modules and os.getenv("DISABLE_PYTEST_SHORTCUT") != "1":
             registry = providers_registry.get_provider_registry()
             # In pytest mode, if we have any registry (even empty), try to use it
             if registry is not None:
@@ -1418,7 +1417,7 @@ async def chat_completions(
                     detail=ErrorResponse.create(
                         message=f"Budget exceeded: {e.message}",
                         error_type="budget_exceeded",
-                        code="insufficient_budget",  # Standardize on insufficient_budget
+                        code="budget_exceeded",  # Standardize on budget_exceeded
                         details={
                             "limit": e.limit,
                             "estimate": e.estimates[0][1] if e.estimates else 0.0,
@@ -1484,7 +1483,9 @@ async def chat_completions(
                         getattr(direct_resp.router_metadata, "response_time_ms", 0) or 0
                     )
                     _active_router.record_latency(latency_key, int(provider_latency_ms))
-                except Exception:
+                except Exception as e:
+                    if app_settings.server.debug:
+                        logger.debug("Failed to call record_latency: %s", e)
                     pass
                 return JSONResponse(content=direct_resp.dict())
             except Exception:

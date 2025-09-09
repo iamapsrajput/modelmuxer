@@ -21,6 +21,9 @@ from pydantic import BaseModel, Field
 from app.models import ChatMessage
 from app.settings import Settings
 
+# Re-export for tests that patch load_price_table at routing modules
+__all__ = ["load_price_table", "LatencyPriors", "Estimator", "Price", "Settings"]
+
 logger = logging.getLogger(__name__)
 
 
@@ -65,9 +68,7 @@ def load_price_table(price_table_path: str) -> Dict[str, Price]:
                 logger.warning("Invalid price entry for %s: %s", model_key, e)
                 continue
 
-        logger.info(
-            "Loaded %d valid price entries from %s", len(validated_prices), price_table_path
-        )
+        logger.info("Loaded %d valid price entries from %s", len(validated_prices), price_table_path)
         return validated_prices
 
     except Exception as e:
@@ -214,9 +215,7 @@ class Estimator:
         self.latency_priors = latency_priors
         self.settings = settings
 
-    def estimate(
-        self, model_key: str, tokens_in: int | None = None, tokens_out: int | None = None
-    ) -> Estimate:
+    def estimate(self, model_key: str, tokens_in: int | None = None, tokens_out: int | None = None) -> Estimate:
         """
         Estimate cost and latency for a model request.
 
@@ -296,11 +295,7 @@ def estimate_tokens(messages: List[ChatMessage], defaults: Settings, floor: int)
     tokens_in_estimate = max(len(full_text) // 4, floor)
 
     # Use the estimate or fall back to default if no content
-    tokens_in = (
-        tokens_in_estimate
-        if full_text.strip()
-        else int(defaults.pricing.estimator_default_tokens_in)
-    )
+    tokens_in = tokens_in_estimate if full_text.strip() else int(defaults.pricing.estimator_default_tokens_in)
 
     # Output tokens default to configured default
     tokens_out = int(defaults.pricing.estimator_default_tokens_out)

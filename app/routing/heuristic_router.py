@@ -13,6 +13,7 @@ from typing import Any
 
 import structlog
 
+from ..core.costing import load_price_table  # for tests monkey-patching
 from ..core.utils import detect_programming_language, extract_code_blocks
 from ..models import ChatMessage
 from .base_router import BaseRouter
@@ -279,9 +280,7 @@ class EnhancedHeuristicRouter(BaseRouter):
 
         analysis["simple_confidence"] = min(1.0, simple_score)
         analysis["is_simple"] = (
-            analysis["simple_confidence"] > 0.3
-            and analysis["total_length"] < 200
-            and analysis["message_count"] <= 2
+            analysis["simple_confidence"] > 0.3 and analysis["total_length"] < 200 and analysis["message_count"] <= 2
         )
 
         # Creative writing detection
@@ -303,9 +302,7 @@ class EnhancedHeuristicRouter(BaseRouter):
 
         # Special case for code review
         if analysis["has_code"] and analysis["has_complexity"]:
-            task_scores["code_review"] = (
-                analysis["code_confidence"] + analysis["complexity_confidence"]
-            ) / 2
+            task_scores["code_review"] = (analysis["code_confidence"] + analysis["complexity_confidence"]) / 2
 
         # Find the highest scoring task type
         best_task = max(task_scores.items(), key=operator.itemgetter(1))
@@ -396,9 +393,7 @@ class EnhancedHeuristicRouter(BaseRouter):
         }
         return cost_estimates.get((provider, model), 0.005)
 
-    def _generate_reasoning(
-        self, analysis: dict[str, Any], provider: str, model: str, task_type: str
-    ) -> str:
+    def _generate_reasoning(self, analysis: dict[str, Any], provider: str, model: str, task_type: str) -> str:
         """Generate human-readable reasoning for the routing decision."""
         reasons = []
 
@@ -408,17 +403,13 @@ class EnhancedHeuristicRouter(BaseRouter):
                 reasons.append(f"Language: {analysis['detected_language']}")
 
         if analysis["has_complexity"]:
-            reasons.append(
-                f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})"
-            )
+            reasons.append(f"Complex analysis required (confidence: {analysis['complexity_confidence']:.2f})")
 
         if analysis["is_simple"]:
             reasons.append(f"Simple query (length: {analysis['total_length']} chars)")
 
         if analysis["is_creative"]:
-            reasons.append(
-                f"Creative writing task (confidence: {analysis['creative_confidence']:.2f})"
-            )
+            reasons.append(f"Creative writing task (confidence: {analysis['creative_confidence']:.2f})")
 
         if analysis["total_length"] > 2000:
             reasons.append("Long prompt requires capable model")

@@ -65,6 +65,28 @@ class APIKeysSettings(BaseSettings):
         validation_alias=AliasChoices("API_KEYS", "AUTH_API_KEYS"),
     )
 
+    # Compat for tests
+    rate_limit_per_minute: int = Field(
+        default=60, validation_alias=AliasChoices("RATE_LIMIT_PER_MINUTE")
+    )
+    rate_limit_per_hour: int = Field(
+        default=1000, validation_alias=AliasChoices("RATE_LIMIT_PER_HOUR")
+    )
+    max_request_size_mb: int = Field(
+        default=10, validation_alias=AliasChoices("MAX_REQUEST_SIZE_MB")
+    )
+    cors_origins: list[str] = Field(
+        default=["http://localhost:3000", "http://localhost:8080"],
+        validation_alias=AliasChoices("CORS_ORIGINS"),
+    )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_api_cors(cls, value):
+        if isinstance(value, str):
+            return [v.strip() for v in value.split(",") if v.strip()]
+        return value
+
 
 class DatabaseSettings(BaseSettings):
     """Database configuration settings.
@@ -73,7 +95,7 @@ class DatabaseSettings(BaseSettings):
     """
 
     database_url: str = Field(
-        default="sqlite:///./modelmuxer.db",
+        default="sqlite:///modelmuxer.db",
         description="SQLAlchemy-style database URL. Defaults to local SQLite.",
         validation_alias=AliasChoices("DATABASE_URL", "DB_URL"),
     )
@@ -194,6 +216,37 @@ class ObservabilitySettings(BaseSettings):
     )
 
 
+class LoggingSettings(BaseSettings):
+    level: str = Field(default="INFO", validation_alias=AliasChoices("LOG_LEVEL"))
+    audit_log_path: str | None = Field(
+        default=None, validation_alias=AliasChoices("AUDIT_LOG_PATH")
+    )
+
+
+class SecuritySettings(BaseSettings):
+    enable_ssl: bool = Field(default=False, validation_alias=AliasChoices("ENABLE_SSL"))
+    ssl_cert_path: str | None = Field(default=None, validation_alias=AliasChoices("SSL_CERT_PATH"))
+    ssl_key_path: str | None = Field(default=None, validation_alias=AliasChoices("SSL_KEY_PATH"))
+    enable_request_validation: bool = Field(
+        default=False, validation_alias=AliasChoices("ENABLE_REQUEST_VALIDATION")
+    )
+    enable_response_validation: bool = Field(
+        default=False, validation_alias=AliasChoices("ENABLE_RESPONSE_VALIDATION")
+    )
+    enable_content_filtering: bool = Field(
+        default=False, validation_alias=AliasChoices("ENABLE_CONTENT_FILTERING")
+    )
+    content_filter_threshold: float = Field(
+        default=0.8, validation_alias=AliasChoices("CONTENT_FILTER_THRESHOLD")
+    )
+    enable_pii_detection: bool = Field(
+        default=False, validation_alias=AliasChoices("ENABLE_PII_DETECTION")
+    )
+    pii_detection_threshold: float = Field(
+        default=0.9, validation_alias=AliasChoices("PII_DETECTION_THRESHOLD")
+    )
+
+
 class FeatureFlagsSettings(BaseSettings):
     """Feature flag toggles and deployment mode."""
 
@@ -259,6 +312,8 @@ class FeatureFlagsSettings(BaseSettings):
             "SHOW_DEPRECATION_WARNINGS", "FEATURE_SHOW_DEPRECATION_WARNINGS"
         ),
     )
+    # Compat flag
+    enable_telemetry: bool = Field(default=False, validation_alias=AliasChoices("ENABLE_TELEMETRY"))
 
 
 class PolicySettings(BaseSettings):
@@ -375,6 +430,15 @@ class RouterSettings(BaseSettings):
         default=0.2,
         description="Threshold for detecting simple queries in routing heuristics.",
         validation_alias=AliasChoices("SIMPLE_QUERY_THRESHOLD", "ROUTER_SIMPLE_QUERY_THRESHOLD"),
+    )
+
+    # Compat for tests
+    router_type: str = Field(default="heuristic", validation_alias=AliasChoices("ROUTER_TYPE"))
+    fallback_provider: str | None = Field(
+        default=None, validation_alias=AliasChoices("FALLBACK_PROVIDER")
+    )
+    fallback_model: str | None = Field(
+        default=None, validation_alias=AliasChoices("FALLBACK_MODEL")
     )
 
     # Intent classifier controls
@@ -642,6 +706,74 @@ class ProviderAdapterSettings(BaseSettings):
         return value
 
 
+class ProvidersSettings(BaseSettings):
+    openai_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("OPENAI_API_KEY")
+    )
+    anthropic_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("ANTHROPIC_API_KEY")
+    )
+    mistral_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("MISTRAL_API_KEY")
+    )
+    groq_api_key: str | None = Field(default=None, validation_alias=AliasChoices("GROQ_API_KEY"))
+    google_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("GOOGLE_API_KEY")
+    )
+    cohere_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("COHERE_API_KEY")
+    )
+    together_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("TOGETHER_API_KEY")
+    )
+    circuit_fail_threshold: int = Field(
+        default=5, validation_alias=AliasChoices("CIRCUIT_FAIL_THRESHOLD")
+    )
+    circuit_cooldown_sec: int = Field(
+        default=30, validation_alias=AliasChoices("CIRCUIT_COOLDOWN_SEC")
+    )
+    max_retries: int = Field(default=2, validation_alias=AliasChoices("MAX_RETRIES"))
+    retry_delay: float = Field(default=1.0, validation_alias=AliasChoices("RETRY_DELAY"))
+    request_timeout: int = Field(default=30, validation_alias=AliasChoices("REQUEST_TIMEOUT"))
+    stream_timeout: int = Field(default=120, validation_alias=AliasChoices("STREAM_TIMEOUT"))
+    timeout_ms: int = Field(
+        default=30000, validation_alias=AliasChoices("TIMEOUT_MS", "PROVIDER_TIMEOUT_MS")
+    )
+
+
+class MonitoringSettings(BaseSettings):
+    metrics_port: int = Field(default=8001, validation_alias=AliasChoices("METRICS_PORT"))
+    health_check_interval: int = Field(
+        default=60, validation_alias=AliasChoices("HEALTH_CHECK_INTERVAL")
+    )
+    enable_provider_health_check: bool = Field(
+        default=False, validation_alias=AliasChoices("ENABLE_PROVIDER_HEALTH_CHECK")
+    )
+    provider_health_check_interval: int = Field(
+        default=300, validation_alias=AliasChoices("PROVIDER_HEALTH_CHECK_INTERVAL")
+    )
+
+
+class WorkersSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore")
+    enable_auto_scaling: bool = Field(
+        default=False, validation_alias=AliasChoices("ENABLE_AUTO_SCALING")
+    )
+    min_workers: int = Field(default=1, validation_alias=AliasChoices("MIN_WORKERS"))
+    max_workers: int = Field(default=4, validation_alias=AliasChoices("MAX_WORKERS"))
+    worker_timeout: int = Field(default=60, validation_alias=AliasChoices("WORKER_TIMEOUT"))
+
+
+class BudgetSettings(BaseSettings):
+    daily_budget: float = Field(default=100.0, validation_alias=AliasChoices("DAILY_BUDGET"))
+    monthly_budget: float = Field(default=1000.0, validation_alias=AliasChoices("MONTHLY_BUDGET"))
+
+
+class CacheSettings(BaseSettings):
+    redis_url: str | None = Field(default=None, validation_alias=AliasChoices("REDIS_URL"))
+    cache_ttl: int = Field(default=300, validation_alias=AliasChoices("CACHE_TTL"))
+
+
 class GoogleProviderSettings(BaseSettings):
     """Google-specific provider settings."""
 
@@ -699,6 +831,12 @@ class Settings(BaseSettings):
         env_file=".env",
         env_nested_delimiter="__",
         extra="ignore",
+        case_sensitive=False,
+    )
+
+    # Top-level mode override from env (compat)
+    mode_env: Literal["basic", "enhanced", "production"] | None = Field(
+        default=None, validation_alias=AliasChoices("MODELMUXER_MODE", "APP_MODE")
     )
 
     api: APIKeysSettings = APIKeysSettings()
@@ -711,7 +849,16 @@ class Settings(BaseSettings):
     pricing: PricingSettings = PricingSettings()
     router_thresholds: RouterThresholds = RouterThresholds()
     provider_pricing: ProviderPricingSettings = ProviderPricingSettings()
-    providers: ProviderAdapterSettings = ProviderAdapterSettings()
+    providers: ProvidersSettings = ProvidersSettings()
+    monitoring: MonitoringSettings = MonitoringSettings()
+    security: SecuritySettings = SecuritySettings()
+    workers: WorkersSettings = WorkersSettings()
+    budget: BudgetSettings = BudgetSettings()
+    logging: LoggingSettings = LoggingSettings()
+    cache: CacheSettings = CacheSettings()
+
+    # Keep original adapter group for internal use
+    adapters: ProviderAdapterSettings = ProviderAdapterSettings()
     endpoints: ProviderEndpointsSettings = ProviderEndpointsSettings()
     google: GoogleProviderSettings = GoogleProviderSettings()
     policy: PolicySettings = PolicySettings()
@@ -736,6 +883,329 @@ class Settings(BaseSettings):
             "tenant3-key",
             "test-key",
         ]
+
+    @property
+    def mode(self) -> str:
+        return self.mode_env or self.features.mode
+
+    @field_validator("workers", mode="before")
+    @classmethod
+    def _coerce_workers(cls, v: Any) -> Any:
+        # Allow simple integer to set both min and max workers in constrained envs
+        if isinstance(v, int):
+            return {"min_workers": v, "max_workers": v}
+        return v
+
+    def model_post_init(self, __context: Any) -> None:  # type: ignore[override]
+        # Apply top-level mode_env to features.mode if provided
+        if self.mode_env is not None:
+            self.features.mode = self.mode_env
+
+        # Hydrate provider API keys from top-level envs (or from api group) if missing
+        def coalesce(current: str | None, *candidates: str | None) -> str | None:
+            if current:
+                return current
+            for c in candidates:
+                if c:
+                    return c
+            return None
+
+        import os
+
+        self.providers.openai_api_key = coalesce(
+            self.providers.openai_api_key, self.api.openai_api_key, os.getenv("OPENAI_API_KEY")
+        )
+        self.providers.anthropic_api_key = coalesce(
+            self.providers.anthropic_api_key,
+            self.api.anthropic_api_key,
+            os.getenv("ANTHROPIC_API_KEY"),
+        )
+        self.providers.mistral_api_key = coalesce(
+            self.providers.mistral_api_key, self.api.mistral_api_key, os.getenv("MISTRAL_API_KEY")
+        )
+        self.providers.groq_api_key = coalesce(
+            self.providers.groq_api_key, self.api.groq_api_key, os.getenv("GROQ_API_KEY")
+        )
+        self.providers.google_api_key = coalesce(
+            self.providers.google_api_key, self.api.google_api_key, os.getenv("GOOGLE_API_KEY")
+        )
+        self.providers.cohere_api_key = coalesce(
+            self.providers.cohere_api_key, self.api.cohere_api_key, os.getenv("COHERE_API_KEY")
+        )
+        self.providers.together_api_key = coalesce(
+            self.providers.together_api_key,
+            self.api.together_api_key,
+            os.getenv("TOGETHER_API_KEY"),
+        )
+
+        # Hydrate other nested settings from env vars if missing
+        if not self.db.database_url or self.db.database_url == "sqlite:///modelmuxer.db":
+            env_db = os.getenv("DATABASE_URL")
+            if env_db:
+                self.db.database_url = env_db
+
+        if not self.redis.url:
+            env_redis = os.getenv("REDIS_URL")
+            if env_redis:
+                self.redis.url = env_redis  # type: ignore[assignment]
+
+        # Also hydrate cache.redis_url for compatibility
+        if not self.cache.redis_url:
+            env_redis = os.getenv("REDIS_URL")
+            if env_redis:
+                self.cache.redis_url = env_redis
+
+        if not self.observability.log_level or self.observability.log_level == "info":
+            env_log = os.getenv("LOG_LEVEL")
+            if env_log:
+                self.observability.log_level = env_log.lower()
+
+        # Also hydrate logging.level for compatibility
+        if not self.logging.level or self.logging.level == "INFO":
+            env_log = os.getenv("LOG_LEVEL")
+            if env_log:
+                self.logging.level = env_log.upper()
+
+        if not self.observability.cors_origins or self.observability.cors_origins == [
+            "http://localhost:3000",
+            "http://localhost:8080",
+            "https://modelmuxer.com",
+        ]:
+            env_cors = os.getenv("CORS_ORIGINS")
+            if env_cors:
+                self.observability.cors_origins = [
+                    origin.strip() for origin in env_cors.split(",") if origin.strip()
+                ]
+
+        # Also hydrate api.cors_origins for compatibility
+        if not self.api.cors_origins or self.api.cors_origins == [
+            "http://localhost:3000",
+            "http://localhost:8080",
+        ]:
+            env_cors = os.getenv("CORS_ORIGINS")
+            if env_cors:
+                self.api.cors_origins = [
+                    origin.strip() for origin in env_cors.split(",") if origin.strip()
+                ]
+
+        # Hydrate api.api_keys from env if missing
+        if not self.api.api_keys:
+            env_keys = os.getenv("API_KEYS")
+            if env_keys:
+                self.api.api_keys = env_keys
+
+        # Hydrate additional API settings from env
+        env_rate_min = os.getenv("RATE_LIMIT_PER_MINUTE")
+        if env_rate_min:
+            try:
+                self.api.rate_limit_per_minute = int(env_rate_min)
+            except ValueError:
+                pass
+
+        env_rate_hour = os.getenv("RATE_LIMIT_PER_HOUR")
+        if env_rate_hour:
+            try:
+                self.api.rate_limit_per_hour = int(env_rate_hour)
+            except ValueError:
+                pass
+
+        env_max_size = os.getenv("MAX_REQUEST_SIZE_MB")
+        if env_max_size:
+            try:
+                self.api.max_request_size_mb = int(env_max_size)
+            except ValueError:
+                pass
+
+        # Hydrate budget settings from env
+        env_daily = os.getenv("DAILY_BUDGET")
+        if env_daily:
+            try:
+                self.budget.daily_budget = float(env_daily)
+            except ValueError:
+                pass
+
+        env_monthly = os.getenv("MONTHLY_BUDGET")
+        if env_monthly:
+            try:
+                self.budget.monthly_budget = float(env_monthly)
+            except ValueError:
+                pass
+
+        # Hydrate feature flags from env
+        env_telemetry = os.getenv("ENABLE_TELEMETRY")
+        if env_telemetry:
+            self.features.enable_telemetry = env_telemetry.lower() in ("true", "1", "yes", "on")
+
+        env_monitoring = os.getenv("ENABLE_MONITORING")
+        if env_monitoring:
+            self.features.monitoring_enabled = env_monitoring.lower() in ("true", "1", "yes", "on")
+
+        env_cache = os.getenv("ENABLE_CACHE")
+        if env_cache:
+            self.features.cache_enabled = env_cache.lower() in ("true", "1", "yes", "on")
+
+        # Hydrate cache settings from env
+        env_cache_ttl = os.getenv("CACHE_TTL")
+        if env_cache_ttl:
+            try:
+                self.cache.cache_ttl = int(env_cache_ttl)
+            except ValueError:
+                pass
+
+        # Hydrate provider settings from env
+        env_circuit_fail = os.getenv("CIRCUIT_FAIL_THRESHOLD")
+        if env_circuit_fail:
+            try:
+                self.providers.circuit_fail_threshold = int(env_circuit_fail)
+            except ValueError:
+                pass
+
+        env_circuit_cooldown = os.getenv("CIRCUIT_COOLDOWN_SEC")
+        if env_circuit_cooldown:
+            try:
+                self.providers.circuit_cooldown_sec = int(env_circuit_cooldown)
+            except ValueError:
+                pass
+
+        env_max_retries = os.getenv("MAX_RETRIES")
+        if env_max_retries:
+            try:
+                self.providers.max_retries = int(env_max_retries)
+            except ValueError:
+                pass
+
+        env_retry_delay = os.getenv("RETRY_DELAY")
+        if env_retry_delay:
+            try:
+                self.providers.retry_delay = float(env_retry_delay)
+            except ValueError:
+                pass
+
+        env_request_timeout = os.getenv("REQUEST_TIMEOUT")
+        if env_request_timeout:
+            try:
+                self.providers.request_timeout = int(env_request_timeout)
+            except ValueError:
+                pass
+
+        env_stream_timeout = os.getenv("STREAM_TIMEOUT")
+        if env_stream_timeout:
+            try:
+                self.providers.stream_timeout = int(env_stream_timeout)
+            except ValueError:
+                pass
+
+        # Hydrate router settings from env
+        env_router_type = os.getenv("ROUTER_TYPE")
+        if env_router_type:
+            self.router.router_type = env_router_type
+
+        env_fallback_provider = os.getenv("FALLBACK_PROVIDER")
+        if env_fallback_provider:
+            self.router.fallback_provider = env_fallback_provider
+
+        env_fallback_model = os.getenv("FALLBACK_MODEL")
+        if env_fallback_model:
+            self.router.fallback_model = env_fallback_model
+
+        # Hydrate security settings from env
+        env_ssl = os.getenv("ENABLE_SSL")
+        if env_ssl:
+            self.security.enable_ssl = env_ssl.lower() in ("true", "1", "yes", "on")
+
+        env_ssl_cert = os.getenv("SSL_CERT_PATH")
+        if env_ssl_cert:
+            self.security.ssl_cert_path = env_ssl_cert
+
+        env_ssl_key = os.getenv("SSL_KEY_PATH")
+        if env_ssl_key:
+            self.security.ssl_key_path = env_ssl_key
+
+        env_request_validation = os.getenv("ENABLE_REQUEST_VALIDATION")
+        if env_request_validation:
+            self.security.enable_request_validation = env_request_validation.lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
+
+        env_response_validation = os.getenv("ENABLE_RESPONSE_VALIDATION")
+        if env_response_validation:
+            self.security.enable_response_validation = env_response_validation.lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
+
+        env_content_filtering = os.getenv("ENABLE_CONTENT_FILTERING")
+        if env_content_filtering:
+            self.security.enable_content_filtering = env_content_filtering.lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
+
+        env_content_threshold = os.getenv("CONTENT_FILTER_THRESHOLD")
+        if env_content_threshold:
+            try:
+                self.security.content_filter_threshold = float(env_content_threshold)
+            except ValueError:
+                pass
+
+        env_pii_detection = os.getenv("ENABLE_PII_DETECTION")
+        if env_pii_detection:
+            self.security.enable_pii_detection = env_pii_detection.lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
+
+        env_pii_threshold = os.getenv("PII_DETECTION_THRESHOLD")
+        if env_pii_threshold:
+            try:
+                self.security.pii_detection_threshold = float(env_pii_threshold)
+            except ValueError:
+                pass
+
+        # Hydrate monitoring settings from env
+        env_metrics_port = os.getenv("METRICS_PORT")
+        if env_metrics_port:
+            try:
+                self.monitoring.metrics_port = int(env_metrics_port)
+            except ValueError:
+                pass
+
+        env_health_interval = os.getenv("HEALTH_CHECK_INTERVAL")
+        if env_health_interval:
+            try:
+                self.monitoring.health_check_interval = int(env_health_interval)
+            except ValueError:
+                pass
+
+        env_provider_health = os.getenv("ENABLE_PROVIDER_HEALTH_CHECK")
+        if env_provider_health:
+            self.monitoring.enable_provider_health_check = env_provider_health.lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
+
+        env_provider_interval = os.getenv("PROVIDER_HEALTH_CHECK_INTERVAL")
+        if env_provider_interval:
+            try:
+                self.monitoring.provider_health_check_interval = int(env_provider_interval)
+            except ValueError:
+                pass
+
+        # Hydrate logging settings from env
+        env_audit_path = os.getenv("AUDIT_LOG_PATH")
+        if env_audit_path:
+            self.logging.audit_log_path = env_audit_path
 
 
 # Singleton settings instance used across the application

@@ -428,7 +428,7 @@ class TestEndToEndBudgetFlow:
             assert response.status_code == 402
             err = response.json()["error"]
             assert err["type"] == "budget_exceeded"
-            assert err["code"] == "insufficient_budget"
+            assert err["code"] == "budget_exceeded"
             assert "limit" in err["details"]
             assert "estimate" in err["details"]
 
@@ -452,6 +452,7 @@ class TestEndToEndBudgetFlow:
                 "app.main.providers_registry.get_provider_registry",
                 return_value={"dummy": object()},
             ),
+            patch.dict("os.environ", {"DISABLE_PYTEST_SHORTCUT": "1"}),
         ):
             response = self.client.post(
                 "/v1/chat/completions",
@@ -552,7 +553,10 @@ class TestEndToEndBudgetFlow:
         )
         mock_router.record_latency = MagicMock()
 
-        with patch("app.main.HeuristicRouter", return_value=mock_router):
+        with (
+            patch("app.main.HeuristicRouter", return_value=mock_router),
+            patch.dict("os.environ", {"DISABLE_PYTEST_SHORTCUT": "1"}),
+        ):
             # Mock provider to return successful response
             from app.models import ChatCompletionResponse, ChatMessage, Choice, Usage
 

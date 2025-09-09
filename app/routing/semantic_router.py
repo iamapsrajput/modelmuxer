@@ -14,6 +14,7 @@ import numpy as np
 import structlog
 from sentence_transformers import SentenceTransformer
 
+from ..core.costing import load_price_table  # for tests monkey-patching
 from ..core.exceptions import ConfigurationError, RoutingError
 from ..models import ChatMessage
 from .base_router import BaseRouter
@@ -45,9 +46,9 @@ class SemanticRouter(BaseRouter):
             raise ConfigurationError(f"Failed to initialize sentence transformer: {e}") from e
 
         # Route definitions and embeddings
-        self.route_embeddings = {}
-        self.route_examples = {}
-        self.route_model_mapping = {}
+        self.route_embeddings: dict[str, Any] = {}
+        self.route_examples: dict[str, Any] = {}
+        self.route_model_mapping: dict[str, Any] = {}
 
         # Load or create route definitions
         self._initialize_routes()

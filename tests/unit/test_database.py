@@ -22,7 +22,7 @@ import aiosqlite
 import pytest
 
 from app.database import Database
-from tests.fixtures.temp_files import temp_database
+from tests.fixtures import temp_database
 
 # Test constants (not actual credentials)
 TEST_USER_ID = "test_user"

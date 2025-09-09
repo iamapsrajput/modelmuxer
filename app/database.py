@@ -51,8 +51,8 @@ class Database:
                 """
                 CREATE TABLE IF NOT EXISTS users (
                     user_id TEXT PRIMARY KEY,
-                    daily_budget REAL NOT NULL DEFAULT 10.0,
-                    monthly_budget REAL NOT NULL DEFAULT 100.0,
+                    daily_budget REAL DEFAULT 10.0,
+                    monthly_budget REAL DEFAULT 100.0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -220,6 +220,12 @@ class Database:
 
             daily_budget, monthly_budget = user_data
 
+            # Handle NULL budget values - treat as unlimited if NULL
+            if daily_budget is None:
+                daily_budget = float("inf")
+            if monthly_budget is None:
+                monthly_budget = float("inf")
+
             # Get current usage
             today = date.today()
             cursor = await db.execute(
@@ -250,7 +256,7 @@ class Database:
                 return {
                     "allowed": False,
                     "reason": "Daily budget exceeded",
-                    "daily_usage": daily_usage,
+                    "daily_used": daily_usage,
                     "daily_budget": daily_budget,
                     "estimated_cost": estimated_cost,
                 }
@@ -259,7 +265,7 @@ class Database:
                 return {
                     "allowed": False,
                     "reason": "Monthly budget exceeded",
-                    "monthly_usage": monthly_usage,
+                    "monthly_used": monthly_usage,
                     "monthly_budget": monthly_budget,
                     "estimated_cost": estimated_cost,
                 }
@@ -369,7 +375,7 @@ class Database:
                 WHERE success = TRUE GROUP BY provider
             """
             )
-            provider_usage = dict(await cursor.fetchall())
+            provider_usage: dict[str, float] = dict(await cursor.fetchall())
 
             # Model usage
             cursor = await db.execute(
@@ -378,7 +384,7 @@ class Database:
                 WHERE success = TRUE GROUP BY model
             """
             )
-            model_usage = dict(await cursor.fetchall())
+            model_usage: dict[str, float] = dict(await cursor.fetchall())
 
             return {
                 "total_requests": total_requests,

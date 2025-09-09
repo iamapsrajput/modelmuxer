@@ -110,7 +110,7 @@ class ChunkedFileProcessor:
 
         return analysis
 
-    def find_large_files(self, directory: Path, extensions: List[str] = None) -> List[Path]:
+    def find_large_files(self, directory: Path, extensions: List[str] | None = None) -> List[Path]:
         """Find files that need chunked processing."""
         if extensions is None:
             extensions = [".py", ".md", ".txt", ".json", ".yaml", ".yml"]
