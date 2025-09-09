@@ -332,6 +332,8 @@ source = ["app"]
 omit = ["*/tests/*", "*/test_*", "*/__pycache__/*"]
 
 [tool.coverage.report]
+"@(abc\\.)?abstractmethod",
+]
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
@@ -342,7 +344,5 @@ exclude_lines = [
     "if 0:",
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod",
-]
     "@(abc\\.)?abstractmethod",
 ]
