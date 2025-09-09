@@ -161,13 +161,12 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Install dependencies
-        run: |
-          poetry install --with dev
-          # Ensure bandit is available (fallback if not in lock file)
-          poetry run pip install bandit
+        run: poetry install --with dev
 
       - name: Run Bandit security scan
-        run: poetry run bandit -r app/ -f json -o bandit-report.json -c .bandit || poetry run bandit -r app/ -f json -o bandit-report.json || true
+        run: |
+          poetry run bandit -r app/ -f json -o bandit-report.json -c .bandit || true
+          poetry run bandit -r app/ -c .bandit || true
 
       - name: Install Semgrep
         run: pip install --upgrade pip && pip install semgrep
