@@ -112,7 +112,13 @@ jobs:
 
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --with dev
+        run: |
+          # Update lock file if dependencies changed
+          if ! poetry check --quiet; then
+            echo "Lock file out of sync, updating..."
+            poetry lock
+          fi
+          poetry install --with dev
 
       - name: Run tests with coverage
         env:

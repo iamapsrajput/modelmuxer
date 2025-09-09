@@ -70,6 +70,8 @@ interrogate = "^1.7.0"
 pip-licenses = "^5.0.0"
 basedpyright = "^1.31.3"
 types-sqlalchemy = "^1.4.53.38"
+numpy = "^1.24.0"
+scikit-learn = "^1.3.0"
 
 [tool.poetry.group.jupyter]
 optional = true
@@ -332,8 +334,7 @@ source = ["app"]
 omit = ["*/tests/*", "*/test_*", "*/__pycache__/*"]
 
 [tool.coverage.report]
-"@(abc\\.)?abstractmethod",
-]
+# Coverage exclusion patterns
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
