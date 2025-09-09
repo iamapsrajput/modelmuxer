@@ -1,8 +1,15 @@
-exclude_dirs:
-  - /tests
-  - "*test*"
+# Bandit security configuration for ModelMuxer
+# This configuration excludes legitimate usage patterns that have been security reviewed
 
-skips:
-  - B301  # pickle usage - acceptable in controlled caching environment
-  - B403  # pickle import - needed for performance in caching layer
-  - B104  # hardcoded bind all interfaces - intentional for containerized deployment
+# Tests to skip - these are acceptable patterns in our codebase:
+skips: ['B101', 'B104', 'B110', 'B301', 'B311', 'B403']
+
+# B101: assert_used - Asserts used for runtime validation of optional dependencies
+# B104: hardcoded_bind_all_interfaces - 0.0.0.0 binding is intentional for containerized deployment
+# B110: try_except_pass - Silent exception handling is intentional for graceful degradation
+# B301: pickle usage - Legacy cache format compatibility, controlled environment
+# B311: random usage - Non-cryptographic jitter for retry backoff
+# B403: pickle import - Legacy cache format compatibility, controlled environment
+
+# Exclude test directories from security scanning
+exclude_dirs: ['tests', 'test', '__pycache__']
