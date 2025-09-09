@@ -9,6 +9,7 @@ on quality thresholds and confidence scores.
 """
 
 import operator
+import re
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -121,30 +122,23 @@ class CascadeRouter(BaseRouter):
                 # Attempt request with current model
                 response, step_cost = await self._execute_step(step, messages, user_id, **kwargs)
 
-                routing_metadata["steps_attempted"].append(
-                    {
-                        "step": step_idx,
-                        "provider": step.provider,
-                        "model": step.model,
-                        "cost": step_cost,
-                        "success": True,
-                    }
-                )
+                routing_metadata["steps_attempted"].append({
+                    "step": step_idx,
+                    "provider": step.provider,
+                    "model": step.model,
+                    "cost": step_cost,
+                    "success": True,
+                })
                 routing_metadata["total_cost"] += step_cost
 
                 # Evaluate response quality and confidence
-                quality_score, confidence_score = await self._evaluate_response(
-                    response, messages, step
-                )
+                quality_score, confidence_score = await self._evaluate_response(response, messages, step)
 
                 routing_metadata["quality_score"] = quality_score
                 routing_metadata["confidence_score"] = confidence_score
 
                 # Check if response meets thresholds
-                if (
-                    confidence_score >= step.confidence_threshold
-                    and quality_score >= step.quality_threshold
-                ):
+                if confidence_score >= step.confidence_threshold and quality_score >= step.quality_threshold:
                     routing_metadata["final_model"] = f"{step.provider}/{step.model}"
                     routing_metadata["escalation_reasons"].append("Quality threshold met")
                     routing_metadata["response_time"] = time.time() - routing_metadata["start_time"]
@@ -155,24 +149,20 @@ class CascadeRouter(BaseRouter):
                     )
 
             except Exception as e:
-                routing_metadata["steps_attempted"].append(
-                    {
-                        "step": step_idx,
-                        "provider": step.provider,
-                        "model": step.model,
-                        "cost": 0.0,
-                        "success": False,
-                        "error": str(e),
-                    }
-                )
+                routing_metadata["steps_attempted"].append({
+                    "step": step_idx,
+                    "provider": step.provider,
+                    "model": step.model,
+                    "cost": 0.0,
+                    "success": False,
+                    "error": str(e),
+                })
                 routing_metadata["escalation_reasons"].append(f"Error in step {step_idx}: {str(e)}")
                 continue
 
         # If we reach here, all steps failed or didn't meet quality thresholds
         routing_metadata["response_time"] = time.time() - routing_metadata["start_time"]
-        raise Exception(
-            "Cascade routing failed: no suitable response found within budget/quality constraints"
-        )
+        raise Exception("Cascade routing failed: no suitable response found within budget/quality constraints")
 
     async def analyze_prompt(self, messages: list[ChatMessage]) -> dict[str, Any]:
         """Analyze prompt to determine initial cascade level."""
@@ -229,13 +219,18 @@ class CascadeRouter(BaseRouter):
             analysis["initial_cascade_level"] = 3
             analysis["estimated_difficulty"] = "hard"
 
-        # Adjust based on message length
-        if analysis["total_length"] > 2000:
-            analysis["initial_cascade_level"] = min(3, analysis["initial_cascade_level"] + 1)
+        # Adjust based on message length and word count
+        # Very long prompts should start at the highest level
+        if analysis["word_count"] >= 800 or analysis["total_length"] > 2000:
+            analysis["initial_cascade_level"] = 3
+        elif analysis["total_length"] > 1000 or analysis["word_count"] >= 400:
+            analysis["initial_cascade_level"] = max(analysis["initial_cascade_level"], 2)
 
         # Adjust based on message count (conversation complexity)
-        if analysis["message_count"] > 5:
-            analysis["initial_cascade_level"] = min(3, analysis["initial_cascade_level"] + 1)
+        if analysis["message_count"] >= 10:
+            analysis["initial_cascade_level"] = 3
+        elif analysis["message_count"] > 5:
+            analysis["initial_cascade_level"] = max(analysis["initial_cascade_level"], 2)
 
         return analysis
 
@@ -328,9 +323,7 @@ class CascadeRouter(BaseRouter):
         # Placeholder - would check actual provider status
         return True
 
-    def _calculate_confidence(
-        self, analysis: dict[str, Any], level: int, model_quality: float
-    ) -> float:
+    def _calculate_confidence(self, analysis: dict[str, Any], level: int, model_quality: float) -> float:
         """Calculate confidence score for the routing decision."""
         complexity = analysis["complexity_score"]
 
@@ -350,9 +343,7 @@ class CascadeRouter(BaseRouter):
 
         return min(1.0, max(0.0, confidence))
 
-    def _generate_reasoning(
-        self, analysis: dict[str, Any], provider: str, model: str, level: int, cost: float
-    ) -> str:
+    def _generate_reasoning(self, analysis: dict[str, Any], provider: str, model: str, level: int, cost: float) -> str:
         """Generate reasoning for the cascade routing decision."""
         level_names = {1: "budget", 2: "balanced", 3: "premium"}
         level_name = level_names.get(level, "unknown")
@@ -369,9 +360,7 @@ class CascadeRouter(BaseRouter):
 
         return ". ".join(reasoning_parts)
 
-    async def should_escalate(
-        self, response: str, original_analysis: dict[str, Any], current_level: int
-    ) -> bool:
+    async def should_escalate(self, response: str, original_analysis: dict[str, Any], current_level: int) -> bool:
         """
         Determine if the response should be escalated to a higher level.
 
@@ -413,15 +402,11 @@ class CascadeRouter(BaseRouter):
             else:
                 messages_dict.append(msg)
 
-        response = await provider.chat_completion(
-            messages=messages_dict, model=step.model, **kwargs
-        )
+        response = await provider.chat_completion(messages=messages_dict, model=step.model, **kwargs)
 
         # Calculate actual cost
         usage = response.get("usage", {})
-        cost = provider.calculate_cost(
-            usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), step.model
-        )
+        cost = provider.calculate_cost(usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), step.model)
 
         return response, cost
 
@@ -504,10 +489,17 @@ class CascadeRouter(BaseRouter):
         if not self._has_repetitive_patterns(content):
             score += 0.1
 
+        # Clause richness: multiple clauses indicate better structure/coherence
+        if (content.count(",") >= 1) or (content.lower().count(" and ") >= 2):
+            score += 0.05
+
+        # Detail bonus: sufficiently detailed responses get a small bump
+        # to differentiate high-quality single-sentence answers
+        if len(content.split()) >= 20:
+            score += 0.05
+
         # Relevance to prompt (simple keyword matching)
-        last_user_message = next(
-            (msg["content"] for msg in reversed(messages) if msg["role"] == "user"), ""
-        )
+        last_user_message = next((msg["content"] for msg in reversed(messages) if msg["role"] == "user"), "")
         if self._calculate_relevance_score(content, last_user_message) > 0.3:
             score += 0.2
 
@@ -580,8 +572,11 @@ class CascadeRouter(BaseRouter):
 
     def _has_good_structure(self, content: str) -> bool:
         """Check if content has good structure (paragraphs, formatting)"""
-        # Check for proper sentence structure
-        sentences = content.split(".")
+        if not content:
+            return False
+
+        # Check for multiple actual sentences (ignore trailing punctuation)
+        sentences = [s.strip() for s in re.split(r"[.!?]", content) if s.strip()]
         if len(sentences) >= 2:
             return True
 
