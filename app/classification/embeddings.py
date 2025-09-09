@@ -34,7 +34,9 @@ except ModuleNotFoundError:  # pragma: no cover – handled gracefully for tests
         """
 
         def __init__(self, *_, **__):  # noqa: D401,E501 – placeholder signature
-            raise ModuleNotFoundError("sentence_transformers package is required for runtime execution.")
+            raise ModuleNotFoundError(
+                "sentence_transformers package is required for runtime execution."
+            )
 
     SentenceTransformer = _SentenceTransformerPlaceholder  # type: ignore  # noqa: N816
 
@@ -66,7 +68,9 @@ class EmbeddingManager:
         try:
             self.encoder = SentenceTransformer(model_name)
             self.embedding_dim = self.encoder.get_sentence_embedding_dimension()
-            logger.info("embedding_manager_initialized", model=model_name, dimension=self.embedding_dim)
+            logger.info(
+                "embedding_manager_initialized", model=model_name, dimension=self.embedding_dim
+            )
         except Exception as e:
             raise ClassificationError(f"Failed to initialize sentence transformer: {e}") from e
 
@@ -200,7 +204,9 @@ class EmbeddingManager:
                             # Legacy pickle format fallback
                             import pickle  # noqa: S403 - controlled legacy fallback
 
-                            embedding = pickle.loads(data)  # noqa: S301 - controlled legacy fallback
+                            embedding = pickle.loads(
+                                data
+                            )  # noqa: S301 - controlled legacy fallback
 
                         cached_embeddings[i] = embedding
                         self.memory_cache[cache_key] = embedding
@@ -244,7 +250,9 @@ class EmbeddingManager:
         # Return embeddings in original order
         return [cached_embeddings[i] for i in range(len(texts))]
 
-    def calculate_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray, method: str = "cosine") -> float:
+    def calculate_similarity(
+        self, embedding1: np.ndarray, embedding2: np.ndarray, method: str = "cosine"
+    ) -> float:
         """
         Calculate similarity between two embeddings.
 
@@ -369,7 +377,9 @@ class EmbeddingManager:
                 try:
                     cache_file.unlink()
                 except Exception as e:
-                    logger.warning("failed_to_delete_cache_file", file=str(cache_file), error=str(e))
+                    logger.warning(
+                        "failed_to_delete_cache_file", file=str(cache_file), error=str(e)
+                    )
 
         # Reset stats
         self.cache_stats = {"hits": 0, "misses": 0, "disk_loads": 0, "disk_saves": 0}
