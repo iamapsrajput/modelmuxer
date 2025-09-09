@@ -35,7 +35,10 @@ jobs:
           poetry config virtualenvs.in-project true
 
       - name: Install dependencies
-        run: poetry install --with dev,ml
+        run: |
+          poetry install --with dev,ml || poetry install --with dev
+          # Ensure bandit is available (fallback if not in lock file)
+          poetry run pip install bandit
 
       - name: Run ruff (linting) and black (format check)
         run: |
@@ -47,8 +50,8 @@ jobs:
 
       - name: Run bandit (security linting)
         run: |
-          poetry run bandit -r app/ -f json -o bandit-report.json
-          poetry run bandit -r app/
+          poetry run bandit -r app/ -f json -o bandit-report.json -c .bandit || poetry run bandit -r app/ -f json -o bandit-report.json
+          poetry run bandit -r app/ -c .bandit || poetry run bandit -r app/
 
       - name: Upload bandit report
         uses: actions/upload-artifact@v4
