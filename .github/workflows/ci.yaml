@@ -43,8 +43,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv
-          key:
-            venv-${{ runner.os }}-${{ matrix.python-version }}-${{
+          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{
             hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
@@ -108,8 +107,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv
-          key:
-            venv-${{ runner.os }}-${{ matrix.python-version }}-${{
+          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{
             hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
@@ -122,6 +120,7 @@ jobs:
           REDIS_URL: "redis://localhost:6379"
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/modelmuxer_test"
         run: |
+          export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           poetry run pytest --cov=app --cov-report=xml --cov-report=html --cov-fail-under=70
 
       - name: Upload coverage to Codecov
@@ -196,8 +195,7 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        if:
-          ${{ always() && (github.event_name != 'pull_request' ||
+        if: ${{ always() && (github.event_name != 'pull_request' ||
           github.event.pull_request.head.repo.full_name == github.repository) }}
         uses: github/codeql-action/upload-sarif@v3
         with:
