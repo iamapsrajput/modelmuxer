@@ -8,8 +8,10 @@ OpenAI and Anthropic API formats for consistent testing.
 """
 
 import time
-from typing import Dict, Any, List
-from app.models import ChatCompletionResponse, Choice, ChatMessage, Usage, RouterMetadata
+from typing import Any, Dict, List
+
+from app.models import (ChatCompletionResponse, ChatMessage, Choice,
+                        RouterMetadata, Usage)
 
 
 def create_openai_chat_response(

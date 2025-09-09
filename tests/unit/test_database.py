@@ -18,8 +18,8 @@ from datetime import date, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 import aiosqlite
+import pytest
 
 from app.database import Database
 from tests.fixtures.temp_files import temp_database

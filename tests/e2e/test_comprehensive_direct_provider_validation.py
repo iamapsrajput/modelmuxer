@@ -17,7 +17,8 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
-from app.models import ChatCompletionRequest, ChatCompletionResponse, ChatMessage
+from app.models import (ChatCompletionRequest, ChatCompletionResponse,
+                        ChatMessage)
 from app.providers.base import LLMProviderAdapter
 from app.router import HeuristicRouter
 from app.settings import Settings

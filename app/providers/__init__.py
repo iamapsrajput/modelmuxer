@@ -11,7 +11,8 @@ classes and new LLMProviderAdapter classes are available.
 
 from .anthropic import AnthropicAdapter
 from .anthropic_provider import AnthropicProvider
-from .base import AuthenticationError, LLMProvider, ProviderError, RateLimitError
+from .base import (AuthenticationError, LLMProvider, ProviderError,
+                   RateLimitError)
 from .cohere import CohereAdapter
 from .cohere_provider import CohereProvider
 from .google import GoogleAdapter
@@ -20,7 +21,6 @@ from .groq import GroqAdapter
 from .groq_provider import GroqProvider
 from .mistral import MistralAdapter
 from .mistral_provider import MistralProvider
-
 # New adapter classes (LLMProviderAdapter pattern)
 from .openai import OpenAIAdapter
 from .openai_provider import OpenAIProvider

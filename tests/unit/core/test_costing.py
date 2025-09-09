@@ -13,14 +13,8 @@ from unittest.mock import patch
 
 import pytest
 
-from app.core.costing import (
-    Estimate,
-    Estimator,
-    LatencyPriors,
-    Price,
-    estimate_tokens,
-    load_price_table,
-)
+from app.core.costing import (Estimate, Estimator, LatencyPriors, Price,
+                              estimate_tokens, load_price_table)
 from app.models import ChatMessage
 
 

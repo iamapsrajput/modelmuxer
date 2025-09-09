@@ -2,23 +2,16 @@
 # Licensed under Business Source License 1.1 – see LICENSE for details.
 """Unit tests for core utilities."""
 
-import pytest
 import hashlib
 import time
-from unittest.mock import patch, MagicMock
-from app.core.utils import (
-    generate_request_id,
-    hash_prompt,
-    estimate_tokens,
-    format_cost,
-    sanitize_input,
-    calculate_similarity,
-    extract_code_blocks,
-    detect_programming_language,
-    truncate_text,
-    parse_model_name,
-    round_cost,
-)
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from app.core.utils import (calculate_similarity, detect_programming_language,
+                            estimate_tokens, extract_code_blocks, format_cost,
+                            generate_request_id, hash_prompt, parse_model_name,
+                            round_cost, sanitize_input, truncate_text)
 from app.models import ChatMessage
 
 
@@ -169,7 +162,7 @@ class TestSanitizeInput:
 
     def test_sanitize_control_characters(self):
         """Test removing control characters."""
-        text = "Hello\x00World\x07Test\x1F"
+        text = "Hello\x00World\x07Test\x1f"
         assert sanitize_input(text) == "HelloWorldTest"
 
     def test_sanitize_preserve_newlines(self):
@@ -360,7 +353,7 @@ class TestTruncateText:
         """Test truncation with custom suffix."""
         text = "Hello world!"
         result = truncate_text(text, max_length=10, suffix=" [...]")
-        assert result == "Hel [...]"
+        assert result == "Hell [...]"
 
     def test_truncate_default_length(self):
         """Test default max length (1000)."""

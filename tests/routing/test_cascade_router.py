@@ -12,18 +12,19 @@ Tests focus on:
 - Budget and constraint handling
 """
 
-import pytest
 import os
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from dataclasses import dataclass
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # Set test environment before any imports
 os.environ["TEST_MODE"] = "true"
 os.environ["CORS_ORIGINS"] = '["http://localhost:3000","http://localhost:8080"]'
 os.environ["OPENAI_API_KEY"] = "test-key"
 
-from app.routing.cascade_router import CascadeRouter, CascadeStep
 from app.models import ChatMessage
+from app.routing.cascade_router import CascadeRouter, CascadeStep
 
 
 class TestCascadeRouter:

@@ -209,8 +209,9 @@ class TestAnthropicProvider:
     @pytest.mark.asyncio
     async def test_stream_chat_completion_error(self, provider, mock_client):
         """Test streaming chat completion with error."""
-        import httpx
         from unittest.mock import AsyncMock
+
+        import httpx
 
         # Create a mock context manager that raises RequestError on enter
         mock_cm = AsyncMock()

@@ -9,7 +9,6 @@ system performance, usage patterns, and health indicators.
 
 import time
 from collections import defaultdict
-
 # Type-safe Prometheus imports with proper protocols
 from typing import Any, Protocol
 

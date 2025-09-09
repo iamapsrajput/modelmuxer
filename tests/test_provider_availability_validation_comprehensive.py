@@ -193,8 +193,9 @@ async def test_provider_registry_refresh_is_reflected(monkeypatch, deterministic
 @pytest.mark.asyncio
 @pytest.mark.provider_availability_comprehensive
 async def test_no_affordable_available_fallback(monkeypatch, deterministic_price_table):
-    from app.core.costing import load_price_table
     from types import SimpleNamespace
+
+    from app.core.costing import load_price_table
 
     # Registry with providers present but circuit open
     def registry_with_open_circuits():

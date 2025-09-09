@@ -3,11 +3,11 @@
 """Realistic mock providers for integration testing."""
 
 import asyncio
+import json
 import random
 import time
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, Mock
-import json
 
 
 class RealisticMockProvider:

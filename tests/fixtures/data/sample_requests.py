@@ -9,7 +9,6 @@ for consistent testing across all test files.
 
 from app.models import ChatCompletionRequest, ChatMessage
 
-
 # Standard chat completion requests
 SIMPLE_CHAT_REQUEST = ChatCompletionRequest(
     messages=[ChatMessage(role="user", content="Hello, how are you?")],

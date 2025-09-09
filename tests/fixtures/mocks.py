@@ -2,9 +2,9 @@
 # Licensed under Business Source License 1.1 – see LICENSE for details.
 """Mock fixtures for testing."""
 
-from unittest.mock import Mock, AsyncMock, MagicMock
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Any, Optional
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 __all__ = [
     "MockProvider",

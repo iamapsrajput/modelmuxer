@@ -8,8 +8,7 @@ real API responses for consistent mocking.
 """
 
 import time
-from typing import Dict, Any, List
-
+from typing import Any, Dict, List
 
 # Standard OpenAI chat completion responses
 OPENAI_CHAT_RESPONSE = {
