@@ -199,12 +199,18 @@ PROVIDER_ERRORS: _CounterProtocol = Counter(
 )
 
 # Cache metrics
-CACHE_HITS: _CounterProtocol = Counter("modelmuxer_cache_hits_total", "Cache hits by cache type", ["cache_type"])
+CACHE_HITS: _CounterProtocol = Counter(
+    "modelmuxer_cache_hits_total", "Cache hits by cache type", ["cache_type"]
+)
 
-CACHE_MISSES: _CounterProtocol = Counter("modelmuxer_cache_misses_total", "Cache misses by cache type", ["cache_type"])
+CACHE_MISSES: _CounterProtocol = Counter(
+    "modelmuxer_cache_misses_total", "Cache misses by cache type", ["cache_type"]
+)
 
 # System metrics
-ACTIVE_CONNECTIONS: _GaugeProtocol = Gauge("modelmuxer_active_connections", "Number of active connections")
+ACTIVE_CONNECTIONS: _GaugeProtocol = Gauge(
+    "modelmuxer_active_connections", "Number of active connections"
+)
 
 MEMORY_USAGE: _GaugeProtocol = Gauge("modelmuxer_memory_usage_bytes", "Memory usage in bytes")
 
