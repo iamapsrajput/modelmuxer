@@ -7,8 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from app.models import ChatMessage
-from app.providers.base import (AuthenticationError, ProviderError,
-                                RateLimitError)
+from app.providers.base import AuthenticationError, ProviderError, RateLimitError
 from app.providers.cohere_provider import CohereProvider
 
 

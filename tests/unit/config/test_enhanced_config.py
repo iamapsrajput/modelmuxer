@@ -10,11 +10,18 @@ from unittest.mock import patch
 
 import pytest
 
-from app.config.enhanced_config import (AuthConfig, CacheConfig,
-                                        ClassificationConfig, LoggingConfig,
-                                        ModelMuxerConfig, MonitoringConfig,
-                                        ProviderConfig, RateLimitConfig,
-                                        RoutingConfig, load_enhanced_config)
+from app.config.enhanced_config import (
+    AuthConfig,
+    CacheConfig,
+    ClassificationConfig,
+    LoggingConfig,
+    ModelMuxerConfig,
+    MonitoringConfig,
+    ProviderConfig,
+    RateLimitConfig,
+    RoutingConfig,
+    load_enhanced_config,
+)
 
 
 class TestModelMuxerConfig:

@@ -8,10 +8,19 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.core.utils import (calculate_similarity, detect_programming_language,
-                            estimate_tokens, extract_code_blocks, format_cost,
-                            generate_request_id, hash_prompt, parse_model_name,
-                            round_cost, sanitize_input, truncate_text)
+from app.core.utils import (
+    calculate_similarity,
+    detect_programming_language,
+    estimate_tokens,
+    extract_code_blocks,
+    format_cost,
+    generate_request_id,
+    hash_prompt,
+    parse_model_name,
+    round_cost,
+    sanitize_input,
+    truncate_text,
+)
 from app.models import ChatMessage
 
 

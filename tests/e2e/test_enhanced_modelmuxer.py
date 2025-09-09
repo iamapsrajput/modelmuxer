@@ -19,8 +19,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # Test imports
 try:
     from app.config.enhanced_config import enhanced_config
-    from app.core.exceptions import \
-        ModelMuxerError  # noqa: F401 - Used for testing import
+    from app.core.exceptions import (  # noqa: F401 - Used for testing import
+        ModelMuxerError,
+    )
     from app.main import model_muxer
     from app.models import ChatCompletionRequest, ChatMessage
 

@@ -27,24 +27,38 @@ from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
 from app.core.exceptions import BudgetExceededError, ProviderError
-from app.main import (anthropic_messages, app, chat_completions,
-                      get_authenticated_user, get_budget_status,
-                      get_cost_analytics, get_metrics, get_providers,
-                      get_user_stats, health_check, list_models, set_budget)
+from app.main import (
+    anthropic_messages,
+    app,
+    chat_completions,
+    get_authenticated_user,
+    get_budget_status,
+    get_cost_analytics,
+    get_metrics,
+    get_providers,
+    get_user_stats,
+    health_check,
+    list_models,
+    set_budget,
+)
 from app.models import ChatCompletionRequest, ChatMessage, ErrorResponse
 from tests.fixtures.data.sample_requests import SIMPLE_CHAT_REQUEST
-from tests.fixtures.mocks import (MOCK_BUDGET_EXCEEDED_ROUTER,
-                                  MOCK_MULTI_PROVIDER_REGISTRY,
-                                  MOCK_PROVIDER_ERROR_ROUTER,
-                                  create_budget_exceeded_router,
-                                  create_mock_provider_registry,
-                                  create_provider_error_router)
+from tests.fixtures.mocks import (
+    MOCK_BUDGET_EXCEEDED_ROUTER,
+    MOCK_MULTI_PROVIDER_REGISTRY,
+    MOCK_PROVIDER_ERROR_ROUTER,
+    create_budget_exceeded_router,
+    create_mock_provider_registry,
+    create_provider_error_router,
+)
 from tests.fixtures.mocks.response_mocks import create_openai_chat_response
-from tests.fixtures.pytest_helpers import (mock_for_budget_exceeded_test,
-                                           mock_for_database_logging_test,
-                                           mock_for_provider_error_test,
-                                           mock_for_provider_timeout_test,
-                                           mock_for_successful_test)
+from tests.fixtures.pytest_helpers import (
+    mock_for_budget_exceeded_test,
+    mock_for_database_logging_test,
+    mock_for_provider_error_test,
+    mock_for_provider_timeout_test,
+    mock_for_successful_test,
+)
 
 
 @pytest.fixture
@@ -420,8 +434,9 @@ class TestMainApplication:
         with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
             with patch("app.main.chat_completions") as mock_chat:
                 # Create a properly structured mock response that matches ChatCompletionResponse
-                from tests.fixtures.mocks.response_mocks import \
-                    create_openai_chat_response
+                from tests.fixtures.mocks.response_mocks import (
+                    create_openai_chat_response,
+                )
 
                 mock_response = create_openai_chat_response(
                     content="Hello back!", model="claude-3-haiku-20240307", provider="anthropic"
@@ -465,8 +480,9 @@ class TestMainApplication:
 
             with patch("app.main.chat_completions") as mock_chat:
                 # Create a properly structured mock response that matches ChatCompletionResponse
-                from tests.fixtures.mocks.response_mocks import \
-                    create_openai_chat_response
+                from tests.fixtures.mocks.response_mocks import (
+                    create_openai_chat_response,
+                )
 
                 mock_response = create_openai_chat_response(
                     content="Hello!", model="claude-3-haiku-20240307", provider="anthropic"
@@ -501,8 +517,9 @@ class TestMainApplication:
 
             with patch("app.main.chat_completions") as mock_chat:
                 # Create a properly structured mock response that matches ChatCompletionResponse
-                from tests.fixtures.mocks.response_mocks import \
-                    create_openai_chat_response
+                from tests.fixtures.mocks.response_mocks import (
+                    create_openai_chat_response,
+                )
 
                 mock_response = create_openai_chat_response(
                     content="Hello world!", model="claude-3-haiku-20240307", provider="anthropic"

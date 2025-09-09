@@ -9,7 +9,7 @@ is not available.
 """
 
 import logging
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Dict, Optional, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
@@ -18,18 +18,21 @@ logger = logging.getLogger(__name__)
 @runtime_checkable
 class _CounterProtocol(Protocol):
     def labels(self, *label_values: str, **label_kwargs: str) -> "_CounterProtocol": ...
+
     def inc(self, amount: float = 1.0) -> None: ...
 
 
 @runtime_checkable
 class _HistogramProtocol(Protocol):
     def labels(self, *label_values: str, **label_kwargs: str) -> "_HistogramProtocol": ...
-    def observe(self, value: float) -> None: ...
+
+    def observe(self, amount: float, exemplar: Dict[str, str] | None = None) -> None: ...
 
 
 @runtime_checkable
 class _GaugeProtocol(Protocol):
     def labels(self, *label_values: str, **label_kwargs: str) -> "_GaugeProtocol": ...
+
     def set(self, value: float) -> None: ...
 
 
@@ -51,7 +54,7 @@ except ImportError:
         def inc(self, amount: float = 1.0) -> None:
             pass
 
-        def observe(self, value: float) -> None:
+        def observe(self, amount: float, exemplar: Dict[str, str] | None = None) -> None:
             pass
 
         def set(self, value: float) -> None:
@@ -196,18 +199,12 @@ PROVIDER_ERRORS: _CounterProtocol = Counter(
 )
 
 # Cache metrics
-CACHE_HITS: _CounterProtocol = Counter(
-    "modelmuxer_cache_hits_total", "Cache hits by cache type", ["cache_type"]
-)
+CACHE_HITS: _CounterProtocol = Counter("modelmuxer_cache_hits_total", "Cache hits by cache type", ["cache_type"])
 
-CACHE_MISSES: _CounterProtocol = Counter(
-    "modelmuxer_cache_misses_total", "Cache misses by cache type", ["cache_type"]
-)
+CACHE_MISSES: _CounterProtocol = Counter("modelmuxer_cache_misses_total", "Cache misses by cache type", ["cache_type"])
 
 # System metrics
-ACTIVE_CONNECTIONS: _GaugeProtocol = Gauge(
-    "modelmuxer_active_connections", "Number of active connections"
-)
+ACTIVE_CONNECTIONS: _GaugeProtocol = Gauge("modelmuxer_active_connections", "Number of active connections")
 
 MEMORY_USAGE: _GaugeProtocol = Gauge("modelmuxer_memory_usage_bytes", "Memory usage in bytes")
 

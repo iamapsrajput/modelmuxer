@@ -7,10 +7,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from tests.fixtures.realistic_mocks import (RealisticMockProvider,
-                                            RealisticMockRouter,
-                                            create_realistic_mock_response,
-                                            create_realistic_provider_registry)
+from tests.fixtures.realistic_mocks import (
+    RealisticMockProvider,
+    RealisticMockRouter,
+    create_realistic_mock_response,
+    create_realistic_provider_registry,
+)
 
 
 class TestRealisticProviderMocks:

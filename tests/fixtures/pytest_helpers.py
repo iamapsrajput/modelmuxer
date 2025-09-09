@@ -107,8 +107,7 @@ def mock_for_database_logging_test():
     Unlike other test helpers, this does NOT mock database calls since we need
     to verify that database logging actually happens.
     """
-    from tests.fixtures.mocks.provider_mocks import \
-        create_mock_provider_response
+    from tests.fixtures.mocks.provider_mocks import create_mock_provider_response
 
     # Create successful mock provider
     mock_provider = Mock()
@@ -142,8 +141,7 @@ def mock_for_successful_test():
 
     This creates a working provider and router setup.
     """
-    from tests.fixtures.mocks.provider_mocks import \
-        create_mock_provider_response
+    from tests.fixtures.mocks.provider_mocks import create_mock_provider_response
 
     # Create successful mock provider
     mock_provider = Mock()
