@@ -786,16 +786,14 @@ async def chat_completions(
                                 temperature=request.temperature,
                             )
                             # Build OpenAI-compatible response
-                            # DEBUG: Add logging to trace response construction
-                            print(f"DEBUG: adapter_resp type: {type(adapter_resp)}")
-                            print(f"DEBUG: adapter_resp.output_text: {getattr(adapter_resp, 'output_text', 'NOT_FOUND')}")
-                            print(f"DEBUG: str(adapter_resp.output_text): {str(getattr(adapter_resp, 'output_text', ''))}")
-
-                            # DEBUG: Log the content that will be used in response
                             content_value = str(getattr(adapter_resp, "output_text", ""))
-                            print(f"DEBUG: content_value to be used: '{content_value}'")
-                            print(f"DEBUG: content_value type: {type(content_value)}")
-                            print(f"DEBUG: content_value repr: {repr(content_value)}")
+
+                            if app_settings.server.debug:
+                                logger.debug(
+                                    "Building response: adapter_resp type=%s, content_length=%d",
+                                    type(adapter_resp).__name__,
+                                    len(content_value),
+                                )
 
                             response_content = {
                                 "id": str(int(time.time() * 1000)),
@@ -817,10 +815,15 @@ async def chat_completions(
                                     "completion_tokens": int(getattr(adapter_resp, "tokens_out", 0)),
                                     "total_tokens": int(getattr(adapter_resp, "tokens_in", 0)) + int(getattr(adapter_resp, "tokens_out", 0)),
                                 },
+                                "router_metadata": {
+                                    "provider": provider_name,
+                                    "model": request.model or "",
+                                    "routing_reason": "pytest_short_circuit_global",
+                                    "estimated_cost": 0.0,
+                                    "response_time_ms": int(getattr(adapter_resp, "latency_ms", 0) or 0),
+                                    "direct_providers_only": True,
+                                },
                             }
-
-                            print(f"DEBUG: response_content['choices'][0]['message']['content']: '{response_content['choices'][0]['message']['content']}'")
-                            print(f"DEBUG: response_content keys: {list(response_content.keys())}")
 
                             return JSONResponse(content=response_content)
                     except Exception:
@@ -1074,7 +1077,7 @@ async def chat_completions(
         if app_settings.features.mode == "production" and request.model:
             validate_model_format(request.model)
 
-        # DEBUG: Check providers at request time
+        # Check providers at request time
         current_registry = providers_registry.get_provider_registry()
         if app_settings.server.debug:
             logger.debug("Provider registry at request time: %s", list(current_registry.keys()))
