@@ -680,18 +680,18 @@ class TestEndToEndDirect:
             with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 # Mock provider that fails
                 mock_adapter = Mock()
-            mock_adapter.invoke = AsyncMock(
-                return_value=Mock(
-                    output_text="",
-                    tokens_in=0,
-                    tokens_out=0,
-                    latency_ms=0,
-                    raw={},
-                    error="provider_error",
+                mock_adapter.invoke = AsyncMock(
+                    return_value=Mock(
+                        output_text="",
+                        tokens_in=0,
+                        tokens_out=0,
+                        latency_ms=0,
+                        raw={},
+                        error="provider_error",
+                    )
                 )
-            )
 
-            mock_registry.return_value = {"openai": mock_adapter}
+                mock_registry.return_value = {"openai": mock_adapter}
 
             request_data = {
                 "model": "gpt-3.5-turbo",
@@ -934,18 +934,18 @@ class TestEndToEndDirect:
                 patch("app.router.HeuristicRouter.record_latency", create=True) as mock_record_latency,
             ):
                 mock_adapter = Mock()
-            mock_adapter.invoke = AsyncMock(
-                return_value=Mock(
-                    output_text="Latency recording test",
-                    tokens_in=10,
-                    tokens_out=15,
-                    latency_ms=180,
-                    raw={"provider": "mistral", "model": "mistral-small-latest"},
-                    error=None,
+                mock_adapter.invoke = AsyncMock(
+                    return_value=Mock(
+                        output_text="Latency recording test",
+                        tokens_in=10,
+                        tokens_out=15,
+                        latency_ms=180,
+                        raw={"provider": "mistral", "model": "mistral-small-latest"},
+                        error=None,
+                    )
                 )
-            )
 
-            mock_registry.return_value = {"mistral": mock_adapter}
+                mock_registry.return_value = {"mistral": mock_adapter}
 
             request_data = {
                 "model": "mistral-small-latest",
