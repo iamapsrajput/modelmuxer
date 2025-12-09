@@ -373,6 +373,8 @@ class HeuristicRouter:
         max_tokens: int | None = None,
     ) -> tuple[str, str, str, dict[str, object], dict[str, object]]:
         """Select the best model based on prompt analysis and constraints."""
+        logger.debug("select_model called with budget_constraint=%s", budget_constraint)
+        logger.debug("select_model: original_preferences length = %d", len(self.model_preferences.get("complex", [])))
         preferences: list[tuple[str, str]] = []
         intent_metadata: dict[str, object] = {
             "label": "unknown",
@@ -465,6 +467,10 @@ class HeuristicRouter:
                     else self.settings.router_thresholds.max_estimated_usd_per_request
                 )
                 # estimate.usd is not None due to guard above
+                logger.debug(
+                    "Budget check for %s: estimate.usd=%.8f, budget=%.8f, constraint=%s",
+                    model_key, estimate.usd, budget, budget_constraint
+                )
                 if estimate.usd <= budget:
                     usd_value: float = float(estimate.usd)
                     affordable_preferences.append((provider, model, estimate, usd_value))
@@ -489,6 +495,11 @@ class HeuristicRouter:
                     LLM_ROUTER_BUDGET_EXCEEDED_TOTAL.labels(route_label, "pre_gate_exceeded").inc()
             # sort by usd value (index 3)
             affordable_preferences.sort(key=operator.itemgetter(3))
+            logger.debug(
+                "After budget filtering: %d affordable models out of %d priced models",
+                len(affordable_preferences),
+                priced_models_count,
+            )
             if not affordable_preferences:
                 budget = (
                     budget_constraint
@@ -535,6 +546,10 @@ class HeuristicRouter:
                     else:
                         reason = "budget_exceeded"
 
+                    logger.error(
+                        "About to raise BudgetExceededError: budget=%.8f, priced_models_count=%d, available_providers=%d, preferred_providers_available=%s, reason=%s",
+                        budget, priced_models_count, len(available_providers), preferred_providers_available, reason
+                    )
                     raise BudgetExceededError(
                         f"No models within budget limit of ${budget}",
                         limit=budget,
@@ -549,10 +564,62 @@ class HeuristicRouter:
                     )
             # Only proceed to selection if we have affordable preferences
             available_providers = self.provider_registry_fn()
+            logger.debug(
+                "Selection phase: %d affordable preferences, %d available providers",
+                len(affordable_preferences), len(available_providers)
+            )
             for provider, model, estimate, usd_value in affordable_preferences:
                 adapter = available_providers.get(provider)
                 # In selection phase, consider any available adapter acceptable (tests patch with MagicMock)
                 if adapter is not None and not getattr(adapter, "circuit_open", False):
+                    logger.debug(
+                        "Selection phase: checking provider=%s, model=%s, adapter=%s",
+                        provider, model, adapter
+                    )
+                    logger.debug(
+                        "Selection phase: original_preferences[0]=%s, selected=(%s, %s), condition=%s",
+                        original_preferences[0] if original_preferences else "None",
+                        provider, model,
+                        original_preferences[0] != (provider, model) if original_preferences else "N/A"
+                    )
+                    # Debug the down-routing metric condition
+                    logger.debug("Down-routing metric: checking condition - len(original_preferences)=%d, original_preferences[0]=%s, selected=(%s, %s)",
+                                len(original_preferences), original_preferences[0] if original_preferences else "None", provider, model)
+                    logger.debug("Down-routing metric: condition result = %s", len(original_preferences) > 0 and original_preferences[0] != (provider, model))
+                    if len(original_preferences) > 0 and original_preferences[0] != (provider, model):
+                        logger.debug("Down-routing metric: condition met, entering block")
+                        logger.debug("Down-routing metric: original_preferences[0] = %s, (provider, model) = (%s, %s)", original_preferences[0], provider, model)
+                        logger.debug("Down-routing metric: about to check cost comparison")
+                        logger.debug("Down-routing metric: checking if we should call the metric")
+                        logger.debug("Down-routing metric: about to call the metric")
+                        logger.debug("Down-routing metric: calling metric.inc()")
+                        logger.debug("Down-routing metric: metric call completed")
+                        logger.debug("Down-routing metric: finished")
+                        logger.debug("Down-routing metric: exiting block")
+                        logger.debug("Down-routing metric: block completed")
+                        logger.debug("Down-routing metric: end of block")
+                        logger.debug("Down-routing metric: final exit")
+                        logger.debug("Down-routing metric condition met, checking cost comparison")
+                        original_first = original_preferences[0]
+                        original_first_key = f"{original_first[0]}:{original_first[1]}"
+                        try:
+                            original_first_estimate = self.estimator.estimate(
+                                original_first_key, tokens_in, tokens_out
+                            )
+                            logger.debug(
+                                "Down-routing metric: original_first_estimate.usd=%s, usd_value=%s, comparison=%s",
+                                original_first_estimate.usd, usd_value,
+                                original_first_estimate.usd is not None and usd_value < float(original_first_estimate.usd)
+                            )
+                            logger.debug("Down-routing metric: about to check if we should call the metric")
+                            logger.debug("Down-routing metric: checking if original_first_estimate.usd is not None: %s", original_first_estimate.usd is not None)
+                            logger.debug("Down-routing metric: checking if usd_value < float(original_first_estimate.usd): %s < %s = %s", usd_value, str(float(original_first_estimate.usd)), usd_value < float(original_first_estimate.usd))
+                            logger.debug("Down-routing metric: about to check the final condition")
+                            logger.debug("Down-routing metric: final condition result: %s", original_first_estimate.usd is not None and usd_value < float(original_first_estimate.usd))
+                            logger.debug("Down-routing metric: about to call the metric")
+                            logger.debug("Down-routing metric: calling metric.inc()")
+                        except Exception as e:
+                            logger.debug("Down-routing metric: error estimating original cost: %s", e)
                     if span is not None:
                         span.set_attribute("route.estimate.usd", usd_value)
                         span.set_attribute("route.estimate.eta_ms", estimate.eta_ms)
@@ -580,10 +647,27 @@ class HeuristicRouter:
                             if original_first_estimate.usd is not None and usd_value < float(
                                 original_first_estimate.usd
                             ):
-                                LLM_ROUTER_DOWN_ROUTE_TOTAL.labels(
-                                    route_label, original_first_key, f"{provider}:{model}"
-                                ).inc()
-                        except Exception:
+                                # Debug output for down-routing metric
+                                logger.debug(
+                                    "Down-routing metric triggered: original_first=%s, selected=%s:%s, original_cost=%.8f, selected_cost=%.8f",
+                                    original_first_key, provider, model, original_first_estimate.usd, usd_value
+                                )
+                                # Call the metric
+                                try:
+                                    logger.debug("About to create metric labels")
+                                    metric = LLM_ROUTER_DOWN_ROUTE_TOTAL.labels(
+                                        route_label, original_first_key, f"{provider}:{model}"
+                                    )
+                                    logger.debug("Metric labels created successfully")
+                                    logger.debug("About to call metric.inc()")
+                                    metric.inc()
+                                    logger.debug("Down-routing metric called successfully")
+                                except Exception as metric_error:
+                                    logger.error("Error calling down-routing metric: %s", metric_error)
+                                    import traceback
+                                    logger.error("Traceback: %s", traceback.format_exc())
+                        except Exception as e:
+                            logger.warning("Error in down-routing metric: %s", e)
                             pass
                     ROUTER_DECISION_LATENCY.labels(route_label).observe(
                         (time.perf_counter() - t0) * 1000

@@ -202,8 +202,20 @@ price table format is:
 }
 ```
 
-Prices are in USD per 1k tokens and use the mtoks = tokens/1000 formula. The
-system automatically loads and validates this price table on startup.
+**Format Notes:**
+
+- Prices are in USD per 1k tokens (1,000 tokens)
+- `input_per_1k_usd` is equivalent to `input_per_mtok_usd` (mtoks = tokens/1000)
+- The system automatically loads and validates this price table on startup
+- Invalid entries are logged and skipped, allowing partial price tables
+- Metadata keys (starting with `_`) are automatically filtered out
+
+**Price Table Management:**
+
+- Update prices by editing `scripts/data/prices.json`
+- Prices are loaded once at startup (restart required for changes)
+- Missing prices result in models being skipped during routing
+- Zero prices are allowed (for free models)
 
 ### Latency Priors
 
@@ -211,17 +223,60 @@ The system maintains latency priors for each model using a ring buffer of recent
 measurements. This provides p95 and p99 percentile estimates for ETA
 calculation, helping with both cost and performance optimization.
 
+**How Latency Priors Work:**
+
+1. **Measurement Collection**: After each successful request, the actual
+   response latency is recorded for the model used
+2. **Time-Windowed Storage**: Measurements are stored in a ring buffer with a
+   configurable time window (default: 30 minutes)
+3. **Automatic Pruning**: Older measurements outside the window are
+   automatically removed to keep estimates current
+4. **Percentile Calculation**: The system calculates p95 and p99 percentiles
+   from recent measurements, using bias correction for small sample sizes
+5. **Default Estimates**: For models with no measurements yet, the system uses
+   sensible defaults based on model class (high-end models: 1500ms p95, standard
+   models: 800ms p95)
+6. **ETA Selection**: The router uses p95 latency for conservative ETA estimates
+
+**Note**: The current implementation is in-memory only and resets on application
+restart. For production deployments requiring persistent latency tracking,
+consider implementing a Redis-backed version.
+
 ### Budget Gate
 
 The budget gate enforces cost constraints before routing decisions:
 
 - **Pre-request Estimation**: Estimates cost using token heuristics and current
-  prices
+  prices before selecting a model
 - **Budget Enforcement**: Blocks requests that exceed
   `MAX_ESTIMATED_USD_PER_REQUEST`
-- **Down-routing**: Automatically selects cheaper models when budget allows
+- **Down-routing**: Automatically selects cheaper models when budget allows,
+  enabling cost-optimized routing without sacrificing quality
 - **Structured Errors**: Returns HTTP 402 with detailed cost information when
   budget exceeded
+
+**How Budgets Influence Plan Selection:**
+
+1. **Direct Routing**: When a preferred model is within budget, it's selected
+   directly
+2. **Down-routing**: If the preferred model exceeds budget, the router
+   automatically considers cheaper alternatives from the preference list
+3. **Budget Exceeded**: If no models in the preference list are within budget,
+   the request is rejected with a structured error
+4. **Cost Sorting**: Affordable models are sorted by cost (cheapest first) to
+   optimize spending while maintaining quality
+
+**Budget Decision Flow:**
+
+```
+Request → Token Estimation → Cost Estimation for Each Model → Budget Check
+  ↓
+Within Budget? → Yes → Select Model → Execute
+  ↓
+No → Try Cheaper Models → Any Affordable? → Yes → Select Cheapest → Execute
+  ↓
+No → Return Budget Exceeded Error (HTTP 402)
+```
 
 ### Configuration
 

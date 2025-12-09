@@ -2,7 +2,8 @@
     "_comment": "ModelMuxer Direct Provider Price Table - Current market rates as of 2025",
     "_format": "provider:model -> {input_per_1k_usd, output_per_1k_usd}",
     "_source": "Direct provider pricing APIs and documentation",
-    "_note": "Prices in USD per 1k tokens (1k tokens = 1,000 tokens). Only direct providers supported.",
+    "_note": "Prices in USD per 1k tokens (1k tokens = 1,000 tokens = 1 mtok). Only direct providers supported.",
+    "_note2": "Note: input_per_1k_usd is equivalent to input_per_mtok_usd (mtoks = tokens/1000)",
     "_providers": "openai, anthropic, mistral, groq, google, cohere, together",
     "openai:gpt-4o": {
         "input_per_1k_usd": 2.50,

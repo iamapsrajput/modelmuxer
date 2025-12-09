@@ -26,6 +26,10 @@ with patch("app.main.HeuristicRouter") as mock_router_cls:
     mock_router.select_model = AsyncMock(return_value=("openai", "gpt-3.5-turbo", "test", {}, {}))
     mock_router_cls.return_value = mock_router
 
+# Mock the global router instance
+with patch("app.main.router") as mock_global_router:
+    mock_global_router.select_model = AsyncMock(return_value=("anthropic", "claude-3-haiku-20240307", "test", {}, {}))
+
 from app.core.exceptions import BudgetExceededError
 
 # Import app after mocks are applied
@@ -134,55 +138,90 @@ class TestEndToEndDirect:
 
             with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
                 mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Test response content",
-                        tokens_in=15,
-                        tokens_out=25,
-                        latency_ms=200,
-                        raw={"provider": "anthropic", "model": "claude-3-haiku-20240307"},
-                        error=None,
-                    )
+                mock_response = Mock(
+                    output_text="Test response content",
+                    tokens_in=15,
+                    tokens_out=25,
+                    latency_ms=200,
+                    raw={"provider": "anthropic", "model": "claude-3-haiku-20240307"},
+                    error=None,
                 )
+                mock_adapter.invoke = AsyncMock(return_value=mock_response)
 
                 mock_registry.return_value = {"anthropic": mock_adapter}
+
+                # Mock the router to bypass budget constraints for this test
+                with patch("app.main.HeuristicRouter") as mock_router_cls:
+                    mock_router = MagicMock()
+                    mock_router.select_model = AsyncMock(return_value=("anthropic", "claude-3-haiku-20240307", "test", {}, {
+                        "usd": 0.001,
+                        "eta_ms": 200,
+                        "tokens_in": 15,
+                        "tokens_out": 25,
+                        "model_key": "anthropic:claude-3-haiku-20240307"
+                    }))
+                    mock_router_cls.return_value = mock_router
+
+
+                # Debug: Print what the mock returns
+                print(f"Mock response output_text: {mock_response.output_text}")
+                print(f"Mock response type: {type(mock_response)}")
 
                 request_data = {
                     "model": "claude-3-haiku-20240307",
                     "messages": [{"role": "user", "content": "What is 2+2?"}],
+                    "max_budget": 1.0,  # Set higher budget to avoid constraint issues
                 }
 
-                response = client.post("/v1/chat/completions", json=request_data)
+                # Disable pytest shortcut to force normal routing logic
+                import os
+                old_disable_shortcut = os.environ.get("DISABLE_PYTEST_SHORTCUT")
+                os.environ["DISABLE_PYTEST_SHORTCUT"] = "1"
 
-                assert response.status_code == 200
-                response_data = response.json()
+                try:
+                    response = client.post("/v1/chat/completions", json=request_data)
 
-                # Verify OpenAI-compatible structure
-                assert "id" in response_data
-                assert "object" in response_data
-                assert "created" in response_data
-                assert "model" in response_data
-                assert "choices" in response_data
-                assert "usage" in response_data
+                    assert response.status_code == 200
+                    response_data = response.json()
 
-                # Verify choices structure
-                choice = response_data["choices"][0]
-                assert "index" in choice
-                assert "message" in choice
-                assert "finish_reason" in choice
+                    # Debug: Print the actual response content
+                    print(f"DEBUG: Response status: {response.status_code}")
+                    print(f"DEBUG: Response data: {response_data}")
+                    if "choices" in response_data and len(response_data["choices"]) > 0:
+                        print(f"DEBUG: Message content: '{response_data['choices'][0]['message']['content']}'")
 
-                # Verify message structure
-                message = choice["message"]
-                assert "role" in message
-                assert "content" in message
-                assert message["role"] == "assistant"
-                assert message["content"] == "Test response content"
+                    # Verify OpenAI-compatible structure
+                    assert "id" in response_data
+                    assert "object" in response_data
+                    assert "created" in response_data
+                    assert "model" in response_data
+                    assert "choices" in response_data
+                    assert "usage" in response_data
 
-                # Verify usage structure
-                usage = response_data["usage"]
-                assert "prompt_tokens" in usage
-                assert "completion_tokens" in usage
-                assert "total_tokens" in usage
+                    # Verify choices structure
+                    choice = response_data["choices"][0]
+                    assert "index" in choice
+                    assert "message" in choice
+                    assert "finish_reason" in choice
+
+                    # Verify message structure
+                    message = choice["message"]
+                    assert "role" in message
+                    assert "content" in message
+                    assert message["role"] == "assistant"
+                    assert message["content"] == "Test response content"
+
+                    # Verify usage structure
+                    usage = response_data["usage"]
+                    assert "prompt_tokens" in usage
+                    assert "completion_tokens" in usage
+                    assert "total_tokens" in usage
+                finally:
+                    # Restore original environment variable
+                    if old_disable_shortcut is None:
+                        os.environ.pop("DISABLE_PYTEST_SHORTCUT", None)
+                    else:
+                        os.environ["DISABLE_PYTEST_SHORTCUT"] = old_disable_shortcut
 
     def test_router_metadata_includes_direct_provider_info(
         self, direct_providers_only_mode, simple_messages

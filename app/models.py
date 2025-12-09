@@ -37,6 +37,7 @@ class ChatCompletionRequest(BaseModel):
     logit_bias: dict[str, float] | None = Field(None, description="Logit bias")
     user: str | None = Field(None, description="User identifier")
     region: str | None = Field(None, description="Region identifier for compliance/policy checks")
+    max_budget: float | None = Field(None, description="Maximum budget in USD for this request")
 
 
 class Usage(BaseModel):

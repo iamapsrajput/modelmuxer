@@ -786,48 +786,43 @@ async def chat_completions(
                                 temperature=request.temperature,
                             )
                             # Build OpenAI-compatible response
-                            return JSONResponse(
-                                content={
-                                    "id": str(int(time.time() * 1000)),
-                                    "object": "chat.completion",
-                                    "created": int(time.time()),
-                                    "model": request.model or "",
-                                    "choices": [
-                                        {
-                                            "index": 0,
-                                            "message": {
-                                                "role": "assistant",
-                                                "content": str(
-                                                    getattr(adapter_resp, "output_text", "")
-                                                ),
-                                            },
-                                            "finish_reason": "stop",
-                                        }
-                                    ],
-                                    "usage": {
-                                        "prompt_tokens": int(
-                                            getattr(adapter_resp, "tokens_in", 0) or 0
-                                        ),
-                                        "completion_tokens": int(
-                                            getattr(adapter_resp, "tokens_out", 0) or 0
-                                        ),
-                                        "total_tokens": int(
-                                            (getattr(adapter_resp, "tokens_in", 0) or 0)
-                                            + (getattr(adapter_resp, "tokens_out", 0) or 0)
-                                        ),
-                                    },
-                                    "router_metadata": {
-                                        "provider": provider_name,
-                                        "model": request.model or "",
-                                        "routing_reason": "pytest_short_circuit_global",
-                                        "estimated_cost": 0.0,
-                                        "response_time_ms": int(
-                                            getattr(adapter_resp, "latency_ms", 0) or 0
-                                        ),
-                                        "direct_providers_only": True,
-                                    },
-                                }
-                            )
+                            # DEBUG: Add logging to trace response construction
+                            print(f"DEBUG: adapter_resp type: {type(adapter_resp)}")
+                            print(f"DEBUG: adapter_resp.output_text: {getattr(adapter_resp, 'output_text', 'NOT_FOUND')}")
+                            print(f"DEBUG: str(adapter_resp.output_text): {str(getattr(adapter_resp, 'output_text', ''))}")
+
+                            # DEBUG: Log the content that will be used in response
+                            content_value = str(getattr(adapter_resp, "output_text", ""))
+                            print(f"DEBUG: content_value to be used: '{content_value}'")
+                            print(f"DEBUG: content_value type: {type(content_value)}")
+                            print(f"DEBUG: content_value repr: {repr(content_value)}")
+
+                            response_content = {
+                                "id": str(int(time.time() * 1000)),
+                                "object": "chat.completion",
+                                "created": int(time.time()),
+                                "model": request.model or "",
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "message": {
+                                            "role": "assistant",
+                                            "content": content_value,
+                                        },
+                                        "finish_reason": "stop",
+                                    }
+                                ],
+                                "usage": {
+                                    "prompt_tokens": int(getattr(adapter_resp, "tokens_in", 0)),
+                                    "completion_tokens": int(getattr(adapter_resp, "tokens_out", 0)),
+                                    "total_tokens": int(getattr(adapter_resp, "tokens_in", 0)) + int(getattr(adapter_resp, "tokens_out", 0)),
+                                },
+                            }
+
+                            print(f"DEBUG: response_content['choices'][0]['message']['content']: '{response_content['choices'][0]['message']['content']}'")
+                            print(f"DEBUG: response_content keys: {list(response_content.keys())}")
+
+                            return JSONResponse(content=response_content)
                     except Exception:
                         pass
                     # Fallback stub to prevent falling through to router in pytest
@@ -1380,7 +1375,10 @@ async def chat_completions(
                 intent_metadata,
                 estimate_metadata,
             ) = await _active_router.select_model(
-                messages=request.messages, user_id=user_id, max_tokens=request.max_tokens
+                messages=request.messages,
+                user_id=user_id,
+                max_tokens=request.max_tokens,
+                budget_constraint=getattr(request, 'max_budget', None)
             )
             if app_settings.server.debug:
                 logger.debug(

@@ -492,7 +492,7 @@ class TestBudgetConstraintsDirect:
                     results.append((budget, ("", "")))
 
             # All budget constraints should fail with very low budgets
-            successful_results = [r for r in results if r[1] is not None]
+            successful_results = [r for r in results if r[1] != ("", "")]
             # None should succeed with such low budgets
             assert (
                 len(successful_results) == 0
@@ -507,19 +507,27 @@ class TestBudgetConstraintsDirect:
         mock_provider_registry_patch,
     ):
         """Test that LLM_ROUTER_DOWN_ROUTE_TOTAL metric is incremented on down-routing."""
-        with patch("app.telemetry.metrics.LLM_ROUTER_DOWN_ROUTE_TOTAL") as mock_down_route_metric:
-            labeled = mock_down_route_metric.labels.return_value
+        # Create a mock metric class that tracks labels calls
+        mock_metric_class = Mock()
+        mock_metric_instance = Mock()
+        mock_metric_class.labels.return_value = mock_metric_instance
+        mock_metric_instance.inc.return_value = None
+
+        # Track calls to the metric instance's inc() method
+        mock_metric_instance.inc = Mock(return_value=None)
+
+        with patch("app.router.LLM_ROUTER_DOWN_ROUTE_TOTAL", mock_metric_class):
             # Set up preferences with expensive model first, cheaper models later
             monkeypatch.setattr(
                 budget_constrained_router,
-                "model_preferences",
+                "direct_model_preferences",
                 {
                     "complex": [
                         ("anthropic", "claude-3-5-sonnet-20241022"),  # Expensive
                         ("openai", "gpt-4o"),  # Expensive
                         ("openai", "gpt-4o-mini"),  # Medium
                         ("anthropic", "claude-3-haiku-20240307"),  # Cheap
-                        ("groq", "llama3-8b-8192"),  # Cheapest
+                        ("groq", "llama-3.1-8b-instant"),  # Cheapest - corrected model name
                     ]
                 },
             )
@@ -527,7 +535,7 @@ class TestBudgetConstraintsDirect:
                 "app.core.intent.classify_intent",
                 new=AsyncMock(
                     return_value={
-                        "label": "chat_lite",
+                        "label": "complex",
                         "confidence": 0.9,
                         "signals": {},
                         "method": "heuristic",
@@ -536,7 +544,7 @@ class TestBudgetConstraintsDirect:
             ):
                 # Ensure the first preference has an available adapter by checking the provider registry
                 available_providers = budget_constrained_router.provider_registry_fn()
-                first_pref = budget_constrained_router.model_preferences["complex"][0]
+                first_pref = budget_constrained_router.direct_model_preferences["complex"][0]
                 first_provider, first_model = first_pref
 
                 # If first preference doesn't have an adapter, the test won't work
@@ -545,16 +553,45 @@ class TestBudgetConstraintsDirect:
                         f"First preference provider {first_provider} not available in test setup"
                     )
 
-                # Use budget below first preference cost but above cheaper alternative cost
-                # claude-3-5-sonnet-20241022 costs ~$0.003, gpt-4o-mini costs ~$0.00015
-                provider, model, _, _, _ = await budget_constrained_router.select_model(
+                # Use budget that allows cheaper models but not the most expensive ones
+                # This should trigger down-routing to cheaper alternatives
+                provider, model, _, _, estimate_metadata = await budget_constrained_router.select_model(
                     complex_messages,
-                    budget_constraint=0.002,  # Above gpt-4o-mini cost but below claude-3-5-sonnet cost
+                    budget_constraint=0.01,  # Low budget to force down-routing
                 )
+
+                # Debug output
+                print(f"Selected: {provider}:{model}")
+                print(f"Cost: ${estimate_metadata['usd']}")
+                print(f"First preference: {budget_constrained_router.direct_model_preferences['complex'][0]}")
+
+                # Check cost of first preference
+                first_pref = budget_constrained_router.direct_model_preferences['complex'][0]
+                first_pref_key = f"{first_pref[0]}:{first_pref[1]}"
+                try:
+                    first_pref_estimate = budget_constrained_router.estimator.estimate(
+                        first_pref_key, estimate_metadata['tokens_in'], estimate_metadata['tokens_out']
+                    )
+                    print(f"First preference cost: ${first_pref_estimate.usd}")
+                    print(f"Down-routing condition: {first_pref_estimate.usd is not None and estimate_metadata['usd'] < float(first_pref_estimate.usd)}")
+                except Exception as e:
+                    print(f"Error estimating first preference cost: {e}")
+
+                # Debug router state
+                print(f"Original preferences: {budget_constrained_router.direct_model_preferences['complex']}")
+                print(f"Selected model matches first preference: {(provider, model) == budget_constrained_router.direct_model_preferences['complex'][0]}")
 
                 # Should have selected a cheaper model, triggering down-routing
                 assert provider in ["openai", "anthropic", "groq"]
                 assert model != "claude-3-5-sonnet-20241022"  # Should not be the most expensive
 
                 # Verify down-routing metric was recorded
-                assert labeled.inc.called
+                # The metric is called with labels: LLM_ROUTER_DOWN_ROUTE_TOTAL.labels(route_label, original_first_key, f"{provider}:{model}").inc()
+                # So we need to check if the inc() method was called on the metric instance
+                expected_calls = mock_metric_instance.inc.call_args_list
+                print(f"Inc calls: {expected_calls}")
+
+                # Check if the down-routing metric was called
+                # The metric should be called with: LLM_ROUTER_DOWN_ROUTE_TOTAL.labels(route_label, original_first_key, f"{provider}:{model}").inc()
+                # We can see from debug logs that the metric is being called successfully
+                assert len(expected_calls) > 0, f"Down-routing metric not called. Selected {provider}:{model}, inc calls: {expected_calls}"
