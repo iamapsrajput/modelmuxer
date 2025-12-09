@@ -30,7 +30,9 @@ class RateLimitMiddleware:
         self.config = config or {}
 
         # Rate limiting algorithms
-        self.algorithm = self.config.get("algorithm", "sliding_window")  # token_bucket, sliding_window, fixed_window
+        self.algorithm = self.config.get(
+            "algorithm", "sliding_window"
+        )  # token_bucket, sliding_window, fixed_window
         self.enable_global_limits = self.config.get("enable_global_limits", True)
         self.enable_per_endpoint_limits = self.config.get("enable_per_endpoint_limits", True)
 
@@ -83,9 +85,13 @@ class RateLimitMiddleware:
         client_id = self._get_client_id(request)
         allowed = await self._check_rate_limit(request)
         if not allowed:
-            headers = self._format_rate_limit_headers(limit=60, remaining=0, reset_time=int(time.time()) + 60)
+            headers = self._format_rate_limit_headers(
+                limit=60, remaining=0, reset_time=int(time.time()) + 60
+            )
             return Response(
-                content=json.dumps({"error": {"type": "rate_limit_error", "message": "Rate limit exceeded"}}),
+                content=json.dumps(
+                    {"error": {"type": "rate_limit_error", "message": "Rate limit exceeded"}}
+                ),
                 status_code=429,
                 media_type="application/json",
                 headers=headers,
@@ -171,7 +177,9 @@ class RateLimitMiddleware:
             window.popleft()
         # Determine burst size from config first
         if isinstance(self.config, dict):
-            burst_size = int(self.config.get("burst_size", self.default_limits.get("burst_size", 20)))
+            burst_size = int(
+                self.config.get("burst_size", self.default_limits.get("burst_size", 20))
+            )
         else:
             val = getattr(self.config, "burst_size", self.default_limits.get("burst_size", 20))
             try:
@@ -255,7 +263,9 @@ class RateLimitMiddleware:
             return 3600
         return 86400
 
-    def _format_rate_limit_headers(self, limit: int, remaining: int, reset_time: int) -> dict[str, str]:
+    def _format_rate_limit_headers(
+        self, limit: int, remaining: int, reset_time: int
+    ) -> dict[str, str]:
         return {
             "X-RateLimit-Limit": str(limit),
             "X-RateLimit-Remaining": str(remaining),
@@ -342,7 +352,9 @@ class RateLimitMiddleware:
         # Add current request
         window.append(current_time)
 
-    async def _check_token_bucket(self, key: str, limits: dict[str, Any], current_time: float) -> dict[str, Any]:
+    async def _check_token_bucket(
+        self, key: str, limits: dict[str, Any], current_time: float
+    ) -> dict[str, Any]:
         """Check rate limit using token bucket algorithm."""
         if key not in self.token_buckets:
             self.token_buckets[key] = {
@@ -367,7 +379,8 @@ class RateLimitMiddleware:
                 "allowed": True,
                 "remaining": int(bucket["tokens"]),
                 "limit": bucket["capacity"],
-                "reset_time": current_time + (bucket["capacity"] - bucket["tokens"]) / bucket["refill_rate"],
+                "reset_time": current_time
+                + (bucket["capacity"] - bucket["tokens"]) / bucket["refill_rate"],
             }
         else:
             return {
@@ -379,7 +392,9 @@ class RateLimitMiddleware:
                 "reset_time": current_time + (1 - bucket["tokens"]) / bucket["refill_rate"],
             }
 
-    async def _check_sliding_window(self, key: str, limits: dict[str, Any], current_time: float) -> dict[str, Any]:
+    async def _check_sliding_window(
+        self, key: str, limits: dict[str, Any], current_time: float
+    ) -> dict[str, Any]:
         """Check rate limit using sliding window algorithm."""
         if key not in self.sliding_windows:
             self.sliding_windows[key] = deque()
@@ -414,7 +429,9 @@ class RateLimitMiddleware:
                 "reset_time": oldest_request + window_size,
             }
 
-    async def _check_fixed_window(self, key: str, limits: dict[str, Any], current_time: float) -> dict[str, Any]:
+    async def _check_fixed_window(
+        self, key: str, limits: dict[str, Any], current_time: float
+    ) -> dict[str, Any]:
         """Check rate limit using fixed window algorithm."""
         window_size = 60  # 1 minute window
         current_window = int(current_time // window_size)
@@ -451,7 +468,9 @@ class RateLimitMiddleware:
                 "reset_time": (current_window + 1) * window_size,
             }
 
-    async def _apply_adaptive_throttling(self, result: dict[str, Any], current_time: float) -> dict[str, Any]:
+    async def _apply_adaptive_throttling(
+        self, result: dict[str, Any], current_time: float
+    ) -> dict[str, Any]:
         """Apply adaptive throttling based on system load."""
         try:
             import psutil
@@ -465,7 +484,9 @@ class RateLimitMiddleware:
 
             # Apply throttling if system is under high load
             if system_load > self.system_load_threshold:
-                throttle_factor = (system_load - self.system_load_threshold) / (1 - self.system_load_threshold)
+                throttle_factor = (system_load - self.system_load_threshold) / (
+                    1 - self.system_load_threshold
+                )
 
                 if result["allowed"]:
                     # Reduce remaining requests based on system load
@@ -497,7 +518,9 @@ class RateLimitMiddleware:
         """Get rate limiting statistics."""
         return {
             "algorithm": self.algorithm,
-            "active_users": len(self.token_buckets) + len(self.sliding_windows) + len(self.fixed_windows),
+            "active_users": len(self.token_buckets)
+            + len(self.sliding_windows)
+            + len(self.fixed_windows),
             "global_counters": self.global_counters,
             "endpoint_limits_active": len(self.endpoint_limits),
             "adaptive_throttling": self.enable_adaptive_limits,

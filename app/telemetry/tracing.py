@@ -63,7 +63,9 @@ except ImportError:  # pragma: no cover
     OPENTELEMETRY_AVAILABLE = False
 
 
-def setup_tracing(service_name: str, sampling_ratio: float = 1.0, otlp_endpoint: str | None = None) -> None:
+def setup_tracing(
+    service_name: str, sampling_ratio: float = 1.0, otlp_endpoint: str | None = None
+) -> None:
     """Initialize OpenTelemetry tracing with optional OTLP exporter."""
     if not OPENTELEMETRY_AVAILABLE:
         return

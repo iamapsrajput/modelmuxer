@@ -13,7 +13,12 @@ estimator = Estimator(price_table, latency_priors, settings)
 tokens_in, tokens_out = 10, 20  # Simple message like 'What is the capital of France?'
 
 # Check costs for cheapest models
-cheap_models = ["groq:llama-3.1-8b-instant", "groq:gemma-7b-it", "google:gemini-1.5-flash", "together:llama-2-7b-chat"]
+cheap_models = [
+    "groq:llama-3.1-8b-instant",
+    "groq:gemma-7b-it",
+    "google:gemini-1.5-flash",
+    "together:llama-2-7b-chat",
+]
 
 print("Model costs for 10 input tokens, 20 output tokens:")
 for model in cheap_models:

@@ -213,7 +213,9 @@ class TestModels:
 
     def test_cascade_config(self):
         """Test CascadeConfig model."""
-        config = CascadeConfig(cascade_type="balanced", max_budget=0.5, quality_threshold=0.8, confidence_threshold=0.7)
+        config = CascadeConfig(
+            cascade_type="balanced", max_budget=0.5, quality_threshold=0.8, confidence_threshold=0.7
+        )
         assert config.cascade_type == "balanced"
 
     def test_enhanced_chat_completion_request(self):
@@ -263,13 +265,17 @@ class TestModels:
             model="gpt-4",
             choices=[{"index": 0, "message": {"role": "assistant", "content": "Hi"}}],
             usage={"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
-            routing_metadata=RoutingMetadata(strategy_used="cascade", total_cost=0.01, response_time_ms=300),
+            routing_metadata=RoutingMetadata(
+                strategy_used="cascade", total_cost=0.01, response_time_ms=300
+            ),
         )
         assert response.id == "enhanced-123"
 
     def test_budget_alert(self):
         """Test BudgetAlert model."""
-        alert = BudgetAlert(type="warning", message="Budget 80% consumed", threshold=80.0, current_usage=82.5)
+        alert = BudgetAlert(
+            type="warning", message="Budget 80% consumed", threshold=80.0, current_usage=82.5
+        )
         assert alert.type == "warning"
 
     def test_budget_status(self):
@@ -282,7 +288,9 @@ class TestModels:
             remaining_budget=50.0,
             provider="openai",
             model="gpt-4",
-            alerts=[BudgetAlert(type="warning", message="50% used", threshold=50.0, current_usage=50.0)],
+            alerts=[
+                BudgetAlert(type="warning", message="50% used", threshold=50.0, current_usage=50.0)
+            ],
             period_start="2024-01-01",
             period_end="2024-01-31",
         )

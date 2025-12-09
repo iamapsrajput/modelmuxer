@@ -812,15 +812,20 @@ async def chat_completions(
                                 ],
                                 "usage": {
                                     "prompt_tokens": int(getattr(adapter_resp, "tokens_in", 0)),
-                                    "completion_tokens": int(getattr(adapter_resp, "tokens_out", 0)),
-                                    "total_tokens": int(getattr(adapter_resp, "tokens_in", 0)) + int(getattr(adapter_resp, "tokens_out", 0)),
+                                    "completion_tokens": int(
+                                        getattr(adapter_resp, "tokens_out", 0)
+                                    ),
+                                    "total_tokens": int(getattr(adapter_resp, "tokens_in", 0))
+                                    + int(getattr(adapter_resp, "tokens_out", 0)),
                                 },
                                 "router_metadata": {
                                     "provider": provider_name,
                                     "model": request.model or "",
                                     "routing_reason": "pytest_short_circuit_global",
                                     "estimated_cost": 0.0,
-                                    "response_time_ms": int(getattr(adapter_resp, "latency_ms", 0) or 0),
+                                    "response_time_ms": int(
+                                        getattr(adapter_resp, "latency_ms", 0) or 0
+                                    ),
                                     "direct_providers_only": True,
                                 },
                             }
@@ -1381,7 +1386,7 @@ async def chat_completions(
                 messages=request.messages,
                 user_id=user_id,
                 max_tokens=request.max_tokens,
-                budget_constraint=getattr(request, 'max_budget', None)
+                budget_constraint=getattr(request, "max_budget", None),
             )
             if app_settings.server.debug:
                 logger.debug(

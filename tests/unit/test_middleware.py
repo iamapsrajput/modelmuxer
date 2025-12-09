@@ -50,7 +50,9 @@ class TestLoggingMiddleware:
         request.method = "POST"
         request.url = Mock()
         request.url.path = "/v1/chat/completions"
-        request.headers = Headers({"content-type": "application/json", "authorization": "Bearer test-key"})
+        request.headers = Headers(
+            {"content-type": "application/json", "authorization": "Bearer test-key"}
+        )
         request.client = Mock(host="127.0.0.1", port=12345)
         request.path_params = {}
         request.query_params = {}
@@ -185,11 +187,13 @@ class TestLoggingMiddleware:
 
     def test_format_headers(self, middleware):
         """Test formatting headers."""
-        headers = Headers({
-            "content-type": "application/json",
-            "authorization": "Bearer secret-token",
-            "x-custom-header": "value",
-        })
+        headers = Headers(
+            {
+                "content-type": "application/json",
+                "authorization": "Bearer secret-token",
+                "x-custom-header": "value",
+            }
+        )
 
         formatted = middleware._format_headers(headers)
         assert formatted["content-type"] == "application/json"
@@ -482,7 +486,9 @@ class TestRateLimitMiddleware:
 
     def test_format_rate_limit_headers(self, middleware):
         """Test formatting rate limit headers."""
-        headers = middleware._format_rate_limit_headers(limit=60, remaining=10, reset_time=int(time.time()) + 60)
+        headers = middleware._format_rate_limit_headers(
+            limit=60, remaining=10, reset_time=int(time.time()) + 60
+        )
 
         assert "X-RateLimit-Limit" in headers
         assert headers["X-RateLimit-Limit"] == "60"

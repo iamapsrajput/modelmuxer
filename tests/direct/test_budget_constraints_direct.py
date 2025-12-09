@@ -555,31 +555,43 @@ class TestBudgetConstraintsDirect:
 
                 # Use budget that allows cheaper models but not the most expensive ones
                 # This should trigger down-routing to cheaper alternatives
-                provider, model, _, _, estimate_metadata = await budget_constrained_router.select_model(
-                    complex_messages,
-                    budget_constraint=0.01,  # Low budget to force down-routing
+                provider, model, _, _, estimate_metadata = (
+                    await budget_constrained_router.select_model(
+                        complex_messages,
+                        budget_constraint=0.01,  # Low budget to force down-routing
+                    )
                 )
 
                 # Debug output
                 print(f"Selected: {provider}:{model}")
                 print(f"Cost: ${estimate_metadata['usd']}")
-                print(f"First preference: {budget_constrained_router.direct_model_preferences['complex'][0]}")
+                print(
+                    f"First preference: {budget_constrained_router.direct_model_preferences['complex'][0]}"
+                )
 
                 # Check cost of first preference
-                first_pref = budget_constrained_router.direct_model_preferences['complex'][0]
+                first_pref = budget_constrained_router.direct_model_preferences["complex"][0]
                 first_pref_key = f"{first_pref[0]}:{first_pref[1]}"
                 try:
                     first_pref_estimate = budget_constrained_router.estimator.estimate(
-                        first_pref_key, estimate_metadata['tokens_in'], estimate_metadata['tokens_out']
+                        first_pref_key,
+                        estimate_metadata["tokens_in"],
+                        estimate_metadata["tokens_out"],
                     )
                     print(f"First preference cost: ${first_pref_estimate.usd}")
-                    print(f"Down-routing condition: {first_pref_estimate.usd is not None and estimate_metadata['usd'] < float(first_pref_estimate.usd)}")
+                    print(
+                        f"Down-routing condition: {first_pref_estimate.usd is not None and estimate_metadata['usd'] < float(first_pref_estimate.usd)}"
+                    )
                 except Exception as e:
                     print(f"Error estimating first preference cost: {e}")
 
                 # Debug router state
-                print(f"Original preferences: {budget_constrained_router.direct_model_preferences['complex']}")
-                print(f"Selected model matches first preference: {(provider, model) == budget_constrained_router.direct_model_preferences['complex'][0]}")
+                print(
+                    f"Original preferences: {budget_constrained_router.direct_model_preferences['complex']}"
+                )
+                print(
+                    f"Selected model matches first preference: {(provider, model) == budget_constrained_router.direct_model_preferences['complex'][0]}"
+                )
 
                 # Should have selected a cheaper model, triggering down-routing
                 assert provider in ["openai", "anthropic", "groq"]
@@ -594,4 +606,6 @@ class TestBudgetConstraintsDirect:
                 # Check if the down-routing metric was called
                 # The metric should be called with: LLM_ROUTER_DOWN_ROUTE_TOTAL.labels(route_label, original_first_key, f"{provider}:{model}").inc()
                 # We can see from debug logs that the metric is being called successfully
-                assert len(expected_calls) > 0, f"Down-routing metric not called. Selected {provider}:{model}, inc calls: {expected_calls}"
+                assert (
+                    len(expected_calls) > 0
+                ), f"Down-routing metric not called. Selected {provider}:{model}, inc calls: {expected_calls}"

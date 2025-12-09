@@ -205,7 +205,9 @@ class TestSettingsSupplementary:
             assert settings.providers.circuit_fail_threshold == 5
 
         # Test invalid integer values
-        with patch.dict(os.environ, {"RATE_LIMIT_PER_MINUTE": "invalid", "MAX_RETRIES": "not_a_number"}):
+        with patch.dict(
+            os.environ, {"RATE_LIMIT_PER_MINUTE": "invalid", "MAX_RETRIES": "not_a_number"}
+        ):
             settings = Settings()
             # Should use defaults for invalid values
             assert settings.api.rate_limit_per_minute == 60  # default
@@ -277,9 +279,9 @@ class TestSettingsSupplementary:
             settings = Settings()
             # Paths should be stored as-is (expansion happens at usage)
             assert settings.logging.audit_log_path is not None
-            assert "~/logs/audit.log" in str(settings.logging.audit_log_path) or "logs/audit.log" in str(
+            assert "~/logs/audit.log" in str(
                 settings.logging.audit_log_path
-            )
+            ) or "logs/audit.log" in str(settings.logging.audit_log_path)
 
     def test_settings_provider_specific_configs(self):
         """Test provider-specific configuration."""
