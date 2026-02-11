@@ -45,7 +45,7 @@ psutil = "^5.9.0"
 pyjwt = { extras = ["cryptography"], version = "^2.10.1" }
 # Enterprise features
 asyncpg = "^0.30.0"
-cryptography = "^44.0.2"
+cryptography = "^46.0.5"
 passlib = { extras = ["bcrypt"], version = "^1.7.4" }
 email-validator = "^2.1.0"
 # Security fixes for vulnerabilities - using cryptography instead of ecdsa
