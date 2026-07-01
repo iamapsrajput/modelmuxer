@@ -22,7 +22,7 @@ class TestSettingsSupplementary:
         with patch.dict(
             os.environ,
             {
-                "MODELMUXER_MODE": "enhanced",
+                "MODELMUXER_MODE": "production",
                 "OPENAI_API_KEY": "test-openai-key",
                 "ANTHROPIC_API_KEY": "test-anthropic-key",
                 "GOOGLE_API_KEY": "test-google-key",
@@ -91,7 +91,7 @@ class TestSettingsSupplementary:
             settings = Settings()
 
             # Test mode
-            assert settings.mode == "enhanced"
+            assert settings.mode == "production"
 
             # Test API keys
             assert settings.providers.openai_api_key == "test-openai-key"
@@ -417,13 +417,6 @@ class TestSettingsSupplementary:
             assert basic_settings.features.enable_telemetry is False
             # monitoring_enabled is True by default in all modes
             assert basic_settings.features.monitoring_enabled is True
-
-        # Enhanced mode
-        with patch.dict(os.environ, {"MODELMUXER_MODE": "enhanced"}):
-            enhanced_settings = Settings()
-            assert enhanced_settings.mode == "enhanced"
-            # Enhanced mode might have different defaults
-            # (depends on actual implementation)
 
         # Production mode
         with patch.dict(os.environ, {"MODELMUXER_MODE": "production"}):

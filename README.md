@@ -3,17 +3,19 @@
 ModelMuxer is an intelligent LLM routing service that optimizes cost and quality
 by automatically selecting the best provider and model for each request. It uses
 direct provider connections for optimal performance and reliability, providing
-advanced features like cost tracking, caching, and intelligent routing.
+advanced features like cost tracking, budget management, and intelligent
+heuristic routing.
 
 ## Features
 
 - **Multi-Provider Support**: Direct connections to OpenAI, Anthropic, Mistral,
   Google, Groq, Cohere, Together AI
-- **Intelligent Routing**: Automatic provider/model selection based on request
-  characteristics
-- **Cost Tracking**: Real-time cost monitoring and budget management
-- **Caching**: Response caching for improved performance and cost savings
-- **Enterprise Features**: Multi-tenancy, policy enforcement, and compliance
+- **Intelligent Routing**: Heuristic provider/model selection combining intent
+  classification, cost estimation, and latency priors
+- **Cost Tracking**: Real-time cost monitoring and budget management (Redis
+  optional, with in-memory fallback)
+- **Policy Enforcement**: PII redaction, jailbreak detection, and per-tenant
+  model/region allow and deny lists
 - **Observability**: Comprehensive metrics, tracing, and monitoring
 
 ## Quick Start
@@ -96,10 +98,12 @@ MAX_ESTIMATED_USD_PER_REQUEST=0.08
 
 ### Deployment Modes
 
-- **Basic Mode**: Direct provider routing with cost tracking
-- **Enhanced Mode**: Advanced features with ML classification and caching
-- **Production Mode**: Full enterprise features with monitoring and advanced
-  routing
+Set via the `MODELMUXER_MODE` environment variable or the `--mode` CLI flag:
+
+- **Basic Mode** (default): Direct provider routing with cost tracking and
+  lenient startup validation
+- **Production Mode**: Same features with strict startup validation (hard
+  failure when no providers are configured or router configuration is invalid)
 
 ## Architecture: Direct Providers Only
 
@@ -164,8 +168,8 @@ Prometheus metrics endpoint.
 poetry run pytest
 
 # Run specific test categories
-poetry run pytest tests/test_intent_classifier.py
-poetry run pytest tests/test_routing.py
+poetry run pytest tests/unit/core/test_intent_classifier.py
+poetry run pytest tests/routing/
 ```
 
 ### Code Quality
@@ -485,7 +489,7 @@ examples:
 
 ```bash
 # Run intent classifier tests
-poetry run pytest tests/test_intent_classifier.py -v
+poetry run pytest tests/unit/core/test_intent_classifier.py -v
 ```
 
 The test suite validates:
@@ -504,7 +508,8 @@ The intent classifier consists of:
    structural signals
 2. **Intent Classification** (`app/core/intent.py`): Heuristic classification
    with LLM fallback
-3. **Integration** (`app/main.py`): Wired into request flow with telemetry
+3. **Integration** (`app/router.py`): Wired into `HeuristicRouter.select_model`
+   with telemetry
 4. **Telemetry** (`app/telemetry/metrics.py`): Prometheus counter and
    OpenTelemetry spans
 

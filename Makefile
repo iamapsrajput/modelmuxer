@@ -70,7 +70,7 @@ test-integration:
 validate-direct-providers:
 	@echo "🔍 Running comprehensive direct provider validation..."
 	poetry run python scripts/validate_direct_provider_architecture.py
-	poetry run pytest tests/test_comprehensive_direct_provider_validation.py -v
+	poetry run pytest tests/e2e/test_comprehensive_direct_provider_validation.py -v
 	@echo "✅ Direct provider validation complete"
 
 # Quick direct provider tests
@@ -82,13 +82,13 @@ test-direct:
 # Architecture validation only
 validate-architecture:
 	@echo "🏗️ Validating architecture..."
-	poetry run pytest tests/test_comprehensive_direct_provider_validation.py::TestArchitectureValidation -v
+	poetry run pytest tests/e2e/test_comprehensive_direct_provider_validation.py::TestArchitectureValidation -v
 	@echo "✅ Architecture validation complete"
 
 # Performance benchmarking
 benchmark-direct:
 	@echo "⚡ Running performance benchmarks..."
-	poetry run pytest tests/test_comprehensive_direct_provider_validation.py::TestPerformanceAndMetrics -v
+	poetry run pytest tests/e2e/test_comprehensive_direct_provider_validation.py::TestPerformanceAndMetrics -v
 	@echo "✅ Performance benchmarks complete"
 
 # Run linting and type checking

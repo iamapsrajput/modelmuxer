@@ -250,9 +250,9 @@ class SecuritySettings(BaseSettings):
 class FeatureFlagsSettings(BaseSettings):
     """Feature flag toggles and deployment mode."""
 
-    mode: Literal["basic", "enhanced", "production"] = Field(
+    mode: Literal["basic", "production"] = Field(
         default="basic",
-        description="Deployment mode: basic, enhanced, or production.",
+        description="Deployment mode: basic or production.",
         validation_alias=AliasChoices("MODELMUXER_MODE", "APP_MODE"),
     )
     auth_enabled: bool = Field(
@@ -274,16 +274,6 @@ class FeatureFlagsSettings(BaseSettings):
         default=True,
         description="Enable caching features when available.",
         validation_alias=AliasChoices("CACHE_ENABLED", "FEATURE_CACHE_ENABLED"),
-    )
-    enable_semantic_routing: bool = Field(
-        default=True,
-        description="Enable semantic routing components when available.",
-        validation_alias=AliasChoices("ENABLE_SEMANTIC_ROUTING", "FEATURE_ENABLE_SEMANTIC_ROUTING"),
-    )
-    enable_cascade_routing: bool = Field(
-        default=True,
-        description="Enable cascade routing strategy.",
-        validation_alias=AliasChoices("ENABLE_CASCADE_ROUTING", "FEATURE_ENABLE_CASCADE_ROUTING"),
     )
     provider_adapters_enabled: bool = Field(
         default=True,
@@ -835,7 +825,7 @@ class Settings(BaseSettings):
     )
 
     # Top-level mode override from env (compat)
-    mode_env: Literal["basic", "enhanced", "production"] | None = Field(
+    mode_env: Literal["basic", "production"] | None = Field(
         default=None, validation_alias=AliasChoices("MODELMUXER_MODE", "APP_MODE")
     )
 

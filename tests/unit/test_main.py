@@ -560,8 +560,6 @@ class TestMainApplication:
         """Test successful user authentication."""
         from fastapi import Request
 
-        from app.main import get_authenticated_user
-
         mock_request = Mock(spec=Request)
         mock_auth = Mock()
         mock_auth.authenticate_request = Mock(return_value={"user_id": "test_user"})
@@ -575,8 +573,6 @@ class TestMainApplication:
     async def test_get_authenticated_user_failure(self):
         """Test failed user authentication."""
         from fastapi import Request
-
-        from app.main import get_authenticated_user
 
         mock_request = Mock(spec=Request)
         mock_auth = Mock()

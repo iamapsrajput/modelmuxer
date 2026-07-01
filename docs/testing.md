@@ -19,7 +19,6 @@ ModelMuxer uses a comprehensive testing strategy to ensure reliability, performa
 - **pytest-asyncio**: Async test support
 - **pytest-cov**: Coverage reporting
 - **httpx**: HTTP client for API testing
-- **factory-boy**: Test data generation
 
 ## Running Tests
 
@@ -59,7 +58,7 @@ The CI/CD pipeline includes comprehensive automated testing:
 
 - **Python versions**: 3.11, 3.12
 - **Operating systems**: Ubuntu, macOS, Windows
-- **Deployment modes**: basic, enhanced, production
+- **Deployment modes**: basic, production
 
 #### Quality Gates
 
@@ -88,7 +87,6 @@ The CI/CD pipeline includes comprehensive automated testing:
 
 - API endpoint testing
 - Database integration testing
-- Cache integration testing
 - Provider API mocking
 
 ### Performance Tests
@@ -104,17 +102,18 @@ The CI/CD pipeline includes comprehensive automated testing:
 
 ```python
 import pytest
-from app.routing.hybrid_router import HybridRouter
+from app.models import ChatMessage
+from app.router import HeuristicRouter
 
-class TestHybridRouter:
-    def test_route_simple_query(self):
-        router = HybridRouter()
-        result = router.select_model(
-            query="What is 2+2?",
-            budget_constraint=0.01
+class TestHeuristicRouter:
+    @pytest.mark.asyncio
+    async def test_route_simple_query(self):
+        router = HeuristicRouter()
+        provider, model, reason, intent, estimate = await router.select_model(
+            messages=[ChatMessage(role="user", content="What is 2+2?")],
+            budget_constraint=0.01,
         )
-        assert result.provider == "openai"
-        assert result.model == "gpt-4o-mini"
+        assert provider in {"openai", "anthropic", "mistral", "google", "groq", "together", "cohere"}
 ```
 
 ### Integration Test Example
@@ -128,12 +127,11 @@ from app.main import app
 async def test_chat_completion_endpoint():
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.post(
-            "/api/v1/chat/completions",
+            "/v1/chat/completions",
             json={
-                "messages": [{"role": "user", "content": "Hello"}],
-                "routing_strategy": "hybrid"
+                "messages": [{"role": "user", "content": "Hello"}]
             },
-            headers={"Authorization": "Bearer test-token"}
+            headers={"Authorization": "Bearer test-api-key"}
         )
     assert response.status_code == 200
     assert "choices" in response.json()
@@ -148,7 +146,6 @@ async def test_chat_completion_endpoint():
 def sample_chat_request():
     return {
         "messages": [{"role": "user", "content": "Test message"}],
-        "routing_strategy": "hybrid",
         "max_tokens": 100
     }
 
@@ -158,34 +155,28 @@ async def test_client():
         yield client
 ```
 
-### Factory Classes
-
-```python
-import factory
-from app.models import User, Request
-
-class UserFactory(factory.Factory):
-    class Meta:
-        model = User
-
-    id = factory.Sequence(lambda n: f"user_{n}")
-    email = factory.LazyAttribute(lambda obj: f"{obj.id}@example.com")
-```
-
 ## Mocking External Services
 
 ### Provider API Mocking
 
+Tests mock the provider registry (and, where needed, the router constructor)
+rather than patching individual provider classes:
+
 ```python
 import pytest
 from unittest.mock import patch, AsyncMock
+from app.providers.base import ProviderResponse
 
 @pytest.fixture
-def mock_openai_client():
-    with patch('app.providers.openai_client.OpenAIClient') as mock:
-        mock.return_value.chat_completion = AsyncMock(
-            return_value={"choices": [{"message": {"content": "Test response"}}]}
-        )
+def mock_provider_registry():
+    adapter = AsyncMock()
+    adapter.invoke.return_value = ProviderResponse(
+        output_text="Test response", tokens_in=10, tokens_out=5, latency_ms=100
+    )
+    with patch(
+        "app.providers.registry.get_provider_registry",
+        return_value={"openai": adapter},
+    ) as mock:
         yield mock
 ```
 

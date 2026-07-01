@@ -70,7 +70,8 @@ connections for maximum reliability, performance, and control.
                     │   Data Layer    │
                     │   (SQLite/      │
                     │   PostgreSQL +  │
-                    │   Redis Cache)  │
+                    │   optional      │
+                    │   Redis)        │
                     └─────────────────┘
 ```
 
@@ -78,47 +79,38 @@ connections for maximum reliability, performance, and control.
 
 ### 1. Application Layers
 
-#### **Unified Application (`app/main.py`) - CONSOLIDATED**
+#### **Application Entry Point (`app/main.py`)**
 
-- **Unified application** with both basic and advanced features
-- Automatic mode detection based on environment and available dependencies
-- Advanced routing with ML-based classification (when enabled)
-- Comprehensive monitoring and metrics (when enabled)
-- Enterprise features and security (when enabled)
-- Enhanced cost tracking with budget management (when enabled)
-- **Used in**: All deployments - automatically adapts to environment
+- App factory and lifespan management (database, provider registry, router
+  initialization)
+- CORS, security-headers, request-size, and observability middleware
+- Exception handlers and the `get_authenticated_user` dependency
+- CLI entry points (`--mode basic|production`; production enables strict
+  startup validation)
 - **Suitable for**: Development, testing, and production deployments
 
-### 2. Routing Engine (`app/routing/`)
+#### **HTTP Route Modules (`app/api/routes/`)**
 
-#### **Base Router (`base_router.py`)**
+- `chat.py`: `POST /v1/chat/completions`, streaming helper, `POST /v1/messages`
+  and `/messages` (Anthropic compatibility)
+- `system.py`: `GET /health`, `GET /metrics`, `GET /metrics/prometheus`
+- `analytics.py`: `GET /v1/analytics/costs`, `GET/POST /v1/analytics/budgets`,
+  `GET /user/stats`
+- `providers.py`: `GET /providers`, `GET /v1/providers`, `GET /v1/models`
 
-- Abstract base class for all routing strategies
-- Defines common interface and utilities
+### 2. Routing Engine (`app/router.py`)
 
-#### **Heuristic Router (`heuristic_router.py`)**
+#### **Heuristic Router (`HeuristicRouter`)**
 
-- Rule-based routing using prompt analysis
-- Fast, deterministic routing decisions
-- No ML dependencies required
-
-#### **Semantic Router (`semantic_router.py`)**
-
-- ML-powered routing using sentence transformers
-- Context-aware model selection
-- Requires ML dependencies
-
-#### **Cascade Router (`cascade_router.py`)**
-
-- Multi-tier routing with fallback strategies
-- Cost optimization through provider cascading
-- Intelligent retry logic
-
-#### **Hybrid Router (`hybrid_router.py`)**
-
-- Combines multiple routing strategies
-- Adaptive routing based on request characteristics
-- Production-recommended approach
+- The single routing strategy in ModelMuxer
+- Rule-based routing using prompt analysis; fast, deterministic decisions
+- Intent classification via `app/core/intent.py` (heuristics with optional
+  cheap-LLM assist)
+- Cost estimation and budget gating via `app/core/costing.py` with automatic
+  down-routing to cheaper models
+- In-memory latency priors (p95/p99) for ETA estimates
+- Invokes providers through the adapter registry
+  (`HeuristicRouter.invoke_via_adapter`)
 
 ### 3. Provider Integration (`app/providers/`)
 
@@ -144,9 +136,10 @@ connections for maximum reliability, performance, and control.
 ### Request Processing Pipeline
 
 ```
-Client Request → Authentication → Rate Limiting → Query Analysis →
-Model Selection → Provider API Call → Response Processing →
-Cost Calculation → Caching → Response to Client
+Client Request → Authentication (APIKeyAuth) → Policy Enforcement →
+HeuristicRouter.select_model (intent + cost estimate + budget gate) →
+Provider Adapter (via registry) → Response Processing →
+Cost Tracking + Telemetry Metrics → Response to Client
 ```
 
 ### Analytics Pipeline
@@ -176,10 +169,8 @@ Dashboard Updates → Alert Processing → Reporting
 
 ### Authentication & Authorization
 
-- JWT token validation
-- API key management
-- Role-based access control
-- Rate limiting per user/organization
+- API key authentication (`APIKeyAuth` in `app/auth.py`)
+- Rate limiting per user
 
 ### Data Protection
 

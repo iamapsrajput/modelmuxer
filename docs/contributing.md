@@ -34,8 +34,8 @@ git remote add upstream https://github.com/iamapsrajput/ModelMuxer.git
 # Install Poetry if you haven't already
 curl -sSL https://install.python-poetry.org | python3 -
 
-# Install dependencies (including ML dependencies for full development)
-poetry install --with dev,ml
+# Install dependencies
+poetry install --with dev
 
 # Activate virtual environment
 poetry shell
@@ -125,10 +125,10 @@ poetry run isort app/ tests/
 git add .
 
 # Commit with descriptive message
-git commit -m "feat: add cascade routing strategy
+git commit -m "feat: add latency-aware model selection
 
-- Implement FrugalGPT-inspired cascade routing
-- Add quality threshold configuration
+- Use latency priors in routing decisions
+- Add configuration for latency thresholds
 - Include cost optimization logic
 - Add comprehensive tests
 
@@ -160,10 +160,10 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 **Examples:**
 
 ```
-feat(router): add semantic routing strategy
-fix(auth): resolve JWT token validation issue
+feat(router): improve intent classification heuristics
+fix(auth): resolve API key validation issue
 docs: update API documentation
-test(cache): add Redis cache integration tests
+test(providers): add adapter retry tests
 ```
 
 ## Pull Request Process
@@ -263,7 +263,7 @@ Brief description of changes made.
 
 ### High Priority
 
-- **New Routing Strategies**: Implement additional intelligent routing algorithms
+- **Routing Improvements**: Improve heuristics, intent classification, and cost-aware selection in `app/router.py`
 - **Provider Integrations**: Add support for new LLM providers
 - **Performance Optimizations**: Improve latency and throughput
 - **Security Enhancements**: Strengthen authentication and authorization
@@ -318,21 +318,19 @@ Look for issues labeled `good-first-issue` or `help-wanted`:
 
 ### Adding New Providers
 
-1. Create provider class in `app/providers/`
-2. Inherit from `BaseProvider`
-3. Implement required methods
-4. Add provider configuration
+1. Create an adapter class in `app/providers/` (e.g., `app/providers/newprovider.py`)
+2. Inherit from `LLMProviderAdapter` (`app/providers/base.py`) and implement `invoke`, `aclose`, and `get_supported_models`
+3. Register the adapter in `app/providers/registry.py` (`build_registry`)
+4. Add API key and base URL settings to `app/settings.py`, and pricing to `scripts/data/prices.json`
 5. Add comprehensive tests
 6. Update documentation
 
-### Adding New Routing Strategies
+### Modifying Routing Logic
 
-1. Create router class in `app/routing/`
-2. Inherit from `BaseRouter`
-3. Implement routing logic
-4. Add configuration options
-5. Add performance tests
-6. Update documentation
+1. Edit `HeuristicRouter` in `app/router.py` (intent classification lives in `app/core/intent.py`, cost estimation in `app/core/costing.py`)
+2. Add configuration options to `app/settings.py` if needed
+3. Add performance tests
+4. Update documentation
 
 ### Database Changes
 

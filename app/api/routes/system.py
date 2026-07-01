@@ -19,9 +19,7 @@ router = APIRouter()
 async def prometheus_metrics():
     """Expose Prometheus metrics in text exposition format."""
     if app_main.generate_latest and app_main.CONTENT_TYPE_LATEST:
-        return Response(
-            content=app_main.generate_latest(), media_type=app_main.CONTENT_TYPE_LATEST
-        )
+        return Response(content=app_main.generate_latest(), media_type=app_main.CONTENT_TYPE_LATEST)
     return JSONResponse(
         status_code=500, content={"error": {"message": "prometheus_client not available"}}
     )

@@ -19,9 +19,7 @@ def test_providers_endpoint_contract():
     # Test both /providers and /v1/providers endpoints
     for endpoint in ["/providers", "/v1/providers"]:
         with patch("app.auth.auth.authenticate_request", return_value=_TEST_USER):
-            response = client.get(
-                endpoint, headers={"Authorization": "Bearer sk-test-claude-dev"}
-            )
+            response = client.get(endpoint, headers={"Authorization": "Bearer sk-test-claude-dev"})
 
         # Should not return 401 (authentication error) or 500 (server error)
         assert response.status_code in [
@@ -60,9 +58,7 @@ def test_models_endpoint_contract():
     client = TestClient(app)
 
     with patch("app.auth.auth.authenticate_request", return_value=_TEST_USER):
-        response = client.get(
-            "/v1/models", headers={"Authorization": "Bearer sk-test-claude-dev"}
-        )
+        response = client.get("/v1/models", headers={"Authorization": "Bearer sk-test-claude-dev"})
 
     # Should not return 401 (authentication error) or 500 (server error)
     assert response.status_code in [200, 404, 503], f"Unexpected status code {response.status_code}"

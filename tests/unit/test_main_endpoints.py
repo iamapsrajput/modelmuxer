@@ -399,9 +399,7 @@ class TestChatCompletionsEndpoint:
             "max_tokens": 1000,
         }
 
-        with patch(
-            "app.providers.registry.get_provider_registry", return_value={"openai": Mock()}
-        ):
+        with patch("app.providers.registry.get_provider_registry", return_value={"openai": Mock()}):
             with patch("app.main.router", mock_router):
                 with patch("app.main.HeuristicRouter", return_value=mock_router):
                     response = test_client.post(
@@ -424,9 +422,7 @@ class TestChatCompletionsEndpoint:
 
         request_data = {"messages": [{"role": "user", "content": "Hello"}], "model": "gpt-4"}
 
-        with patch(
-            "app.providers.registry.get_provider_registry", return_value={"openai": Mock()}
-        ):
+        with patch("app.providers.registry.get_provider_registry", return_value={"openai": Mock()}):
             with patch("app.main.router", mock_router):
                 with patch("app.main.HeuristicRouter", return_value=mock_router):
                     response = test_client.post(

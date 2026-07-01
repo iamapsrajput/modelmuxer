@@ -19,61 +19,61 @@ ModelMuxer is an enterprise-grade intelligent LLM routing engine designed for co
 └─────────────────┘
 ```
 
-### 2. **Strategy Pattern (Routing)**
-The system uses multiple routing strategies that can be selected based on deployment mode:
-- **Heuristic Router**: Rule-based routing using pattern matching and keyword analysis
-- **Semantic Router**: ML-based classification using embeddings (enhanced mode)
-- **Cascade Router**: Cost-optimized cascading with fallback logic
-- **Hybrid Router**: Combines multiple strategies with weighted decisions
+### 2. **Single Router (Heuristic)**
+The system uses one router, `HeuristicRouter` in `app/router.py`:
+- **Intent Classification**: Lightweight intent classification (`app/core/intent.py`)
+- **Cost Estimation & Budget Gate**: Pre-request estimation and enforcement (`app/core/costing.py`)
+- **Latency Priors**: In-memory latency percentile tracking used for ETA estimates
 
 ### 3. **Adapter Pattern (Providers)**
 Unified interface for multiple LLM providers through adapter classes:
-- **Legacy Interface**: `LLMProvider` (backward compatibility)
-- **Modern Interface**: `LLMProviderAdapter` (unified interface)
-- **Provider Registry**: Centralized provider management and configuration
+- **Interface**: `LLMProviderAdapter` in `app/providers/base.py` (unified `invoke()` method)
+- **Provider Registry**: Centralized provider management via `get_provider_registry()` in `app/providers/registry.py`
 
 ### 4. **Configuration-Driven Architecture**
-Three deployment modes with feature gating:
-- **Basic Mode**: Simple routing with essential features
-- **Enhanced Mode**: Advanced routing with ML capabilities
-- **Production Mode**: Full enterprise features with monitoring
+Two deployment modes via `features.mode`:
+- **Basic Mode** (default): Standard behavior with lenient startup validation
+- **Production Mode**: Strict validation with hard startup failures on misconfiguration
 
 ## Component Relationships
 
 ### Core Components
 
-#### 1. **API Layer (`app/main.py`)**
-- **FastAPI Application**: RESTful API server with async support
-- **Request Processing**: Handles chat completions, streaming, health checks
-- **Middleware Integration**: Authentication, logging, rate limiting, CORS
-- **Provider Management**: Dynamic provider loading and configuration
+#### 1. **API Layer (`app/main.py`, `app/api/routes/`)**
+- **FastAPI Application**: `app/main.py` contains the app factory, lifespan (DB, provider registry, router init), CORS/security-headers/request-size/observability middleware, exception handlers, and the `get_authenticated_user` dependency
+- **Route Modules**:
+  - `app/api/routes/chat.py`: `POST /v1/chat/completions`, streaming helper, `POST /v1/messages` + `/messages` (Anthropic compatibility)
+  - `app/api/routes/system.py`: `GET /health`, `GET /metrics`, `GET /metrics/prometheus`
+  - `app/api/routes/analytics.py`: `GET /v1/analytics/costs`, `GET/POST /v1/analytics/budgets`, `GET /user/stats`
+  - `app/api/routes/providers.py`: `GET /providers`, `GET /v1/providers`, `GET /v1/models`
 
-#### 2. **Routing System (`app/routing/`)**
+#### 2. **Routing System (`app/router.py`)**
 ```
-BaseRouter (Abstract)
-    ├── HeuristicRouter
-    ├── SemanticRouter
-    ├── CascadeRouter
-    └── HybridRouter
+HeuristicRouter
+    ├── Intent classification (app/core/intent.py)
+    ├── Cost estimation + budget gate (app/core/costing.py)
+    └── Latency priors (in-memory percentile tracking)
 ```
 
 **Key Features:**
 - **Content Analysis**: Pattern matching, complexity analysis, keyword detection
-- **Performance Optimization**: <100ms routing decisions, caching support
+- **Budget Gate**: Pre-request cost estimation with automatic down-routing to cheaper models
 - **Fallback Logic**: Circuit breaker patterns, graceful degradation
 - **Monitoring Integration**: Metrics collection, decision logging
 
 #### 3. **Provider System (`app/providers/`)**
 ```
-LLMProviderAdapter (Modern Interface)
-    ├── OpenAIProvider
-    ├── AnthropicProvider
-    ├── GoogleProvider
-    ├── GroqProvider
-    ├── TogetherProvider
-    ├── CohereProvider
-    └── MistralProvider
+LLMProviderAdapter (app/providers/base.py)
+    ├── OpenAIAdapter
+    ├── AnthropicAdapter
+    ├── GoogleAdapter
+    ├── GroqAdapter
+    ├── TogetherAdapter
+    ├── CohereAdapter
+    └── MistralAdapter
 ```
+
+Adapters are registered in `app/providers/registry.py` and accessed via `get_provider_registry()`.
 
 **Key Features:**
 - **Unified Interface**: Consistent API across all providers
@@ -81,9 +81,9 @@ LLMProviderAdapter (Modern Interface)
 - **Cost Calculation**: Real-time cost estimation and tracking
 - **Rate Limiting**: Provider-specific rate limit handling
 
-#### 4. **Configuration System (`app/config/`, `app/settings.py`)**
+#### 4. **Configuration System (`app/settings.py`)**
 ```
-Settings (Pydantic)
+Settings (pydantic-settings, exposes `settings`)
     ├── API Settings
     ├── Database Settings
     ├── Redis Settings
@@ -96,16 +96,15 @@ Settings (Pydantic)
 **Key Features:**
 - **Environment-Based**: Different configs for dev/staging/production
 - **Validation**: Type-safe configuration with Pydantic
-- **Feature Gating**: Mode-based feature enablement
-- **Hot Reloading**: Configuration updates without restart
+- **Feature Gating**: Mode-based strictness (`features.mode` = "basic" or "production")
 
-#### 5. **Monitoring & Observability (`app/monitoring/`, `app/telemetry/`)**
+#### 5. **Monitoring & Observability (`app/telemetry/`)**
 ```
-MetricsCollector
-    ├── Prometheus Metrics
-    ├── OpenTelemetry Tracing
-    ├── Structured Logging
-    └── Health Checks
+Telemetry
+    ├── Prometheus Metrics (app/telemetry/metrics.py)
+    ├── OpenTelemetry Tracing (app/telemetry/tracing.py)
+    ├── Structured Logging (app/telemetry/logging.py)
+    └── Health Checks (/health endpoint)
 ```
 
 **Key Features:**
@@ -120,24 +119,22 @@ MetricsCollector
 
 ```mermaid
 graph TD
-    A[Client Request] --> B[API Endpoint]
-    B --> C[Authentication Middleware]
-    C --> D[Rate Limiting Middleware]
-    D --> E[Request Validation]
-    E --> F[Router Selection]
-    F --> G[Provider Selection]
-    G --> H[Provider Request]
-    H --> I[Response Processing]
-    I --> J[Cost Calculation]
-    J --> K[Response Caching]
-    K --> L[Client Response]
+    A[Client Request] --> B[POST /v1/chat/completions]
+    B --> C[Authentication - app/auth.py APIKeyAuth]
+    C --> D[Policy Enforcement - app/policy/rules.py]
+    D --> E[HeuristicRouter.select_model - intent + estimate + budget gate]
+    E --> F[Provider Adapter via Registry]
+    F --> G[Provider API Call]
+    G --> H[Response Processing]
+    H --> I[Cost Tracking - AdvancedCostTracker]
+    I --> J[Client Response]
 
-    M[Metrics Collection] -.-> F
-    M -.-> H
-    M -.-> J
+    K[Telemetry Metrics] -.-> E
+    K -.-> G
+    K -.-> I
 
-    N[Error Handling] -.-> H
-    N -.-> G
+    L[Error Handling] -.-> F
+    L -.-> G
 ```
 
 ### Configuration Flow
@@ -157,37 +154,30 @@ graph TD
 
 ## Key Interfaces and Abstractions
 
-### 1. **RouterInterface**
+### 1. **HeuristicRouter (`app/router.py`)**
 ```python
-class RouterInterface(ABC):
-    async def select_provider_and_model(
-        self, messages: list[ChatMessage],
+class HeuristicRouter:
+    async def select_model(
+        self,
+        messages: list[ChatMessage],
         user_id: str | None = None,
-        constraints: dict[str, Any] | None = None
-    ) -> tuple[str, str, str, float]:
-        """Select optimal provider and model"""
+        budget_constraint: float | None = None,
+        max_tokens: int | None = None,
+    ) -> tuple[str, str, str, dict[str, object], dict[str, object]]:
+        """Select the best model based on prompt analysis and constraints."""
 ```
 
-### 2. **ProviderInterface**
+### 2. **LLMProviderAdapter (`app/providers/base.py`)**
 ```python
-class ProviderInterface(ABC):
-    async def chat_completion(
-        self, messages: list[ChatMessage], model: str, **kwargs: Any
-    ) -> ChatCompletionResponse:
-        """Generate chat completion"""
+class LLMProviderAdapter(ABC):
+    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:
+        """Invoke the provider and return a standardized response."""
 
-    async def calculate_cost(
-        self, input_tokens: int, output_tokens: int, model: str
-    ) -> float:
-        """Calculate request cost"""
-```
+    async def aclose(self) -> None:
+        """Close the adapter's HTTP client and clean up resources."""
 
-### 3. **CacheInterface**
-```python
-class CacheInterface(ABC):
-    async def get(self, key: str) -> Any | None
-    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool
-    async def delete(self, key: str) -> bool
+    def get_supported_models(self) -> list[str]:
+        """Get the list of models supported by this provider."""
 ```
 
 ## Dependency Organization
@@ -205,8 +195,7 @@ class CacheInterface(ABC):
 - **tenacity**: Retry logic for resilient API calls
 
 ### Optional Dependencies
-- **ML Group**: `sentence-transformers`, `torch`, `transformers` (enhanced mode)
-- **Monitoring Group**: `prometheus-client`, `opentelemetry-*` (production mode)
+- **Monitoring Group**: `prometheus-client`, `opentelemetry-*`
 - **Development Group**: Testing, linting, and quality tools
 
 ### Security Dependencies
@@ -216,38 +205,26 @@ class CacheInterface(ABC):
 
 ## Configuration Modes
 
-### Basic Mode
-- Simple heuristic routing
-- Essential providers only
-- Basic logging and monitoring
-- SQLite database
-
-### Enhanced Mode
-- Advanced routing strategies (semantic, hybrid)
-- ML-based classification
-- Redis caching
-- Enhanced monitoring
-- PostgreSQL support
+### Basic Mode (default)
+- Heuristic routing with intent classification and budget gating
+- Lenient startup validation (warnings instead of hard failures)
+- SQLite database by default
+- Redis optional (cost tracker falls back to an in-memory mock)
 
 ### Production Mode
-- Full enterprise features
-- Prometheus metrics
-- OpenTelemetry tracing
-- Advanced security features
-- Comprehensive monitoring
+- Same features as basic mode
+- Strict startup validation: hard failure if no providers are configured or the router configuration is invalid
 
 ## Security Architecture
 
 ### Authentication & Authorization
-- API key authentication
-- JWT token management
-- Role-based access control
+- API key authentication (`APIKeyAuth` in `app/auth.py`)
 - Request validation and sanitization
 
 ### Data Protection
-- PII detection and protection
+- PII redaction via policy enforcement (`app/policy/rules.py`)
 - Secure credential management
-- Encrypted database connections
+- Secure httpx client for provider calls (`app/security/config.py`)
 - Input validation and sanitization
 
 ### Infrastructure Security
@@ -299,14 +276,12 @@ class CacheInterface(ABC):
 
 ### Routing Performance
 - **Decision Time**: <100ms for production routing decisions
-- **Caching**: Redis-backed routing decision cache
 - **Concurrency**: Async/await patterns throughout
 - **Resource Usage**: Minimal memory footprint
 
 ### Scalability
 - **Horizontal Scaling**: Stateless design enables easy scaling
 - **Provider Scaling**: Dynamic provider registration
-- **Caching**: Multi-layer caching strategy
 - **Database**: Connection pooling and query optimization
 
 ## Testing Strategy
