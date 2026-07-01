@@ -263,7 +263,6 @@ warn_return_any = false
 strict_equality = true
 # Exclude problematic modules during migration to zero errors
 exclude = [
-    "app/routing/*",
     "app/providers/*",
     "app/config/enhanced_config.py",
     "app/classification/*",
@@ -292,7 +291,6 @@ reportOptionalCall = "warning"
 exclude = [
     "**/.venv/**",
     "**/tests/**",
-    "app/routing/**",
     "app/providers/**",
     "app/config/enhanced_config.py",
     "app/classification/**",
@@ -312,7 +310,7 @@ ignore_missing_imports = true
 
 # Temporarily allow untyped defs in complex modules during migration
 [[tool.mypy.overrides]]
-module = ["app.routing.*", "app.cache.*", "app.providers.*", "tests.*"]
+module = ["app.providers.*", "tests.*"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 warn_return_any = false

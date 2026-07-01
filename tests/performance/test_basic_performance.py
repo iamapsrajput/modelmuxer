@@ -47,23 +47,20 @@ class TestPerformance:
 
     @pytest.mark.performance
     def test_routing_decision_performance(self, client: TestClient) -> None:
-        """Test routing decision performance."""
-        import asyncio
-
+        """Test routing decision performance for the live HeuristicRouter."""
         from app.models import ChatMessage
-        from app.routing.heuristic_router import EnhancedHeuristicRouter
+        from app.router import HeuristicRouter
 
-        router = EnhancedHeuristicRouter()
+        router = HeuristicRouter()
         messages = [ChatMessage(role="user", content="What is the capital of France?", name=None)]
 
-        # Test routing decision timing
+        # Test prompt analysis timing
         start_time = time.time()
-        result = asyncio.run(router.analyze_prompt(messages))
+        result = router.analyze_prompt(messages)
         end_time = time.time()
 
         assert result is not None
-        # Check for any key that indicates analysis was performed
-        assert "confidence_score" in result or "complexity_confidence" in result
+        assert "task_type" in result
         assert (end_time - start_time) < 2.0  # Should complete within 2 seconds
 
     @pytest.mark.performance

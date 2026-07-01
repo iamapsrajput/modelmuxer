@@ -72,10 +72,6 @@ LoggingMiddleware: type | None = None
 RateLimitMiddleware: type | None = None
 HealthChecker: type | None = None
 MetricsCollector: type | None = None
-CascadeRouter: type | None = None
-EnhancedHeuristicRouter: type | None = None
-HybridRouter: type | None = None
-SemanticRouter: type | None = None
 
 try:
     # Core enhanced config (always required for enhanced mode)
@@ -122,17 +118,6 @@ try:
     except ImportError:
         MONITORING_FEATURES_AVAILABLE = False
 
-    # Optional routing imports (can fail without breaking enhanced mode)
-    try:
-        from .routing.cascade_router import CascadeRouter
-        from .routing.heuristic_router import EnhancedHeuristicRouter
-        from .routing.hybrid_router import HybridRouter
-        from .routing.semantic_router import SemanticRouter
-
-        ROUTING_FEATURES_AVAILABLE = True
-    except ImportError:
-        ROUTING_FEATURES_AVAILABLE = False
-
     ENHANCED_FEATURES_AVAILABLE = CORE_ENHANCED_AVAILABLE
 
 except ImportError:
@@ -142,7 +127,6 @@ except ImportError:
     ML_FEATURES_AVAILABLE = False
     MIDDLEWARE_FEATURES_AVAILABLE = False
     MONITORING_FEATURES_AVAILABLE = False
-    ROUTING_FEATURES_AVAILABLE = False
     # Create a fallback logger to avoid AttributeError
     logger = structlog.get_logger(__name__)
     enhanced_config = None
@@ -181,7 +165,6 @@ class ModelMuxer:
 
         # Initialize components
         # Note: providers are now managed through the registry system
-        self.routers: dict[str, Any] = {}
         self.cache: Any = None
         self.embedding_manager: Any = None
         self.classifier: Any = None
@@ -217,7 +200,6 @@ class ModelMuxer:
         try:
             self._initialize_cache()
             self._initialize_classification()
-            self._initialize_routing()
             self._initialize_cost_tracking()
             self._initialize_monitoring()
             self._initialize_middleware()
@@ -301,56 +283,6 @@ class ModelMuxer:
         except Exception as e:
             if logger:
                 logger.warning("classification_init_failed", error=str(e))
-
-    def _initialize_routing(self) -> None:
-        """Initialize advanced routing system."""
-        if not hasattr(self.config, "routing"):
-            return
-
-        try:
-            # Initialize different router types
-            if (
-                hasattr(self.config.routing, "heuristic")
-                and self.config.routing.heuristic.enabled
-                and EnhancedHeuristicRouter is not None
-            ):
-                self.routers["heuristic"] = EnhancedHeuristicRouter(
-                    self.config.routing.heuristic.dict()
-                )
-
-            if (
-                hasattr(self.config.routing, "semantic")
-                and self.config.routing.semantic.enabled
-                and SemanticRouter is not None
-            ):
-                self.routers["semantic"] = SemanticRouter(
-                    embedding_manager=self.embedding_manager,
-                    config=self.config.routing.semantic.dict(),
-                )
-
-            if (
-                hasattr(self.config.routing, "cascade")
-                and self.config.routing.cascade.enabled
-                and CascadeRouter is not None
-            ):
-                self.routers["cascade"] = CascadeRouter(self.config.routing.cascade.dict())
-
-            if (
-                hasattr(self.config.routing, "hybrid")
-                and self.config.routing.hybrid.enabled
-                and HybridRouter is not None
-            ):
-                self.routers["hybrid"] = HybridRouter(
-                    heuristic_router=self.routers.get("heuristic"),
-                    semantic_router=self.routers.get("semantic"),
-                    config=self.config.routing.hybrid.dict(),
-                )
-
-            if logger:
-                logger.info("routing_initialized", routers=list(self.routers.keys()))
-        except Exception as e:
-            if logger:
-                logger.warning("routing_init_failed", error=str(e))
 
     def _initialize_cost_tracking(self) -> None:
         """Initialize enhanced cost tracking system."""
