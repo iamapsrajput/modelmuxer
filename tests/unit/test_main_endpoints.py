@@ -235,40 +235,30 @@ class TestModelsEndpoint:
 class TestAnalyticsEndpoints:
     """Test analytics endpoints."""
 
-    def test_get_cost_analytics_basic_mode(self, test_client, mock_auth):
-        """Test /v1/analytics/costs in basic mode."""
-        with patch("app.main.model_muxer.enhanced_mode", False):
-            response = test_client.get(
-                "/v1/analytics/costs?days=30", headers={"Authorization": "Bearer test-key"}
-            )
-            assert response.status_code == 200
-            data = response.json()
-            assert "basic_stats" in data
-            assert data["basic_stats"]["period_days"] == 30
+    def test_get_cost_analytics(self, test_client, mock_auth):
+        """Test /v1/analytics/costs."""
+        response = test_client.get(
+            "/v1/analytics/costs?days=7&provider=openai",
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["period_days"] == 7
+        assert "cost_by_provider" in data
 
-    def test_get_cost_analytics_enhanced_mode(self, test_client, mock_auth):
-        """Test /v1/analytics/costs in enhanced mode."""
-        with patch("app.main.model_muxer.enhanced_mode", True):
-            response = test_client.get(
-                "/v1/analytics/costs?days=7&provider=openai",
-                headers={"Authorization": "Bearer test-key"},
-            )
-            assert response.status_code == 200
-            data = response.json()
-            assert data["period_days"] == 7
-            assert "cost_by_provider" in data
-
-    def test_get_budget_status_basic_mode(self, test_client, mock_auth):
-        """Test /v1/analytics/budgets GET in basic mode."""
-        with patch("app.main.model_muxer.enhanced_mode", False):
+    def test_get_budget_status_tracker_unavailable(self, test_client, mock_auth):
+        """Test /v1/analytics/budgets GET when tracker is unavailable."""
+        with patch("app.main.model_muxer.advanced_cost_tracker", None):
             response = test_client.get(
                 "/v1/analytics/budgets", headers={"Authorization": "Bearer test-key"}
             )
-            assert response.status_code == 501
-            assert "enhanced mode" in response.json()["error"]["message"]
+            assert response.status_code == 200
+            data = response.json()
+            assert data["budgets"] == []
+            assert data["total_budgets"] == 0
 
-    def test_get_budget_status_enhanced_mode(self, test_client, mock_auth):
-        """Test /v1/analytics/budgets GET in enhanced mode."""
+    def test_get_budget_status(self, test_client, mock_auth):
+        """Test /v1/analytics/budgets GET."""
         mock_tracker = Mock()
         mock_tracker.get_budget_status = AsyncMock(
             return_value=[
@@ -287,72 +277,69 @@ class TestAnalyticsEndpoints:
             ]
         )
 
-        with patch("app.main.model_muxer.enhanced_mode", True):
-            with patch("app.main.model_muxer.advanced_cost_tracker", mock_tracker):
-                response = test_client.get(
-                    "/v1/analytics/budgets?budget_type=monthly",
-                    headers={"Authorization": "Bearer test-key"},
-                )
-                assert response.status_code == 200
-                data = response.json()
-                assert len(data["budgets"]) == 1
-                assert data["budgets"][0]["budget_type"] == "monthly"
+        with patch("app.main.model_muxer.advanced_cost_tracker", mock_tracker):
+            response = test_client.get(
+                "/v1/analytics/budgets?budget_type=monthly",
+                headers={"Authorization": "Bearer test-key"},
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["budgets"]) == 1
+            assert data["budgets"][0]["budget_type"] == "monthly"
 
-    def test_set_budget_basic_mode(self, test_client, mock_auth):
-        """Test /v1/analytics/budgets POST in basic mode."""
-        with patch("app.main.model_muxer.enhanced_mode", False):
+    def test_set_budget_tracker_unavailable(self, test_client, mock_auth):
+        """Test /v1/analytics/budgets POST when tracker is unavailable."""
+        with patch("app.main.model_muxer.advanced_cost_tracker", None):
             response = test_client.post(
                 "/v1/analytics/budgets",
                 json={"budget_type": "monthly", "budget_limit": 100.0},
                 headers={"Authorization": "Bearer test-key"},
             )
-            assert response.status_code == 501
+            assert response.status_code == 500
 
-    def test_set_budget_enhanced_mode(self, test_client, mock_auth):
-        """Test /v1/analytics/budgets POST in enhanced mode."""
+    def test_set_budget(self, test_client, mock_auth):
+        """Test /v1/analytics/budgets POST."""
         mock_tracker = Mock()
         mock_tracker.set_budget = AsyncMock()
 
-        with patch("app.main.model_muxer.enhanced_mode", True):
-            with patch("app.main.model_muxer.advanced_cost_tracker", mock_tracker):
-                response = test_client.post(
-                    "/v1/analytics/budgets",
-                    json={
-                        "budget_type": "monthly",
-                        "budget_limit": 100.0,
-                        "alert_thresholds": [50, 80, 95],
-                    },
-                    headers={"Authorization": "Bearer test-key"},
-                )
-                assert response.status_code == 200
-                data = response.json()
-                assert data["budget"]["budget_type"] == "monthly"
-                assert data["budget"]["budget_limit"] == 100.0
+        with patch("app.main.model_muxer.advanced_cost_tracker", mock_tracker):
+            response = test_client.post(
+                "/v1/analytics/budgets",
+                json={
+                    "budget_type": "monthly",
+                    "budget_limit": 100.0,
+                    "alert_thresholds": [50, 80, 95],
+                },
+                headers={"Authorization": "Bearer test-key"},
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["budget"]["budget_type"] == "monthly"
+            assert data["budget"]["budget_limit"] == 100.0
 
     def test_set_budget_invalid_params(self, test_client, mock_auth):
         """Test /v1/analytics/budgets POST with invalid parameters."""
-        with patch("app.main.model_muxer.enhanced_mode", True):
-            # Missing required fields
-            response = test_client.post(
-                "/v1/analytics/budgets", json={}, headers={"Authorization": "Bearer test-key"}
-            )
-            assert response.status_code == 400
+        # Missing required fields
+        response = test_client.post(
+            "/v1/analytics/budgets", json={}, headers={"Authorization": "Bearer test-key"}
+        )
+        assert response.status_code == 400
 
-            # Invalid budget type
-            response = test_client.post(
-                "/v1/analytics/budgets",
-                json={"budget_type": "invalid", "budget_limit": 100},
-                headers={"Authorization": "Bearer test-key"},
-            )
-            assert response.status_code == 400
+        # Invalid budget type
+        response = test_client.post(
+            "/v1/analytics/budgets",
+            json={"budget_type": "invalid", "budget_limit": 100},
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 400
 
-            # Invalid budget limit
-            response = test_client.post(
-                "/v1/analytics/budgets",
-                json={"budget_type": "monthly", "budget_limit": -10},
-                headers={"Authorization": "Bearer test-key"},
-            )
-            assert response.status_code == 400
+        # Invalid budget limit
+        response = test_client.post(
+            "/v1/analytics/budgets",
+            json={"budget_type": "monthly", "budget_limit": -10},
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 400
 
 
 class TestChatCompletionsEndpoint:
@@ -529,34 +516,6 @@ class TestChatCompletionsEndpoint:
                 assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
 
 
-class TestEnhancedChatCompletions:
-    """Test enhanced chat completions endpoint."""
-
-    def test_enhanced_chat_basic_mode(self, test_client, mock_auth):
-        """Test enhanced chat completions in basic mode."""
-        with patch("app.main.model_muxer.enhanced_mode", False):
-            response = test_client.post(
-                "/v1/chat/completions/enhanced",
-                json={"messages": [{"role": "user", "content": "Hello"}]},
-                headers={"Authorization": "Bearer test-key"},
-            )
-            assert response.status_code == 501
-            assert "enhanced mode" in response.json()["error"]["message"]
-
-    async def test_enhanced_chat_enhanced_mode(
-        self, test_client, mock_auth, mock_router, mock_provider_registry
-    ):
-        """Test enhanced chat completions in enhanced mode."""
-        with patch("app.main.model_muxer.enhanced_mode", True):
-            with patch("app.main.router", mock_router):
-                response = test_client.post(
-                    "/v1/chat/completions/enhanced",
-                    json={"messages": [{"role": "user", "content": "Hello"}], "model": "gpt-4"},
-                    headers={"Authorization": "Bearer test-key"},
-                )
-                assert response.status_code == 200
-
-
 class TestAnthropicCompatibility:
     """Test Anthropic API compatibility endpoints."""
 
@@ -699,32 +658,24 @@ class TestMiddleware:
 class TestModelMuxerInitialization:
     """Test ModelMuxer initialization."""
 
-    def test_model_muxer_basic_mode(self):
-        """Test ModelMuxer initialization in basic mode."""
+    def test_model_muxer_init(self):
+        """Test ModelMuxer initialization."""
         from app.main import ModelMuxer
 
-        with patch("app.main.ENHANCED_MODE", False):
-            muxer = ModelMuxer(enhanced_mode=False)
-            assert not muxer.enhanced_mode
+        muxer = ModelMuxer()
+        assert muxer.cost_tracker is not None
+        assert muxer.config is not None
+
+    def test_model_muxer_cost_tracker_fallback(self):
+        """Test ModelMuxer falls back to the basic cost tracker on failure."""
+        from app.main import ModelMuxer
+
+        with patch(
+            "app.cost_tracker.create_advanced_cost_tracker", side_effect=RuntimeError("boom")
+        ):
+            muxer = ModelMuxer()
+            assert muxer.advanced_cost_tracker is None
             assert muxer.cost_tracker is not None
-
-    def test_model_muxer_enhanced_mode(self):
-        """Test ModelMuxer initialization in enhanced mode."""
-        from app.main import ModelMuxer
-
-        with patch("app.main.ENHANCED_FEATURES_AVAILABLE", True):
-            with patch("app.main.enhanced_config", Mock()):
-                muxer = ModelMuxer(enhanced_mode=True)
-                assert muxer.enhanced_mode
-
-    def test_model_muxer_enhanced_fallback(self):
-        """Test ModelMuxer fallback when enhanced features not available."""
-        from app.main import ModelMuxer
-
-        with patch("app.main.ENHANCED_FEATURES_AVAILABLE", False):
-            muxer = ModelMuxer(enhanced_mode=True)
-            # Should fall back to basic mode
-            assert not muxer.enhanced_mode
 
 
 class TestLifespan:

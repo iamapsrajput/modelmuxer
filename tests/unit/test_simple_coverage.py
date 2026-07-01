@@ -124,10 +124,10 @@ class TestSimpleCoverage:
         assert isinstance(config.enable_rate_limiting, bool)
         assert config.max_request_size_mb > 0
 
-    def test_core_interfaces(self):
-        """Test core interfaces are importable."""
-        from app.core.interfaces import ProviderInterface, RouterInterface
+    def test_provider_adapter_interface(self):
+        """Test the provider adapter interface is importable."""
+        from app.providers.base import LLMProviderAdapter, ProviderResponse
 
         # Just check they can be imported
-        assert ProviderInterface is not None
-        assert RouterInterface is not None
+        assert LLMProviderAdapter is not None
+        assert ProviderResponse is not None

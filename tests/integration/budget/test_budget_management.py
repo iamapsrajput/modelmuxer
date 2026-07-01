@@ -38,20 +38,19 @@ class TestBudgetManagement:
         app.dependency_overrides.clear()
 
     @patch("app.main.model_muxer")
-    def test_get_budget_status_basic_mode(self, mock_model_muxer):
-        """Test getting budget status in basic mode."""
-        # Mock basic mode
-        mock_model_muxer.enhanced_mode = False
+    def test_get_budget_status_tracker_unavailable(self, mock_model_muxer):
+        """Test getting budget status when the tracker failed to initialize."""
+        mock_model_muxer.advanced_cost_tracker = None
 
         response = self.client.get("/v1/analytics/budgets")
-        assert response.status_code == 501
-        assert "enhanced mode" in response.json()["error"]["message"].lower()
+        assert response.status_code == 200
+        data = response.json()
+        assert data["budgets"] == []
+        assert data["total_budgets"] == 0
 
     @patch("app.main.model_muxer")
-    def test_get_budget_status_enhanced_mode(self, mock_model_muxer):
-        """Test getting budget status in enhanced mode."""
-        # Mock enhanced mode with advanced cost tracker
-        mock_model_muxer.enhanced_mode = True
+    def test_get_budget_status(self, mock_model_muxer):
+        """Test getting budget status via the advanced cost tracker."""
         mock_advanced_tracker = AsyncMock()
         mock_model_muxer.advanced_cost_tracker = mock_advanced_tracker
 
@@ -89,10 +88,9 @@ class TestBudgetManagement:
         assert data["budgets"][0]["budget_limit"] == 10.0
 
     @patch("app.main.model_muxer")
-    def test_set_budget_basic_mode(self, mock_model_muxer):
-        """Test setting budget in basic mode."""
-        # Mock basic mode
-        mock_model_muxer.enhanced_mode = False
+    def test_set_budget_tracker_unavailable(self, mock_model_muxer):
+        """Test setting budget when the tracker failed to initialize."""
+        mock_model_muxer.advanced_cost_tracker = None
 
         budget_request = {
             "budget_type": "daily",
@@ -104,14 +102,11 @@ class TestBudgetManagement:
             "/v1/analytics/budgets", headers=self.test_headers, json=budget_request
         )
 
-        assert response.status_code == 501
-        assert "enhanced mode" in response.json()["error"]["message"].lower()
+        assert response.status_code == 500
 
     @patch("app.main.model_muxer")
-    def test_set_budget_enhanced_mode(self, mock_model_muxer):
-        """Test setting budget in enhanced mode."""
-        # Mock enhanced mode with advanced cost tracker
-        mock_model_muxer.enhanced_mode = True
+    def test_set_budget(self, mock_model_muxer):
+        """Test setting budget via the advanced cost tracker."""
         mock_advanced_tracker = AsyncMock()
         mock_model_muxer.advanced_cost_tracker = mock_advanced_tracker
 
@@ -148,8 +143,6 @@ class TestBudgetManagement:
     @patch("app.main.model_muxer")
     def test_set_budget_invalid_request(self, mock_model_muxer):
         """Test setting budget with invalid request data."""
-        # Mock enhanced mode
-        mock_model_muxer.enhanced_mode = True
         mock_model_muxer.advanced_cost_tracker = AsyncMock()
 
         # Test missing budget_type

@@ -264,15 +264,11 @@ strict_equality = true
 # Exclude problematic modules during migration to zero errors
 exclude = [
     "app/providers/*",
-    "app/config/enhanced_config.py",
-    "app/classification/*",
     "app/main.py",
     "app/router.py",
     "app/database.py",
     "app/cost_tracker.py",
     "app/security/*",
-    "app/middleware/*",
-    "app/enterprise/*",
     "tests/*",
 ]
 
@@ -292,8 +288,6 @@ exclude = [
     "**/.venv/**",
     "**/tests/**",
     "app/providers/**",
-    "app/config/enhanced_config.py",
-    "app/classification/**",
 ]
 ignore = [
     "app/main.py",
@@ -301,7 +295,6 @@ ignore = [
     "app/database.py",
     "app/cost_tracker.py",
     "app/security/**",
-    "app/middleware/**",
 ]
 
 [[tool.mypy.overrides]]

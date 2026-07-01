@@ -114,11 +114,9 @@ jobs:
           ls -la
           echo "App directory contents:"
           ls -la app/
-          echo "Cache directory contents:"
-          ls -la app/cache/
           echo "Testing Python imports:"
           python -c "import sys; print('Python path:', sys.path)"
-          python -c "from app.cache import MemoryCache, RedisCache; print('Cache imports successful')" || echo "Cache import failed"
+          python -c "from app.providers import OpenAIAdapter; print('Provider imports successful')" || echo "Provider import failed"
 
       - name: Run unit tests
         env:

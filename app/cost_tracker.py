@@ -335,7 +335,10 @@ class AdvancedCostTracker(CostTracker):
     def __init__(
         self, db_path: str = "cost_tracker.db", redis_url: str = "redis://localhost:6379/0"
     ):
-        super().__init__(enhanced_mode=True)
+        # Skip the base-class enhanced init; this class configures its own
+        # Redis client and database below.
+        super().__init__(enhanced_mode=False)
+        self.enhanced_mode = True
 
         # Set database path for enhanced features
         self.db_path = db_path
@@ -343,10 +346,13 @@ class AdvancedCostTracker(CostTracker):
         # Store redis URL for enhanced features
         self.redis_url = redis_url
 
-        # Configure Redis client for enhanced features
+        # Configure Redis client, falling back to an in-memory mock when
+        # Redis is unavailable so budget tracking still works.
         if ENHANCED_FEATURES_AVAILABLE and redis:
             try:
-                redis_client = redis.from_url(redis_url, decode_responses=True)
+                redis_client = redis.from_url(
+                    redis_url, decode_responses=True, socket_connect_timeout=2, socket_timeout=2
+                )
                 # Test connection
                 redis_client.ping()
                 self.redis_client = redis_client
@@ -356,8 +362,8 @@ class AdvancedCostTracker(CostTracker):
                 if logger:
                     logger.warning("redis_connection_failed", error=str(e), fallback="mock")
                 self.redis_client = MockRedisClient()
-            else:
-                self.redis_client = MockRedisClient()
+        else:
+            self.redis_client = MockRedisClient()
 
         # Initialize database
         self._init_database()

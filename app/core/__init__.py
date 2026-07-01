@@ -16,7 +16,6 @@ from .exceptions import (
     RateLimitError,
     RoutingError,
 )
-from .interfaces import CacheInterface, ProviderInterface, RouterInterface
 from .utils import (
     estimate_tokens,
     format_cost,
@@ -26,10 +25,6 @@ from .utils import (
 )
 
 __all__ = [
-    # Interfaces
-    "RouterInterface",
-    "ProviderInterface",
-    "CacheInterface",
     # Exceptions
     "ModelMuxerError",
     "ProviderError",

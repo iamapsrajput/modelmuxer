@@ -360,66 +360,44 @@ class TestMainApplication:
                     assert response.headers["content-type"] == "text/plain; charset=utf-8"
 
     @pytest.mark.asyncio
-    async def test_get_cost_analytics_basic_mode(self, client, mock_user_info):
-        """Test cost analytics in basic mode."""
+    async def test_get_cost_analytics(self, client, mock_user_info):
+        """Test cost analytics endpoint."""
         with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
-            with patch("app.main.model_muxer.enhanced_mode", False):
-                response = client.get(
-                    "/v1/analytics/costs", headers={"Authorization": "Bearer test_key"}
-                )
+            response = client.get(
+                "/v1/analytics/costs", headers={"Authorization": "Bearer test_key"}
+            )
 
-                assert response.status_code == 200
-                data = response.json()
-                assert "message" in data
-                assert "basic_stats" in data
+            assert response.status_code == 200
+            data = response.json()
+            assert "total_cost" in data
+            assert "cost_by_provider" in data
 
     @pytest.mark.asyncio
-    async def test_get_budget_status_enhanced_mode_required(self, client, mock_user_info):
-        """Test budget status requires enhanced mode."""
+    async def test_get_budget_status_tracker_unavailable(self, client, mock_user_info):
+        """Test budget status when the advanced tracker is unavailable."""
         with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
-            with patch("app.main.model_muxer.enhanced_mode", False):
+            with patch("app.main.model_muxer.advanced_cost_tracker", None):
                 response = client.get(
                     "/v1/analytics/budgets", headers={"Authorization": "Bearer test_key"}
                 )
 
-                assert response.status_code == 501
+                assert response.status_code == 200
                 data = response.json()
-                assert "error" in data
-                assert data["error"]["code"] == "enhanced_mode_required"
+                assert data["budgets"] == []
+                assert data["total_budgets"] == 0
 
     @pytest.mark.asyncio
-    async def test_set_budget_enhanced_mode_required(self, client, mock_user_info):
-        """Test set budget requires enhanced mode."""
+    async def test_set_budget_tracker_unavailable(self, client, mock_user_info):
+        """Test set budget when the advanced tracker is unavailable."""
         with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
-            with patch("app.main.model_muxer.enhanced_mode", False):
+            with patch("app.main.model_muxer.advanced_cost_tracker", None):
                 response = client.post(
                     "/v1/analytics/budgets",
                     json={"budget_type": "daily", "budget_limit": 50.0},
                     headers={"Authorization": "Bearer test_key"},
                 )
 
-                assert response.status_code == 501
-                data = response.json()
-                assert data["error"]["code"] == "enhanced_mode_required"
-
-    @pytest.mark.asyncio
-    async def test_enhanced_chat_completions_basic_mode(
-        self, client, sample_chat_request, mock_user_info
-    ):
-        """Test enhanced chat completions in basic mode falls back."""
-        with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
-            with patch("app.main.model_muxer.enhanced_mode", True):
-                with patch("app.main.chat_completions") as mock_chat:
-                    mock_chat.return_value = JSONResponse(content={"test": "response"})
-
-                    response = client.post(
-                        "/v1/chat/completions/enhanced",
-                        json=sample_chat_request.dict(),
-                        headers={"Authorization": "Bearer test_key"},
-                    )
-
-                    assert response.status_code == 200
-                    mock_chat.assert_called_once()
+                assert response.status_code == 500
 
     @pytest.mark.asyncio
     async def test_anthropic_messages_success(self, client, mock_user_info):

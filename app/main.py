@@ -1,12 +1,11 @@
 # ModelMuxer (c) 2025 Ajay Rajput
 # Licensed under Business Source License 1.1 – see LICENSE for details.
 """
-ModelMuxer main application with comprehensive features.
+ModelMuxer main application.
 
-This module provides the complete ModelMuxer application with both basic and advanced features,
-including intelligent routing, multiple providers, ML-based classification, comprehensive
-monitoring, cost tracking, and enterprise features. The application automatically detects
-the deployment mode and enables appropriate features.
+This module provides the ModelMuxer FastAPI application with intelligent
+LLM routing across multiple providers, cost estimation with budget gating,
+cost tracking, and observability.
 """
 
 import json
@@ -33,10 +32,8 @@ from app.telemetry.metrics import HTTP_REQUESTS_TOTAL as HTTP_REQUESTS
 from app.telemetry.metrics import LLM_ROUTER_BUDGET_EXCEEDED_TOTAL, REQUEST_DURATION, REQUESTS_TOTAL
 from app.telemetry.tracing import get_trace_id, setup_tracing, start_span
 
-# Prometheus not used in basic mode - only in enhanced mode
 # Core imports
 from .auth import SecurityHeaders, auth, sanitize_user_input, validate_request_size
-from .config import settings as legacy_settings  # kept for enhanced mode compatibility
 from .cost_tracker import cost_tracker
 from .database import db
 from .models import (
@@ -61,83 +58,7 @@ except Exception:  # pragma: no cover
     CONTENT_TYPE_LATEST = None  # type: ignore[assignment]
     generate_latest = None  # type: ignore[assignment]
 
-# Enhanced imports (optional - loaded based on availability and configuration)
-# Declare optional imports with proper types
-MemoryCache: type | None = None
-RedisCache: type | None = None
-EmbeddingManager: type | None = None
-PromptClassifier: type | None = None
-AuthMiddleware: type | None = None
-LoggingMiddleware: type | None = None
-RateLimitMiddleware: type | None = None
-HealthChecker: type | None = None
-MetricsCollector: type | None = None
-
-try:
-    # Core enhanced config (always required for enhanced mode)
-    from .config import enhanced_config
-
-    # Core enhanced features available
-    CORE_ENHANCED_AVAILABLE = True
-    logger = structlog.get_logger(__name__)
-
-    # Optional cache imports (can fail without breaking enhanced mode)
-    try:
-        from .cache.memory_cache import MemoryCache
-        from .cache.redis_cache import RedisCache
-
-        CACHE_FEATURES_AVAILABLE = True
-    except ImportError:
-        CACHE_FEATURES_AVAILABLE = False
-
-    # Optional ML imports (can fail without breaking enhanced mode)
-    try:
-        from .classification.embeddings import EmbeddingManager
-        from .classification.prompt_classifier import PromptClassifier
-
-        ML_FEATURES_AVAILABLE = True
-    except ImportError:
-        ML_FEATURES_AVAILABLE = False
-
-    # Optional middleware imports (can fail without breaking enhanced mode)
-    try:
-        from .middleware.auth_middleware import AuthMiddleware
-        from .middleware.logging_middleware import LoggingMiddleware
-        from .middleware.rate_limit_middleware import RateLimitMiddleware
-
-        MIDDLEWARE_FEATURES_AVAILABLE = True
-    except ImportError:
-        MIDDLEWARE_FEATURES_AVAILABLE = False
-
-    # Optional monitoring imports (can fail without breaking enhanced mode)
-    try:
-        from .monitoring.health_checker import HealthChecker
-        from .monitoring.metrics_collector import MetricsCollector
-
-        MONITORING_FEATURES_AVAILABLE = True
-    except ImportError:
-        MONITORING_FEATURES_AVAILABLE = False
-
-    ENHANCED_FEATURES_AVAILABLE = CORE_ENHANCED_AVAILABLE
-
-except ImportError:
-    ENHANCED_FEATURES_AVAILABLE = False
-    CORE_ENHANCED_AVAILABLE = False
-    CACHE_FEATURES_AVAILABLE = False
-    ML_FEATURES_AVAILABLE = False
-    MIDDLEWARE_FEATURES_AVAILABLE = False
-    MONITORING_FEATURES_AVAILABLE = False
-    # Create a fallback logger to avoid AttributeError
-    logger = structlog.get_logger(__name__)
-    enhanced_config = None
-    # Enhanced features not available, running in basic mode
-
-# Determine if we should run in enhanced mode (via centralized settings)
-ENHANCED_MODE = (
-    ENHANCED_FEATURES_AVAILABLE
-    and app_settings.features.mode in ["enhanced", "production"]
-    and enhanced_config is not None
-)
+logger = structlog.get_logger(__name__)
 
 # Global providers registry is now managed in app.providers.registry
 # Use get_provider_registry() to access provider adapters
@@ -148,225 +69,39 @@ router = None
 
 class ModelMuxer:
     """
-    Unified ModelMuxer with both basic and enhanced features.
+    Central ModelMuxer orchestrator.
 
-    Automatically detects deployment mode and enables appropriate features.
-    Provides intelligent LLM routing with multiple providers, optional ML-based
-    classification, monitoring, caching, authentication, and rate limiting.
+    Holds shared application services: configuration and cost tracking.
+    Providers are managed through the registry system and routing through
+    the global HeuristicRouter instance.
     """
 
-    def __init__(self, enhanced_mode: bool = None) -> None:
-        # Determine mode
-        if enhanced_mode is None:
-            enhanced_mode = ENHANCED_MODE
-
-        self.enhanced_mode = enhanced_mode
-        self.config = enhanced_config if enhanced_mode and enhanced_config else app_settings
-
-        # Initialize components
-        # Note: providers are now managed through the registry system
-        self.cache: Any = None
-        self.embedding_manager: Any = None
-        self.classifier: Any = None
-        self.metrics_collector: Any = None
-        self.health_checker: Any = None
-        self.cost_tracker: Any = None
+    def __init__(self) -> None:
+        self.config = app_settings
+        self.cost_tracker: Any = cost_tracker
         self.advanced_cost_tracker: Any = None
-
-        # Middleware (enhanced mode only)
-        self.auth_middleware: Any = None
-        self.rate_limit_middleware: Any = None
-        self.logging_middleware: Any = None
-
-        # Initialize components based on mode
-        if self.enhanced_mode:
-            self._initialize_enhanced_components()
-        else:
-            self._initialize_basic_components()
-
-    def _initialize_basic_components(self) -> None:
-        """Initialize basic components for simple deployment."""
-        # Use global cost_tracker for basic mode
-        self.cost_tracker = cost_tracker
-        # Basic ModelMuxer initialized (logged via structlog if available)
-
-    def _initialize_enhanced_components(self) -> None:
-        """Initialize all enhanced components."""
-        if not ENHANCED_FEATURES_AVAILABLE:
-            # Enhanced features requested but not available, falling back to basic mode
-            self._initialize_basic_components()
-            return
-
-        try:
-            self._initialize_cache()
-            self._initialize_classification()
-            self._initialize_cost_tracking()
-            self._initialize_monitoring()
-            self._initialize_middleware()
-
-            if logger:
-                logger.info(
-                    "enhanced_modelmuxer_initialized",
-                    cache_enabled=self.cache is not None,
-                    classification_enabled=self.classifier is not None,
-                    monitoring_enabled=self.metrics_collector is not None,
-                )
-            # Enhanced ModelMuxer initialized (logged via structlog above)
-
-        except Exception:
-            # Enhanced initialization failed, falling back to basic mode
-            # Error details logged via structlog if available
-            self._initialize_basic_components()
-
-    def _initialize_cache(self) -> None:
-        """Initialize caching system."""
-        if not hasattr(self.config, "cache") or not self.config.cache.enabled:
-            return
-
-        # Skip if cache features are not available
-        if not CACHE_FEATURES_AVAILABLE or MemoryCache is None or RedisCache is None:
-            if logger:
-                logger.info("cache_skipped", reason="Cache dependencies not available")
-            return
-
-        try:
-            if self.config.cache.backend == "redis":
-                # Parse Redis URL for connection details
-                import urllib.parse
-
-                parsed = urllib.parse.urlparse(self.config.cache.redis_url)
-
-                self.cache = RedisCache(
-                    host=parsed.hostname or "localhost",
-                    port=parsed.port or 6379,
-                    db=self.config.cache.redis_db,
-                    password=parsed.password,
-                    default_ttl=self.config.cache.default_ttl,
-                )
-            else:
-                self.cache = MemoryCache(
-                    max_size=self.config.cache.memory_max_size,
-                    max_memory_mb=self.config.cache.memory_max_memory_mb,
-                    default_ttl=self.config.cache.default_ttl,
-                )
-
-            if logger:
-                logger.info("cache_initialized", cache_type=self.config.cache.backend)
-        except Exception as e:
-            if logger:
-                logger.warning("cache_init_failed", error=str(e))
-
-    def _initialize_classification(self) -> None:
-        """Initialize ML classification system."""
-        if not hasattr(self.config, "classification") or not self.config.classification.enabled:
-            return
-
-        # Skip if ML features are not available
-        if not ML_FEATURES_AVAILABLE or EmbeddingManager is None or PromptClassifier is None:
-            if logger:
-                logger.info("classification_skipped", reason="ML dependencies not available")
-            return
-
-        try:
-            self.embedding_manager = EmbeddingManager(
-                model_name=self.config.classification.embedding_model,
-                cache_dir=self.config.classification.cache_dir,
-            )
-
-            self.classifier = PromptClassifier(
-                embedding_manager=self.embedding_manager,
-                config=self.config.classification,
-            )
-
-            if logger:
-                logger.info("classification_initialized")
-        except Exception as e:
-            if logger:
-                logger.warning("classification_init_failed", error=str(e))
+        self._initialize_cost_tracking()
 
     def _initialize_cost_tracking(self) -> None:
-        """Initialize enhanced cost tracking system."""
-        if not ENHANCED_FEATURES_AVAILABLE:
-            self.cost_tracker = cost_tracker
-            return
+        """Initialize the advanced cost tracker (budgets, analytics).
 
+        Falls back to the basic cost tracker when initialization fails;
+        Redis is optional and degrades to an in-memory mock internally.
+        """
         try:
             # Import here to avoid circular imports
             from .cost_tracker import create_advanced_cost_tracker
 
-            # Use Docker-compatible Redis URL
-            redis_url = "redis://host.docker.internal:6379/0"
-            if hasattr(self.config, "cache") and hasattr(self.config.cache, "redis_url"):
-                redis_url = self.config.cache.redis_url
-            elif hasattr(self.config, "cache"):
-                redis_url = f"redis://{self.config.cache.redis_host}:{self.config.cache.redis_port}/{self.config.cache.redis_db}"
-
+            redis_url = app_settings.cache.redis_url or "redis://localhost:6379/0"
             self.advanced_cost_tracker = create_advanced_cost_tracker(
                 db_path="cost_tracker_enhanced.db", redis_url=redis_url
             )
-            self.cost_tracker = self.advanced_cost_tracker  # For backward compatibility
-            if logger:
-                logger.info("enhanced_cost_tracker_initialized", redis_url=redis_url)
+            self.cost_tracker = self.advanced_cost_tracker
+            logger.info("cost_tracker_initialized", redis_url=redis_url)
         except Exception as e:
-            if logger:
-                logger.warning("cost_tracker_init_failed", error=str(e))
+            logger.warning("cost_tracker_init_failed", error=str(e))
             # Fallback to basic cost tracker
             self.cost_tracker = cost_tracker
-
-    def _initialize_monitoring(self) -> None:
-        """Initialize monitoring and metrics collection."""
-        if not hasattr(self.config, "monitoring") or not self.config.monitoring.enabled:
-            return
-
-        try:
-            self.metrics_collector = MetricsCollector(
-                enabled=self.config.monitoring.metrics_enabled,
-                prometheus_enabled=False,  # Basic mode doesn't support Prometheus
-            )
-
-            self.health_checker = HealthChecker(
-                check_interval=self.config.monitoring.health_check_interval,
-                providers=providers_registry.get_provider_registry,
-            )
-
-            if logger:
-                logger.info("monitoring_initialized")
-        except Exception as e:
-            if logger:
-                logger.warning("monitoring_init_failed", error=str(e))
-
-    def _initialize_middleware(self) -> None:
-        """Initialize middleware components."""
-        if not hasattr(self.config, "middleware"):
-            return
-
-        try:
-            if (
-                hasattr(self.config.middleware, "auth")
-                and self.config.middleware.auth.enabled
-                and AuthMiddleware is not None
-            ):
-                self.auth_middleware = AuthMiddleware(self.config.middleware.auth)
-
-            if (
-                hasattr(self.config.middleware, "rate_limit")
-                and self.config.middleware.rate_limit.enabled
-                and RateLimitMiddleware is not None
-            ):
-                self.rate_limit_middleware = RateLimitMiddleware(self.config.middleware.rate_limit)
-
-            if (
-                hasattr(self.config.middleware, "logging")
-                and self.config.middleware.logging.enabled
-                and LoggingMiddleware is not None
-            ):
-                self.logging_middleware = LoggingMiddleware(self.config.middleware.logging)
-
-            if logger:
-                logger.info("middleware_initialized")
-        except Exception as e:
-            if logger:
-                logger.warning("middleware_init_failed", error=str(e))
 
 
 # Global model muxer instance
@@ -1439,9 +1174,7 @@ async def chat_completions(
         # Only fall back to cost tracker if router estimate is not available
         cost_estimate = router_cost_estimate
         if cost_estimate is None:
-            active_cost_tracker = (
-                model_muxer.cost_tracker if model_muxer.enhanced_mode else cost_tracker
-            )
+            active_cost_tracker = model_muxer.cost_tracker
             if app_settings.server.debug:
                 logger.debug(
                     "Router estimate not available, falling back to cost_tracker: %s",
@@ -1648,12 +1381,8 @@ async def chat_completions(
             except Exception:
                 pass
 
-            # Log the request using enhanced cost tracker if available
-            if (
-                model_muxer.enhanced_mode
-                and hasattr(model_muxer, "advanced_cost_tracker")
-                and model_muxer.advanced_cost_tracker
-            ):
+            # Log the request using the advanced cost tracker if available
+            if model_muxer.advanced_cost_tracker:
                 await model_muxer.advanced_cost_tracker.log_simple_request(
                     user_id=user_id,
                     session_id=user_id,  # Use user_id as session_id for now
@@ -1927,18 +1656,6 @@ async def get_cost_analytics(
     """Get cost analytics for the user."""
     user_id = user_info["user_id"]
 
-    # In basic mode, return simple analytics
-    if not model_muxer.enhanced_mode:
-        return {
-            "message": "Enhanced analytics available in enhanced mode only",
-            "basic_stats": {
-                "total_requests": 0,
-                "total_cost": 0.0,
-                "period_days": days,
-            },
-        }
-
-    # Enhanced mode would have detailed analytics
     return {
         "user_id": user_id,
         "period_days": days,
@@ -1957,19 +1674,6 @@ async def get_budget_status(
 ):
     """Get budget status and alerts for the user."""
     user_id = user_info["user_id"]
-
-    # Budget management requires enhanced mode
-    if not model_muxer.enhanced_mode:
-        return JSONResponse(
-            status_code=501,
-            content={
-                "error": {
-                    "message": "Budget management requires enhanced mode",
-                    "type": "feature_not_available",
-                    "code": "enhanced_mode_required",
-                }
-            },
-        )
 
     try:
         # Get budget status from advanced cost tracker
@@ -2037,19 +1741,6 @@ async def set_budget(
 ):
     """Set budget limits and alert thresholds for the user."""
     user_id = user_info["user_id"]
-
-    # Budget management requires enhanced mode
-    if not model_muxer.enhanced_mode:
-        return JSONResponse(
-            status_code=501,
-            content={
-                "error": {
-                    "message": "Budget management requires enhanced mode",
-                    "type": "feature_not_available",
-                    "code": "enhanced_mode_required",
-                }
-            },
-        )
 
     try:
         # Validate request
@@ -2133,29 +1824,6 @@ async def set_budget(
                 code="budget_set_failed",
             ).dict(),
         ) from e
-
-
-@app.post("/v1/chat/completions/enhanced")
-async def enhanced_chat_completions(
-    request: ChatCompletionRequest,
-    user_info: dict[str, Any] = Depends(get_authenticated_user),
-):
-    """Enhanced chat completions with advanced routing and features."""
-    if not model_muxer.enhanced_mode:
-        return JSONResponse(
-            status_code=501,
-            content={
-                "error": {
-                    "message": "Enhanced chat completions require enhanced mode",
-                    "type": "feature_not_available",
-                    "code": "enhanced_mode_required",
-                }
-            },
-        )
-
-    # In enhanced mode, this would use advanced routing, caching, etc.
-    # For now, fall back to regular chat completions
-    return await chat_completions(request, user_info)
 
 
 # =============================================================================
@@ -2290,9 +1958,9 @@ def cli():
     parser.add_argument("--workers", type=int, default=1, help="Number of worker processes")
     parser.add_argument(
         "--mode",
-        choices=["basic", "enhanced", "production"],
+        choices=["basic", "production"],
         default="basic",
-        help="Deployment mode",
+        help="Deployment mode (production enables strict validation)",
     )
 
     args = parser.parse_args()
@@ -2314,9 +1982,6 @@ def cli():
 def main():
     """Main entry point for ModelMuxer server."""
     import uvicorn
-
-    # Use enhanced mode for main entry point
-    os.environ.setdefault("MODELMUXER_MODE", "enhanced")
 
     config = model_muxer.config
     uvicorn.run(

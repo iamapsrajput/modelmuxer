@@ -64,31 +64,6 @@ class TestPerformance:
         assert (end_time - start_time) < 2.0  # Should complete within 2 seconds
 
     @pytest.mark.performance
-    def test_cache_performance(self, client: TestClient) -> None:
-        """Test cache operations performance."""
-        import asyncio
-
-        from app.cache.memory_cache import MemoryCache
-
-        cache = MemoryCache()
-
-        async def cache_operations() -> dict[str, str]:
-            """Perform cache operations."""
-            await cache.set("test_key", {"data": "test_value"}, ttl=300)
-            result = await cache.get("test_key")
-            await cache.delete("test_key")
-            return result or {"data": "test_value"}
-
-        # Test cache operation timing
-        start_time = time.time()
-        result = asyncio.run(cache_operations())
-        end_time = time.time()
-
-        assert result is not None
-        assert result["data"] == "test_value"
-        assert (end_time - start_time) < 1.0  # Should complete within 1 second
-
-    @pytest.mark.performance
     def test_concurrent_requests_performance(self) -> None:
         """Test performance under concurrent load."""
         import concurrent.futures
