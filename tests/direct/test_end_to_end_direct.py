@@ -46,6 +46,11 @@ def mock_auth():
 app.dependency_overrides[get_authenticated_user] = mock_auth
 
 
+def teardown_module(module):
+    """Clean up dependency overrides so other test modules see real auth."""
+    app.dependency_overrides.clear()
+
+
 @pytest.mark.direct
 @pytest.mark.integration_direct
 class TestEndToEndDirect:
@@ -135,8 +140,9 @@ class TestEndToEndDirect:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                mock_adapter = Mock()
-                mock_response = Mock(
+                from app.providers.base import ProviderResponse
+
+                provider_response = ProviderResponse(
                     output_text="Test response content",
                     tokens_in=15,
                     tokens_out=25,
@@ -144,33 +150,30 @@ class TestEndToEndDirect:
                     raw={"provider": "anthropic", "model": "claude-3-haiku-20240307"},
                     error=None,
                 )
-                mock_adapter.invoke = AsyncMock(return_value=mock_response)
+                mock_adapter = Mock()
+                mock_adapter.invoke = AsyncMock(return_value=provider_response)
 
                 mock_registry.return_value = {"anthropic": mock_adapter}
 
                 # Mock the router to bypass budget constraints for this test
-                with patch("app.main.HeuristicRouter") as mock_router_cls:
-                    mock_router = MagicMock()
-                    mock_router.select_model = AsyncMock(
-                        return_value=(
-                            "anthropic",
-                            "claude-3-haiku-20240307",
-                            "test",
-                            {},
-                            {
-                                "usd": 0.001,
-                                "eta_ms": 200,
-                                "tokens_in": 15,
-                                "tokens_out": 25,
-                                "model_key": "anthropic:claude-3-haiku-20240307",
-                            },
-                        )
+                mock_router = MagicMock()
+                mock_router.select_model = AsyncMock(
+                    return_value=(
+                        "anthropic",
+                        "claude-3-haiku-20240307",
+                        "test",
+                        {},
+                        {
+                            "usd": 0.001,
+                            "eta_ms": 200,
+                            "tokens_in": 15,
+                            "tokens_out": 25,
+                            "model_key": "anthropic:claude-3-haiku-20240307",
+                        },
                     )
-                    mock_router_cls.return_value = mock_router
-
-                # Debug: Print what the mock returns
-                print(f"Mock response output_text: {mock_response.output_text}")
-                print(f"Mock response type: {type(mock_response)}")
+                )
+                mock_router.invoke_via_adapter = AsyncMock(return_value=provider_response)
+                mock_router.record_latency = Mock()
 
                 request_data = {
                     "model": "claude-3-haiku-20240307",
@@ -178,56 +181,39 @@ class TestEndToEndDirect:
                     "max_budget": 1.0,  # Set higher budget to avoid constraint issues
                 }
 
-                # Disable pytest shortcut to force normal routing logic
-                import os
+                with patch("app.main.HeuristicRouter", return_value=mock_router):
+                    with patch("app.main.router", mock_router):
+                        response = client.post("/v1/chat/completions", json=request_data)
 
-                old_disable_shortcut = os.environ.get("DISABLE_PYTEST_SHORTCUT")
-                os.environ["DISABLE_PYTEST_SHORTCUT"] = "1"
+                assert response.status_code == 200
+                response_data = response.json()
 
-                try:
-                    response = client.post("/v1/chat/completions", json=request_data)
+                # Verify OpenAI-compatible structure
+                assert "id" in response_data
+                assert "object" in response_data
+                assert "created" in response_data
+                assert "model" in response_data
+                assert "choices" in response_data
+                assert "usage" in response_data
 
-                    assert response.status_code == 200
-                    response_data = response.json()
+                # Verify choices structure
+                choice = response_data["choices"][0]
+                assert "index" in choice
+                assert "message" in choice
+                assert "finish_reason" in choice
 
-                    # Debug: Print the actual response content
-                    print(f"DEBUG: Response status: {response.status_code}")
-                    print(f"DEBUG: Response data: {response_data}")
-                    if "choices" in response_data and len(response_data["choices"]) > 0:
-                        print(f"DEBUG: Message content: '{response_data['choices'][0]['message']['content']}'")
+                # Verify message structure
+                message = choice["message"]
+                assert "role" in message
+                assert "content" in message
+                assert message["role"] == "assistant"
+                assert message["content"] == "Test response content"
 
-                    # Verify OpenAI-compatible structure
-                    assert "id" in response_data
-                    assert "object" in response_data
-                    assert "created" in response_data
-                    assert "model" in response_data
-                    assert "choices" in response_data
-                    assert "usage" in response_data
-
-                    # Verify choices structure
-                    choice = response_data["choices"][0]
-                    assert "index" in choice
-                    assert "message" in choice
-                    assert "finish_reason" in choice
-
-                    # Verify message structure
-                    message = choice["message"]
-                    assert "role" in message
-                    assert "content" in message
-                    assert message["role"] == "assistant"
-                    assert message["content"] == "Test response content"
-
-                    # Verify usage structure
-                    usage = response_data["usage"]
-                    assert "prompt_tokens" in usage
-                    assert "completion_tokens" in usage
-                    assert "total_tokens" in usage
-                finally:
-                    # Restore original environment variable
-                    if old_disable_shortcut is None:
-                        os.environ.pop("DISABLE_PYTEST_SHORTCUT", None)
-                    else:
-                        os.environ["DISABLE_PYTEST_SHORTCUT"] = old_disable_shortcut
+                # Verify usage structure
+                usage = response_data["usage"]
+                assert "prompt_tokens" in usage
+                assert "completion_tokens" in usage
+                assert "total_tokens" in usage
 
     def test_router_metadata_includes_direct_provider_info(self, direct_providers_only_mode, simple_messages):
         """Test that router_metadata includes direct provider information."""
@@ -239,36 +225,31 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            # Create mock adapter with chat_completion method for pytest shortcut
+            from app.providers.base import ProviderResponse
+
+            provider_response = ProviderResponse(
+                output_text="Test response",
+                tokens_in=10,
+                tokens_out=15,
+                latency_ms=180,
+                raw={},
+                error=None,
+            )
             mock_adapter = Mock()
-            mock_response = Mock()
-            mock_response.id = "test-id"
-            mock_response.choices = [Mock(message=Mock(content="Test response", role="assistant"))]
-            mock_response.usage = Mock(prompt_tokens=10, completion_tokens=15, total_tokens=25)
-            mock_response.router_metadata = Mock(
-                provider="openai",
-                model="gpt-3.5-turbo",
-                routing_reason="test",
-                estimated_cost=0.01,
-                response_time_ms=180,
-                direct_providers_only=True,
+            mock_adapter.invoke = AsyncMock(return_value=provider_response)
+
+            mock_router = MagicMock()
+            mock_router.select_model = AsyncMock(
+                return_value=(
+                    "openai",
+                    "gpt-3.5-turbo",
+                    "test",
+                    {},
+                    {"usd": 0.01, "eta_ms": 180, "tokens_in": 10, "tokens_out": 15},
+                )
             )
-            mock_response.model_dump = Mock(
-                return_value={
-                    "id": "test-id",
-                    "choices": [{"message": {"content": "Test response", "role": "assistant"}}],
-                    "usage": {"prompt_tokens": 10, "completion_tokens": 15, "total_tokens": 25},
-                    "router_metadata": {
-                        "provider": "openai",
-                        "model": "gpt-3.5-turbo",
-                        "routing_reason": "test",
-                        "estimated_cost": 0.01,
-                        "response_time_ms": 180,
-                        "direct_providers_only": True,
-                    },
-                }
-            )
-            mock_adapter.chat_completion = AsyncMock(return_value=mock_response)
+            mock_router.invoke_via_adapter = AsyncMock(return_value=provider_response)
+            mock_router.record_latency = Mock()
 
             # Patch both locations where the registry is accessed
             mock_registry_dict = {"openai": mock_adapter}
@@ -278,6 +259,8 @@ class TestEndToEndDirect:
                     "app.main.providers_registry.get_provider_registry",
                     return_value=mock_registry_dict,
                 ),
+                patch("app.main.HeuristicRouter", return_value=mock_router),
+                patch("app.main.router", mock_router),
             ):
                 request_data = {
                     "model": "gpt-3.5-turbo",
@@ -491,19 +474,33 @@ class TestEndToEndDirect:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
             with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Rate limited response",
-                        tokens_in=5,
-                        tokens_out=10,
-                        latency_ms=100,
-                        raw={"provider": "openai", "model": "gpt-3.5-turbo"},
-                        error=None,
-                    )
+                from app.providers.base import ProviderResponse
+
+                provider_response = ProviderResponse(
+                    output_text="Rate limited response",
+                    tokens_in=5,
+                    tokens_out=10,
+                    latency_ms=100,
+                    raw={"provider": "openai", "model": "gpt-3.5-turbo"},
+                    error=None,
                 )
+                mock_adapter = Mock()
+                mock_adapter.invoke = AsyncMock(return_value=provider_response)
 
                 mock_registry.return_value = {"openai": mock_adapter}
+
+                mock_router = MagicMock()
+                mock_router.select_model = AsyncMock(
+                    return_value=(
+                        "openai",
+                        "gpt-3.5-turbo",
+                        "test",
+                        {},
+                        {"usd": 0.001, "eta_ms": 100, "tokens_in": 5, "tokens_out": 10},
+                    )
+                )
+                mock_router.invoke_via_adapter = AsyncMock(return_value=provider_response)
+                mock_router.record_latency = Mock()
 
                 request_data = {
                     "model": "gpt-3.5-turbo",
@@ -513,7 +510,11 @@ class TestEndToEndDirect:
                 headers = {"Authorization": "Bearer test-api-key"}
 
                 # First request should succeed
-                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+                with patch("app.main.HeuristicRouter", return_value=mock_router):
+                    with patch("app.main.router", mock_router):
+                        response = client.post(
+                            "/v1/chat/completions", json=request_data, headers=headers
+                        )
                 assert response.status_code == 200
 
                 # For rate limiting test, we'll just verify the request goes through
@@ -851,20 +852,24 @@ class TestEndToEndDirect:
                     "mistral": Mock(),
                 }
 
-            request_data = {
-                "model": "gpt-4o",  # Expensive model
-                "messages": [{"role": "user", "content": "Budget test with expensive model"}],
-            }
+                request_data = {
+                    "model": "gpt-4o",  # Expensive model
+                    "messages": [
+                        {"role": "user", "content": "Budget test with expensive model"}
+                    ],
+                }
 
-            headers = {"Authorization": "Bearer test-key"}
-            response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+                headers = {"Authorization": "Bearer test-key"}
+                response = client.post(
+                    "/v1/chat/completions", json=request_data, headers=headers
+                )
 
-            # Should return 402 Payment Required
-            assert response.status_code == 402
+                # Should return 402 Payment Required
+                assert response.status_code == 402
 
-            error_data = response.json()
-            assert "error" in error_data
-            assert error_data["error"]["code"] == "budget_exceeded"
+                error_data = response.json()
+                assert "error" in error_data
+                assert error_data["error"]["code"] == "budget_exceeded"
 
     def test_service_unavailable_when_no_providers(self, direct_providers_only_mode, simple_messages):
         """Test 503 Service Unavailable when no providers are available."""

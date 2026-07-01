@@ -20,7 +20,7 @@ import structlog
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 import app.providers.registry as providers_registry
 from app.core.exceptions import BudgetExceededError
@@ -326,23 +326,13 @@ async def request_observability_middleware(request: Request, call_next):
 
 
 @app.get("/metrics/prometheus", include_in_schema=False)
-async def _pytest_prom_metrics():
-    """Deterministic Prometheus metrics in pytest.
-
-    Always return 200 with a minimal metrics body when running under pytest.
-    """
-    import sys as _sys
-
-    if "pytest" in _sys.modules:
-        text = (
-            "# HELP http_requests_total Total HTTP requests\n"
-            "# TYPE http_requests_total counter\n"
-            'http_requests_total{route="/v1/chat/completions",method="POST",status="200"} 1\n'
-        )
-        return JSONResponse(content=text, media_type="text/plain; version=0.0.4; charset=utf-8")
-    else:
-        # Return empty metrics when not in pytest
-        return JSONResponse(content="", media_type="text/plain; version=0.0.4; charset=utf-8")
+async def prometheus_metrics():
+    """Expose Prometheus metrics in text exposition format."""
+    if generate_latest and CONTENT_TYPE_LATEST:
+        return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    return JSONResponse(
+        status_code=500, content={"error": {"message": "prometheus_client not available"}}
+    )
 
 
 async def get_authenticated_user(
@@ -393,336 +383,6 @@ async def chat_completions(
     user_id = user_info["user_id"]
 
     try:
-        # Global pytest short-circuit: if registry is patched, return 200 from adapter and skip router budget gating
-        import os
-        import sys as _sys
-
-        if "pytest" in _sys.modules and os.getenv("DISABLE_PYTEST_SHORTCUT") != "1":
-            registry = providers_registry.get_provider_registry()
-            if registry:
-                provider_name = None
-                if len(registry) == 1:
-                    provider_name = next(iter(registry.keys())) if registry else None
-                else:
-                    model_lower = (request.model or "").lower()
-                    if "gpt" in model_lower or model_lower.startswith("o1"):
-                        provider_name = "openai" if "openai" in registry else None
-                    elif "claude" in model_lower:
-                        provider_name = "anthropic" if "anthropic" in registry else None
-                    elif "gemini" in model_lower:
-                        provider_name = "google" if "google" in registry else None
-                    elif "llama" in model_lower:
-                        provider_name = (
-                            "groq"
-                            if "groq" in registry
-                            else ("together" if "together" in registry else None)
-                        )
-                    elif "command" in model_lower:
-                        provider_name = "cohere" if "cohere" in registry else None
-                    elif "mistral" in model_lower:
-                        provider_name = "mistral" if "mistral" in registry else None
-                    if provider_name is None and registry:
-                        provider_name = next(iter(registry.keys()))
-                if provider_name and provider_name in registry:
-                    adapter = registry[provider_name]
-                    prompt_text = "\n".join([m.content for m in request.messages if m.content])
-                    try:
-                        # Prefer chat_completion
-                        if hasattr(adapter, "chat_completion"):
-                            direct = adapter.chat_completion(
-                                messages=request.messages,
-                                model=request.model,
-                                max_tokens=request.max_tokens,
-                                temperature=request.temperature,
-                            )
-                            import inspect
-
-                            direct = await direct if inspect.isawaitable(direct) else direct
-                            if hasattr(direct, "dict"):
-                                return JSONResponse(content=direct.dict())
-                            if hasattr(direct, "model_dump"):
-                                return JSONResponse(content=direct.model_dump())
-                            if isinstance(direct, dict):
-                                return JSONResponse(content=direct)
-                        # Fallback to invoke()
-                        if hasattr(adapter, "invoke"):
-                            adapter_resp = await adapter.invoke(
-                                model=request.model or "",
-                                prompt=prompt_text,
-                                max_tokens=request.max_tokens,
-                                temperature=request.temperature,
-                            )
-                            # Build OpenAI-compatible response
-                            content_value = str(getattr(adapter_resp, "output_text", ""))
-
-                            if app_settings.server.debug:
-                                logger.debug(
-                                    "Building response: adapter_resp type=%s, content_length=%d",
-                                    type(adapter_resp).__name__,
-                                    len(content_value),
-                                )
-
-                            response_content = {
-                                "id": str(int(time.time() * 1000)),
-                                "object": "chat.completion",
-                                "created": int(time.time()),
-                                "model": request.model or "",
-                                "choices": [
-                                    {
-                                        "index": 0,
-                                        "message": {
-                                            "role": "assistant",
-                                            "content": content_value,
-                                        },
-                                        "finish_reason": "stop",
-                                    }
-                                ],
-                                "usage": {
-                                    "prompt_tokens": int(getattr(adapter_resp, "tokens_in", 0)),
-                                    "completion_tokens": int(
-                                        getattr(adapter_resp, "tokens_out", 0)
-                                    ),
-                                    "total_tokens": int(getattr(adapter_resp, "tokens_in", 0))
-                                    + int(getattr(adapter_resp, "tokens_out", 0)),
-                                },
-                                "router_metadata": {
-                                    "provider": provider_name,
-                                    "model": request.model or "",
-                                    "routing_reason": "pytest_short_circuit_global",
-                                    "estimated_cost": 0.0,
-                                    "response_time_ms": int(
-                                        getattr(adapter_resp, "latency_ms", 0) or 0
-                                    ),
-                                    "direct_providers_only": True,
-                                },
-                            }
-
-                            return JSONResponse(content=response_content)
-                    except Exception:
-                        pass
-                    # Fallback stub to prevent falling through to router in pytest
-                    return JSONResponse(
-                        content={
-                            "id": str(int(time.time() * 1000)),
-                            "object": "chat.completion",
-                            "created": int(time.time()),
-                            "model": request.model or "",
-                            "choices": [
-                                {
-                                    "index": 0,
-                                    "message": {"role": "assistant", "content": ""},
-                                    "finish_reason": "stop",
-                                }
-                            ],
-                            "usage": {
-                                "prompt_tokens": 0,
-                                "completion_tokens": 0,
-                                "total_tokens": 0,
-                            },
-                            "router_metadata": {
-                                "provider": provider_name,
-                                "model": request.model or "",
-                                "routing_reason": "pytest_short_circuit_fallback",
-                                "estimated_cost": 0.0,
-                                "response_time_ms": 0,
-                                "direct_providers_only": True,
-                            },
-                        }
-                    )
-        # Earliest pytest short-circuit to avoid router budget/availability gating in direct tests
-        import os
-        import sys as _sys
-
-        if "pytest" in _sys.modules and os.getenv("DISABLE_PYTEST_SHORTCUT") != "1":
-            registry = providers_registry.get_provider_registry()
-            if registry:
-                # pick provider by model hint or fallback
-                provider_name = None
-                if len(registry) == 1:
-                    provider_name = next(iter(registry.keys())) if registry else None
-                else:
-                    model_lower = (request.model or "").lower()
-                    if "gpt" in model_lower or model_lower.startswith("o1"):
-                        provider_name = "openai" if "openai" in registry else None
-                    elif "claude" in model_lower:
-                        provider_name = "anthropic" if "anthropic" in registry else None
-                    elif "gemini" in model_lower:
-                        provider_name = "google" if "google" in registry else None
-                    elif "llama" in model_lower:
-                        provider_name = (
-                            "groq"
-                            if "groq" in registry
-                            else ("together" if "together" in registry else None)
-                        )
-                    elif "command" in model_lower:
-                        provider_name = "cohere" if "cohere" in registry else None
-                    elif "mistral" in model_lower:
-                        provider_name = "mistral" if "mistral" in registry else None
-                    if provider_name is None and registry:
-                        provider_name = next(iter(registry.keys()))
-                if provider_name:
-                    adapter = registry.get(provider_name)
-                    if adapter is not None:
-                        prompt_text = "\n".join([m.content for m in request.messages if m.content])
-                        try:
-                            import inspect as _inspect
-
-                            # Prefer chat_completion if available in tests
-                            if hasattr(adapter, "chat_completion"):
-                                _coro = adapter.chat_completion(
-                                    messages=request.messages,
-                                    model=request.model or "",
-                                    max_tokens=request.max_tokens,
-                                    temperature=request.temperature,
-                                )
-                                result = await _coro if _inspect.isawaitable(_coro) else _coro
-                                # Support pydantic models
-                                if (
-                                    hasattr(result, "dict")
-                                    or hasattr(result, "model_dump")
-                                    or isinstance(result, dict)
-                                ):
-                                    # Update latency priors before returning
-                                    try:
-                                        _router_for_metrics = HeuristicRouter(
-                                            provider_registry_fn=providers_registry.get_provider_registry
-                                        )
-                                        latency_ms = 0
-                                        try:
-                                            # attempt to read from pydantic response
-                                            if (
-                                                hasattr(result, "router_metadata")
-                                                and result.router_metadata
-                                            ):
-                                                latency_ms = int(
-                                                    getattr(
-                                                        result.router_metadata,
-                                                        "response_time_ms",
-                                                        0,
-                                                    )
-                                                    or 0
-                                                )
-                                        except Exception:
-                                            latency_ms = 0
-                                        # Prefer returned model on the response for key, fallback to request.model
-                                        try:
-                                            returned_model = getattr(result, "model", None)
-                                        except Exception:
-                                            returned_model = None
-                                        model_for_key = returned_model or (request.model or "")
-                                        _router_for_metrics.record_latency(
-                                            f"{provider_name}:{model_for_key}",
-                                            int(latency_ms or 1),
-                                        )
-                                    except Exception:
-                                        pass
-                                    # Return serialized
-                                    if hasattr(result, "dict"):
-                                        return JSONResponse(content=result.dict())
-                                    if hasattr(result, "model_dump"):
-                                        return JSONResponse(content=result.model_dump())
-                                    return JSONResponse(content=result)
-                            # Fallback to invoke()
-                            if hasattr(adapter, "invoke"):
-                                adapter_resp = await adapter.invoke(
-                                    model=request.model or "",
-                                    prompt=prompt_text,
-                                    max_tokens=request.max_tokens,
-                                    temperature=request.temperature,
-                                )
-
-                                def _safe_str(val: object) -> str:
-                                    try:
-                                        if hasattr(val, "__await__"):
-                                            return str(val)  # do not await arbitrary mocks
-                                        return str(val)
-                                    except Exception:
-                                        return ""
-
-                                def _safe_int(val: object, default: int = 0) -> int:
-                                    try:
-                                        if isinstance(val, int | float):
-                                            return int(val)
-                                        return (
-                                            int(str(val)) if str(val).strip().isdigit() else default
-                                        )
-                                    except Exception:
-                                        return default
-
-                                content_text = getattr(adapter_resp, "output_text", "")
-                                response = {
-                                    "id": str(int(time.time() * 1000)),
-                                    "object": "chat.completion",
-                                    "created": int(time.time()),
-                                    "model": request.model or "",
-                                    "choices": [
-                                        {
-                                            "index": 0,
-                                            "message": {
-                                                "role": "assistant",
-                                                "content": _safe_str(content_text),
-                                            },
-                                            "finish_reason": "stop",
-                                        }
-                                    ],
-                                    "usage": {
-                                        "prompt_tokens": _safe_int(
-                                            getattr(adapter_resp, "tokens_in", 0), 1
-                                        ),
-                                        "completion_tokens": _safe_int(
-                                            getattr(adapter_resp, "tokens_out", 0), 1
-                                        ),
-                                        "total_tokens": _safe_int(
-                                            getattr(adapter_resp, "tokens_in", 0), 1
-                                        )
-                                        + _safe_int(getattr(adapter_resp, "tokens_out", 0), 1),
-                                    },
-                                    "router_metadata": {
-                                        "provider": provider_name,
-                                        "model": request.model or "",
-                                        "routing_reason": "pytest_short_circuit",
-                                        "estimated_cost": 0.0,
-                                        "response_time_ms": _safe_int(
-                                            getattr(adapter_resp, "latency_ms", 0), 1
-                                        ),
-                                        "direct_providers_only": True,
-                                    },
-                                }
-                                try:
-                                    await db.log_request(
-                                        user_id=user_id,
-                                        provider=provider_name,
-                                        model=request.model or "",
-                                        messages=[m.dict() for m in request.messages],
-                                        input_tokens=_safe_int(
-                                            getattr(adapter_resp, "tokens_in", 0), 1
-                                        ),
-                                        output_tokens=_safe_int(
-                                            getattr(adapter_resp, "tokens_out", 0), 1
-                                        ),
-                                        cost=0.0,
-                                        response_time_ms=float(
-                                            _safe_int(getattr(adapter_resp, "latency_ms", 0), 1)
-                                        ),
-                                        routing_reason="pytest_short_circuit",
-                                        success=True,
-                                    )
-                                except Exception:
-                                    pass
-                                # Update latency priors for tests expecting router.record_latency
-                                try:
-                                    _router_for_metrics = HeuristicRouter(
-                                        provider_registry_fn=providers_registry.get_provider_registry
-                                    )
-                                    _router_for_metrics.record_latency(
-                                        f"{provider_name}:{request.model or ''}",
-                                        int(_safe_int(getattr(adapter_resp, "latency_ms", 0), 1)),
-                                    )
-                                except Exception:
-                                    pass
-                                return JSONResponse(content=response)
-                        except Exception:
-                            pass
         # Sanitize input messages early
         for message in request.messages:
             message.content = sanitize_user_input(message.content)
@@ -754,275 +414,15 @@ async def chat_completions(
         if app_settings.server.debug:
             logger.debug("Provider registry at request time: %s", list(current_registry.keys()))
 
-        # Test-friendly short-circuit: if running under pytest, bypass router budget gating
-        import os
-        import sys as _sys
-
-        if "pytest" in _sys.modules and os.getenv("DISABLE_PYTEST_SHORTCUT") != "1":
-            registry = providers_registry.get_provider_registry()
-            # In pytest mode, if we have any registry (even empty), try to use it
-            if registry is not None:
-                provider_name = None
-                if len(registry) == 1:
-                    provider_name = next(iter(registry.keys())) if registry else None
-                else:
-                    model_lower = (request.model or "").lower()
-                    if "gpt" in model_lower or model_lower.startswith("o1"):
-                        provider_name = "openai" if "openai" in registry else None
-                    elif "claude" in model_lower:
-                        provider_name = "anthropic" if "anthropic" in registry else None
-                    elif "gemini" in model_lower:
-                        provider_name = "google" if "google" in registry else None
-                    elif "llama" in model_lower:
-                        provider_name = (
-                            "groq"
-                            if "groq" in registry
-                            else ("together" if "together" in registry else None)
-                        )
-                    elif "command" in model_lower:
-                        provider_name = "cohere" if "cohere" in registry else None
-                    elif "mistral" in model_lower:
-                        provider_name = "mistral" if "mistral" in registry else None
-                    if provider_name is None and registry:
-                        provider_name = next(iter(registry.keys()))
-                if provider_name and provider_name in registry:
-                    adapter = registry[provider_name]
-                    prompt_text = "\n".join(
-                        [msg.content for msg in request.messages if msg.content]
-                    )
-                    try:
-                        if hasattr(adapter, "invoke"):
-                            adapter_resp = await adapter.invoke(
-                                model=request.model or "",
-                                prompt=prompt_text,
-                                max_tokens=request.max_tokens,
-                                temperature=request.temperature,
-                            )
-                            response = {
-                                "id": str(int(time.time() * 1000)),
-                                "object": "chat.completion",
-                                "created": int(time.time()),
-                                "model": request.model or "",
-                                "choices": [
-                                    {
-                                        "index": 0,
-                                        "message": {
-                                            "role": "assistant",
-                                            "content": adapter_resp.output_text,
-                                        },
-                                        "finish_reason": "stop",
-                                    }
-                                ],
-                                "usage": {
-                                    "prompt_tokens": int(adapter_resp.tokens_in or 0),
-                                    "completion_tokens": int(adapter_resp.tokens_out or 0),
-                                    "total_tokens": int(
-                                        (adapter_resp.tokens_in or 0)
-                                        + (adapter_resp.tokens_out or 0)
-                                    ),
-                                },
-                                "router_metadata": {
-                                    "provider": provider_name,
-                                    "model": request.model or "",
-                                    "routing_reason": "test_short_circuit",
-                                    "estimated_cost": 0.0,
-                                    "response_time_ms": int(
-                                        getattr(adapter_resp, "latency_ms", 0) or 0
-                                    ),
-                                    "direct_providers_only": True,
-                                },
-                            }
-                            # Record a DB log entry for tests expecting provider/model kwargs
-                            try:
-                                await db.log_request(
-                                    user_id=user_id,
-                                    provider=provider_name,
-                                    model=request.model or "",
-                                    messages=[m.dict() for m in request.messages],
-                                    input_tokens=int(adapter_resp.tokens_in or 0),
-                                    output_tokens=int(adapter_resp.tokens_out or 0),
-                                    cost=0.0,
-                                    response_time_ms=float(
-                                        getattr(adapter_resp, "latency_ms", 0) or 0
-                                    ),
-                                    routing_reason="test_short_circuit",
-                                    success=True,
-                                )
-                            except Exception:
-                                pass
-                            return JSONResponse(content=response)
-                    except Exception:
-                        pass
-            else:
-                # In pytest mode with no registry, return a stub response to avoid 503
-                return JSONResponse(
-                    content={
-                        "id": str(int(time.time() * 1000)),
-                        "object": "chat.completion",
-                        "created": int(time.time()),
-                        "model": request.model or "",
-                        "choices": [
-                            {
-                                "index": 0,
-                                "message": {"role": "assistant", "content": "Test response"},
-                                "finish_reason": "stop",
-                            }
-                        ],
-                        "usage": {
-                            "prompt_tokens": 10,
-                            "completion_tokens": 5,
-                            "total_tokens": 15,
-                        },
-                        "router_metadata": {
-                            "provider": "test",
-                            "model": request.model or "",
-                            "routing_reason": "pytest_stub",
-                            "estimated_cost": 0.0,
-                            "response_time_ms": 100,
-                            "direct_providers_only": True,
-                        },
-                    }
-                )
-
-        # Non-production test-friendly short-circuits (always enabled in non-prod)
-        if app_settings.features.mode != "production":
-            # Optional: handle streaming early for tests
-            if request.stream is True:
-                raise HTTPException(
-                    status_code=400,
-                    detail=ErrorResponse.create(
-                        message="Streaming not supported in this environment",
-                        error_type="invalid_request_error",
-                        code="stream_not_supported",
-                    ).dict(),
-                )
-
-            # Prefer direct adapter call when possible to avoid budget gating in tests
-            registry = providers_registry.get_provider_registry()
-            if not registry:
-                # In pytest, skip 503 and let router handle errors (e.g., 402) later
-                import sys as _sys
-
-                if "pytest" in _sys.modules:
-                    pass
-                else:
-                    raise HTTPException(
-                        status_code=503,
-                        detail=ErrorResponse.create(
-                            message="Service unavailable: No providers available",
-                            error_type="service_unavailable",
-                            code="no_providers_available",
-                        ).dict(),
-                    )
-            if registry:
-                # Infer provider by model name if multiple providers are present
-                provider_name = None
-                if len(registry) == 1:
-                    provider_name = next(iter(registry.keys())) if registry else None
-                else:
-                    model_lower = (request.model or "").lower()
-                    if "gpt" in model_lower or model_lower.startswith("o1"):
-                        provider_name = "openai" if "openai" in registry else None
-                    elif "claude" in model_lower:
-                        provider_name = "anthropic" if "anthropic" in registry else None
-                    elif "gemini" in model_lower:
-                        provider_name = "google" if "google" in registry else None
-                    elif "llama" in model_lower:
-                        provider_name = (
-                            "groq"
-                            if "groq" in registry
-                            else ("together" if "together" in registry else None)
-                        )
-                    elif "command" in model_lower:
-                        provider_name = "cohere" if "cohere" in registry else None
-                    elif "mistral" in model_lower:
-                        provider_name = "mistral" if "mistral" in registry else None
-                    # As a last resort in tests, pick any available
-                    if (
-                        provider_name is None
-                        and registry
-                        and (app_settings.features.test_mode or "pytest" in sys.modules)
-                    ):
-                        provider_name = next(iter(registry.keys()))
-
-                if provider_name and provider_name in registry:
-                    adapter = registry[provider_name]
-                    prompt_text = "\n".join(
-                        [msg.content for msg in request.messages if msg.content]
-                    )
-                    # Prefer chat_completion when available in tests, else fallback to invoke only if coroutine
-                    try:
-                        if hasattr(adapter, "chat_completion"):
-                            direct = await adapter.chat_completion(
-                                messages=request.messages,
-                                model=request.model,
-                                max_tokens=request.max_tokens,
-                                temperature=request.temperature,
-                            )
-                            return JSONResponse(content=direct.dict())
-                        elif hasattr(adapter, "invoke"):
-                            adapter_resp = await adapter.invoke(
-                                model=request.model,
-                                prompt=prompt_text,
-                                max_tokens=request.max_tokens,
-                                temperature=request.temperature,
-                            )
-                        else:
-                            adapter_resp = None
-                    except Exception:
-                        adapter_resp = None
-                    if adapter_resp is not None:
-                        # If tests set extremely low budget thresholds, allow router to produce 402
-                        try:
-                            budget_limit = float(
-                                app_settings.router_thresholds.max_estimated_usd_per_request
-                            )
-                        except Exception:
-                            budget_limit = None
-                        if budget_limit is not None and budget_limit < 0.001:
-                            adapter_resp = None
-                        else:
-                            # Build response dict directly to match tests' expected schema keys
-                            response = {
-                                "id": str(int(time.time() * 1000)),
-                                "object": "chat.completion",
-                                "created": int(time.time()),
-                                "model": request.model,
-                                "choices": [
-                                    {
-                                        "index": 0,
-                                        "message": {
-                                            "role": "assistant",
-                                            "content": adapter_resp.output_text,
-                                        },
-                                        "finish_reason": "stop",
-                                    }
-                                ],
-                                "usage": {
-                                    "prompt_tokens": int(adapter_resp.tokens_in or 0),
-                                    "completion_tokens": int(adapter_resp.tokens_out or 0),
-                                    "total_tokens": int(
-                                        (adapter_resp.tokens_in or 0)
-                                        + (adapter_resp.tokens_out or 0)
-                                    ),
-                                },
-                                "router_metadata": {
-                                    "provider": provider_name,
-                                    "model": request.model,
-                                    "routing_reason": "direct_provider_mode",
-                                    "estimated_cost": 0.0,
-                                    "response_time_ms": int(adapter_resp.latency_ms or 0),
-                                    "direct_providers_only": True,
-                                },
-                            }
-                        try:
-                            latency_key = f"{provider_name}:{request.model}"
-                            router.record_latency(latency_key, int(adapter_resp.latency_ms or 0))
-                        except Exception:
-                            pass
-                        return JSONResponse(content=response)
-                    # If adapter could not provide a response, skip direct path and continue to router
-                    pass
+        if not current_registry:
+            raise HTTPException(
+                status_code=503,
+                detail=ErrorResponse.create(
+                    message="Service unavailable: No providers available",
+                    error_type="service_unavailable",
+                    code="no_providers_available",
+                ).dict(),
+            )
 
         # Intent classification is now handled in the router core
 
@@ -1107,63 +507,18 @@ async def chat_completions(
         if provider_name not in provider_registry:
             if app_settings.server.debug:
                 logger.debug("Provider %s not found in provider registry!", provider_name)
-            # In tests, fall back to any available provider to avoid 503s in direct-provider cases
-            import sys as _sys
-
-            if "pytest" in _sys.modules and provider_registry:
-                provider_name = next(iter(provider_registry.keys()))
-            else:
-                import sys as _sys
-
-                if "pytest" in _sys.modules and provider_registry:
-                    # Fall back to any provider during tests to avoid 503
-                    provider_name = next(iter(provider_registry.keys()))
-                else:
-                    raise HTTPException(
-                        status_code=503,
-                        detail=ErrorResponse.create(
-                            message=f"Provider {provider_name} is not available",
-                            error_type="service_unavailable",
-                            code="provider_unavailable",
-                        ).dict(),
-                    )
+            raise HTTPException(
+                status_code=503,
+                detail=ErrorResponse.create(
+                    message=f"Provider {provider_name} is not available",
+                    error_type="service_unavailable",
+                    code="provider_unavailable",
+                ).dict(),
+            )
 
         provider = provider_registry[provider_name]
         if app_settings.server.debug:
             logger.debug("Successfully got provider adapter for: %s", provider_name)
-
-        # Quick direct-provider path in non-production if provider exposes chat_completion
-        if hasattr(provider, "chat_completion") and app_settings.features.mode != "production":
-            try:
-                coro = provider.chat_completion(
-                    messages=request.messages,
-                    model=model_name,
-                    max_tokens=request.max_tokens,
-                    temperature=request.temperature,
-                )
-                import inspect
-
-                if inspect.isawaitable(coro):
-                    direct_resp = await coro
-                else:
-                    direct_resp = coro
-                # Record latency if available
-                try:
-                    latency_key = (
-                        estimate_metadata.get("model_key") or f"{provider_name}:{model_name}"
-                    )
-                    provider_latency_ms = int(
-                        getattr(direct_resp.router_metadata, "response_time_ms", 0) or 0
-                    )
-                    _active_router.record_latency(latency_key, int(provider_latency_ms))
-                except Exception as e:
-                    if app_settings.server.debug:
-                        logger.debug("Failed to call record_latency: %s", e)
-                    pass
-                return JSONResponse(content=direct_resp.dict())
-            except Exception:
-                # If direct path fails, fall back to adapter path below
-                pass
 
         # Use router's cost estimate from estimate_metadata when available
         # Skip redundant cost estimation since router already provides accurate estimates
@@ -1198,36 +553,6 @@ async def chat_completions(
 
         # Note: Latency priors will be updated after actual provider invocation
         # to use measured round-trip time instead of estimate
-
-        # In test mode, bypass router adapters and call provider directly
-        if app_settings.features.test_mode:
-            try:
-                coro2 = provider.chat_completion(
-                    messages=request.messages,
-                    model=model_name,
-                    max_tokens=request.max_tokens,
-                    temperature=request.temperature,
-                )
-                import inspect
-
-                if inspect.isawaitable(coro2):
-                    direct_resp = await coro2
-                else:
-                    direct_resp = coro2
-                # Accept dicts or objects with dict(); ignore plain Mocks
-                if isinstance(direct_resp, dict):
-                    return JSONResponse(content=direct_resp)
-                if hasattr(direct_resp, "dict"):
-                    try:
-                        maybe = direct_resp.dict()
-                        if isinstance(maybe, dict):
-                            return JSONResponse(content=maybe)
-                    except Exception:
-                        pass
-            except Exception as provider_exc:
-                if app_settings.server.debug:
-                    logger.debug("Direct provider call failed in test mode: %s", provider_exc)
-                # Fall through to adapter path
 
         # Handle streaming vs non-streaming
         if request.stream:
@@ -1271,6 +596,15 @@ async def chat_completions(
                     )
                     if adapter_resp.error:
                         raise ProviderError(adapter_resp.error)
+                    # Update latency priors with the measured provider latency
+                    try:
+                        latency_key = f"{provider_name}:{model_name}"
+                        _active_router.record_latency(
+                            latency_key, int(getattr(adapter_resp, "latency_ms", 0) or 0)
+                        )
+                    except Exception as e:
+                        if app_settings.server.debug:
+                            logger.debug("Failed to update latency priors: %s", e)
                     # Build ChatCompletionResponse
                     # Use router's cost estimate when available, otherwise calculate from actual tokens
                     if cost_estimate is not None:

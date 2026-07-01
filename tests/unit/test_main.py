@@ -120,48 +120,8 @@ class TestMainApplication:
     @pytest.mark.asyncio
     async def test_chat_completions_success(self, client, sample_chat_request, mock_user_info):
         """Test successful chat completions endpoint."""
-        app.dependency_overrides[get_authenticated_user] = lambda: mock_user_info
-        with patch("app.main.router") as mock_router:
-            mock_router.select_model.return_value = (
-                "openai",
-                "gpt-3.5-turbo",
-                "selected",
-                {"label": "simple", "confidence": 0.9},
-                {"usd": 0.01, "eta_ms": 500, "tokens_in": 10, "tokens_out": 20},
-            )
-
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                mock_provider = Mock()
-                mock_adapter = Mock()
-                mock_adapter.chat_completion = AsyncMock(
-                    return_value=Mock(
-                        dict=Mock(
-                            return_value={
-                                "id": "test-id",
-                                "object": "chat.completion",
-                                "created": 1234567890,
-                                "model": "gpt-3.5-turbo",
-                                "choices": [
-                                    {"message": {"role": "assistant", "content": "Hello!"}}
-                                ],
-                                "usage": {
-                                    "prompt_tokens": 10,
-                                    "completion_tokens": 20,
-                                    "total_tokens": 30,
-                                },
-                                "router_metadata": {
-                                    "provider": "openai",
-                                    "model": "gpt-3.5-turbo",
-                                    "routing_reason": "selected",
-                                    "estimated_cost": 0.01,
-                                    "response_time_ms": 500,
-                                },
-                            }
-                        )
-                    )
-                )
-                mock_registry.return_value = {"openai": mock_adapter}
-
+        with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
+            with mock_for_successful_test():
                 response = client.post(
                     "/v1/chat/completions",
                     json=sample_chat_request.dict(),
@@ -173,7 +133,6 @@ class TestMainApplication:
                 assert "id" in data
                 assert data["object"] == "chat.completion"
                 assert "router_metadata" in data
-        app.dependency_overrides = {}
 
     @pytest.mark.asyncio
     async def test_chat_completions_unauthorized(self, client, sample_chat_request):
@@ -632,10 +591,10 @@ class TestMainApplication:
             assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_pytest_short_circuit_mode(self, client, sample_chat_request, mock_user_info):
-        """Test pytest short-circuit mode for faster testing."""
-        # This test verifies that the application works correctly in pytest context
-        # Since we're already running in pytest, just test normal functionality
+    async def test_chat_completions_with_mocked_router(
+        self, client, sample_chat_request, mock_user_info
+    ):
+        """Test the chat endpoint through the real request path with mocked router/providers."""
         with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
             with mock_for_successful_test():
                 response = client.post(
@@ -650,26 +609,33 @@ class TestMainApplication:
     @pytest.mark.asyncio
     async def test_provider_unavailable_error(self, client, sample_chat_request, mock_user_info):
         """Test handling when selected provider is not available."""
+        mock_router = Mock()
+        mock_router.select_model = AsyncMock(
+            return_value=(
+                "nonexistent_provider",
+                "model",
+                "selected",
+                {"label": "simple"},
+                {"usd": 0.01},
+            )
+        )
+
         with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
-            with patch("app.main.router") as mock_router:
-                mock_router.select_model.return_value = (
-                    "nonexistent_provider",
-                    "model",
-                    "selected",
-                    {"label": "simple"},
-                    {"usd": 0.01},
-                )
+            with patch("app.main.router", mock_router):
+                with patch("app.main.HeuristicRouter", return_value=mock_router):
+                    with patch(
+                        "app.main.providers_registry.get_provider_registry",
+                        return_value={"openai": Mock()},
+                    ):
+                        response = client.post(
+                            "/v1/chat/completions",
+                            json=sample_chat_request.dict(),
+                            headers={"Authorization": "Bearer test_key"},
+                        )
 
-                with patch("app.main.providers_registry.get_provider_registry", return_value={}):
-                    response = client.post(
-                        "/v1/chat/completions",
-                        json=sample_chat_request.dict(),
-                        headers={"Authorization": "Bearer test_key"},
-                    )
-
-                    assert response.status_code == 503
-                    data = response.json()
-                    assert data["error"]["code"] == "provider_unavailable"
+                        assert response.status_code == 503
+                        data = response.json()
+                        assert data["error"]["code"] == "provider_unavailable"
 
     @pytest.mark.asyncio
     async def test_model_format_validation_production(
@@ -748,21 +714,26 @@ class TestMainApplication:
     async def test_database_logging_on_error(self, client, sample_chat_request, mock_user_info):
         """Test database logging on failed requests."""
         with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
-            with patch("app.main.db.log_request") as mock_log:
+            with patch("app.main.db.log_request", new=AsyncMock()) as mock_log:
                 # Create a router that fails
                 mock_router = Mock()
                 mock_router.select_model = AsyncMock(side_effect=Exception("Router error"))
 
-                with patch("app.router.HeuristicRouter", return_value=mock_router):
-                    with patch("app.main.HeuristicRouter", return_value=mock_router):
-                        response = client.post(
-                            "/v1/chat/completions",
-                            json=sample_chat_request.dict(),
-                            headers={"Authorization": "Bearer test_key"},
-                        )
+                with patch(
+                    "app.main.providers_registry.get_provider_registry",
+                    return_value={"openai": Mock()},
+                ):
+                    with patch("app.router.HeuristicRouter", return_value=mock_router):
+                        with patch("app.main.HeuristicRouter", return_value=mock_router):
+                            response = client.post(
+                                "/v1/chat/completions",
+                                json=sample_chat_request.dict(),
+                                headers={"Authorization": "Bearer test_key"},
+                            )
 
-                        # Should log the error
-                        mock_log.assert_called()
+                            assert response.status_code == 500
+                            # Should log the error
+                            mock_log.assert_called()
 
     @pytest.mark.asyncio
     async def test_trace_id_header(self, client):
@@ -891,47 +862,14 @@ class TestMainApplication:
         special_request.messages[0].content = "Hello 🌍 with émojis and spëcial chärs!"
 
         with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
-            with patch("app.main.router") as mock_router:
-                mock_router.select_model.return_value = (
-                    "openai",
-                    "gpt-3.5-turbo",
-                    "selected",
-                    {"label": "simple"},
-                    {"usd": 0.01},
+            with mock_for_successful_test():
+                response = client.post(
+                    "/v1/chat/completions",
+                    json=special_request.dict(),
+                    headers={"Authorization": "Bearer test_key"},
                 )
 
-                with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                    mock_provider = Mock()
-                    mock_adapter = Mock()
-                    mock_adapter.chat_completion = AsyncMock(
-                        return_value=Mock(
-                            dict=Mock(
-                                return_value={
-                                    "id": "test-id",
-                                    "object": "chat.completion",
-                                    "created": 1234567890,
-                                    "model": "gpt-3.5-turbo",
-                                    "choices": [
-                                        {"message": {"role": "assistant", "content": "Response"}}
-                                    ],
-                                    "usage": {
-                                        "prompt_tokens": 10,
-                                        "completion_tokens": 20,
-                                        "total_tokens": 30,
-                                    },
-                                }
-                            )
-                        )
-                    )
-                    mock_registry.return_value = {"openai": mock_adapter}
-
-                    response = client.post(
-                        "/v1/chat/completions",
-                        json=special_request.dict(),
-                        headers={"Authorization": "Bearer test_key"},
-                    )
-
-                    assert response.status_code == 200
+                assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_empty_request_body(self, client):

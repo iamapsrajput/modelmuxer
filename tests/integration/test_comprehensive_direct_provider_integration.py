@@ -10,8 +10,9 @@ API endpoints through to provider responses.
 
 import asyncio
 import json
+from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 # Apply mocks before importing the app
 import pytest
@@ -31,6 +32,7 @@ with patch("app.main.HeuristicRouter") as mock_router_cls:
 from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
 from app.main import app
 from app.models import ChatCompletionRequest, ChatCompletionResponse
+from app.providers.base import ProviderResponse
 from app.providers.registry import get_provider_registry
 from app.router import HeuristicRouter
 
@@ -59,34 +61,23 @@ def mock_router():
     return MagicMock()
 
 
+@contextmanager
+def wired_router(mock_router, registry):
+    """Wire a mock router and provider registry into the live request path."""
+    with (
+        patch("app.providers.registry.get_provider_registry", return_value=registry),
+        patch("app.main.providers_registry.get_provider_registry", return_value=registry),
+        patch("app.main.HeuristicRouter", return_value=mock_router),
+        patch("app.main.router", mock_router),
+    ):
+        yield
+
+
 class TestEndToEndAPIIntegration:
     """Test end-to-end API integration with direct providers."""
 
     def test_chat_completions_endpoint_with_direct_providers(self, client, mock_router):
         """Test /v1/chat/completions endpoint with direct providers only."""
-        # Mock the router to return a successful response
-        mock_response = ChatCompletionResponse(
-            id="test-id",
-            object="chat.completion",
-            created=1234567890,
-            model="gpt-4",
-            choices=[
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": "Hello from direct provider!"},
-                    "finish_reason": "stop",
-                }
-            ],
-            usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
-            router_metadata={
-                "selected_provider": "openai",
-                "selected_model": "gpt-4",
-                "routing_reason": "test",
-                "estimated_cost": 0.01,
-                "response_time_ms": 100,
-            },
-        )
-
         # Configure the mock router
         mock_router.select_model = AsyncMock(
             return_value=(
@@ -103,14 +94,18 @@ class TestEndToEndAPIIntegration:
                 },
             )
         )
+        mock_router.invoke_via_adapter = AsyncMock(
+            return_value=ProviderResponse(
+                output_text="Hello from direct provider!",
+                tokens_in=10,
+                tokens_out=5,
+                latency_ms=100,
+                raw={},
+                error=None,
+            )
+        )
 
-        # Configure the mock provider
-        mock_provider = AsyncMock()
-        mock_provider.chat_completion = AsyncMock(return_value=mock_response)
-
-        with patch("app.providers.registry.get_provider_registry") as mock_registry:
-            mock_registry.return_value = {"openai": mock_provider}
-
+        with wired_router(mock_router, {"openai": Mock()}):
             # Make request to the API
             response = client.post(
                 "/v1/chat/completions",
@@ -125,36 +120,13 @@ class TestEndToEndAPIIntegration:
             # Verify response
             assert response.status_code == 200
             data = response.json()
-            assert data["id"] == "test-id"
-            assert data["model"] == "gpt-4"
+            assert "id" in data
+            assert data["model"] == "gpt-4o-mini"
             assert len(data["choices"]) == 1
             assert data["choices"][0]["message"]["content"] == "Hello from direct provider!"
 
     def test_openai_compatible_response_format(self, client, mock_router):
         """Test that responses are OpenAI-compatible."""
-        # Create a mock response that matches OpenAI format exactly
-        mock_response = ChatCompletionResponse(
-            id="chatcmpl-test123",
-            object="chat.completion",
-            created=1234567890,
-            model="gpt-4",
-            choices=[
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": "This is a test response"},
-                    "finish_reason": "stop",
-                }
-            ],
-            usage={"prompt_tokens": 15, "completion_tokens": 8, "total_tokens": 23},
-            router_metadata={
-                "selected_provider": "openai",
-                "selected_model": "gpt-4",
-                "routing_reason": "test",
-                "estimated_cost": 0.01,
-                "response_time_ms": 100,
-            },
-        )
-
         # Configure the mock router
         mock_router.select_model = AsyncMock(
             return_value=(
@@ -171,14 +143,18 @@ class TestEndToEndAPIIntegration:
                 },
             )
         )
+        mock_router.invoke_via_adapter = AsyncMock(
+            return_value=ProviderResponse(
+                output_text="This is a test response",
+                tokens_in=15,
+                tokens_out=8,
+                latency_ms=100,
+                raw={},
+                error=None,
+            )
+        )
 
-        # Configure the mock provider
-        mock_provider = AsyncMock()
-        mock_provider.chat_completion = AsyncMock(return_value=mock_response)
-
-        with patch("app.providers.registry.get_provider_registry") as mock_registry:
-            mock_registry.return_value = {"openai": mock_provider}
-
+        with wired_router(mock_router, {"openai": Mock()}):
             response = client.post(
                 "/v1/chat/completions",
                 json={
@@ -205,29 +181,6 @@ class TestEndToEndAPIIntegration:
 
     def test_streaming_responses_if_supported(self, client, mock_router):
         """Test streaming responses (if supported)."""
-        # Mock streaming response
-        mock_response = ChatCompletionResponse(
-            id="stream-test",
-            object="chat.completion.chunk",
-            created=1234567890,
-            model="gpt-4",
-            choices=[
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": "Streaming"},
-                    "finish_reason": "stop",
-                }
-            ],
-            usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
-            router_metadata={
-                "selected_provider": "openai",
-                "selected_model": "gpt-4",
-                "routing_reason": "test",
-                "estimated_cost": 0.01,
-                "response_time_ms": 100,
-            },
-        )
-
         # Configure the mock router
         mock_router.select_model = AsyncMock(
             return_value=(
@@ -245,13 +198,7 @@ class TestEndToEndAPIIntegration:
             )
         )
 
-        # Configure the mock provider
-        mock_provider = AsyncMock()
-        mock_provider.chat_completion = AsyncMock(return_value=mock_response)
-
-        with patch("app.providers.registry.get_provider_registry") as mock_registry:
-            mock_registry.return_value = {"openai": mock_provider}
-
+        with wired_router(mock_router, {"openai": Mock()}):
             response = client.post(
                 "/v1/chat/completions",
                 json={
@@ -268,28 +215,6 @@ class TestEndToEndAPIIntegration:
 
     def test_router_metadata_includes_direct_provider_info(self, client, mock_router):
         """Test that router_metadata includes direct provider information."""
-        mock_response = ChatCompletionResponse(
-            id="test-id",
-            object="chat.completion",
-            created=1234567890,
-            model="gpt-4",
-            choices=[
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": "Test"},
-                    "finish_reason": "stop",
-                }
-            ],
-            usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
-            router_metadata={
-                "selected_provider": "openai",
-                "selected_model": "gpt-4",
-                "routing_reason": "test",
-                "estimated_cost": 0.002,
-                "response_time_ms": 150,
-            },
-        )
-
         # Configure the mock router
         mock_router.select_model = AsyncMock(
             return_value=(
@@ -306,14 +231,18 @@ class TestEndToEndAPIIntegration:
                 },
             )
         )
+        mock_router.invoke_via_adapter = AsyncMock(
+            return_value=ProviderResponse(
+                output_text="Test",
+                tokens_in=10,
+                tokens_out=5,
+                latency_ms=150,
+                raw={},
+                error=None,
+            )
+        )
 
-        # Configure the mock provider
-        mock_provider = AsyncMock()
-        mock_provider.chat_completion = AsyncMock(return_value=mock_response)
-
-        with patch("app.providers.registry.get_provider_registry") as mock_registry:
-            mock_registry.return_value = {"openai": mock_provider}
-
+        with wired_router(mock_router, {"openai": Mock()}):
             response = client.post(
                 "/v1/chat/completions",
                 json={
@@ -335,7 +264,7 @@ class TestEndToEndAPIIntegration:
             assert "estimated_cost" in metadata
             assert "response_time_ms" in metadata
             assert metadata["selected_provider"] == "openai"
-            assert metadata["selected_model"] == "gpt-4"
+            assert metadata["selected_model"] == "gpt-4o-mini"
 
 
 class TestAuthenticationAndAuthorization:
@@ -399,29 +328,6 @@ class TestCostTrackingIntegration:
 
     def test_cost_tracking_works_correctly_with_direct_providers(self, client, mock_router):
         """Test cost tracking works correctly with direct providers."""
-        # Mock a response with usage information
-        mock_response = ChatCompletionResponse(
-            id="cost-test",
-            object="chat.completion",
-            created=1234567890,
-            model="gpt-4",
-            choices=[
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": "Cost tracking test"},
-                    "finish_reason": "stop",
-                }
-            ],
-            usage={"prompt_tokens": 20, "completion_tokens": 10, "total_tokens": 30},
-            router_metadata={
-                "selected_provider": "openai",
-                "selected_model": "gpt-4",
-                "routing_reason": "test",
-                "estimated_cost": 0.01,
-                "response_time_ms": 100,
-            },
-        )
-
         # Configure the mock router
         mock_router.select_model = AsyncMock(
             return_value=(
@@ -438,14 +344,18 @@ class TestCostTrackingIntegration:
                 },
             )
         )
+        mock_router.invoke_via_adapter = AsyncMock(
+            return_value=ProviderResponse(
+                output_text="Cost tracking test",
+                tokens_in=20,
+                tokens_out=10,
+                latency_ms=100,
+                raw={},
+                error=None,
+            )
+        )
 
-        # Configure the mock provider
-        mock_provider = AsyncMock()
-        mock_provider.chat_completion = AsyncMock(return_value=mock_response)
-
-        with patch("app.providers.registry.get_provider_registry") as mock_registry:
-            mock_registry.return_value = {"openai": mock_provider}
-
+        with wired_router(mock_router, {"openai": Mock()}):
             response = client.post(
                 "/v1/chat/completions",
                 json={
@@ -483,29 +393,6 @@ class TestCostTrackingIntegration:
 
     def test_cost_calculations_match_expected_values(self, client, mock_router):
         """Test cost calculations match expected values."""
-        # Mock response with known token usage
-        mock_response = ChatCompletionResponse(
-            id="cost-calc-test",
-            object="chat.completion",
-            created=1234567890,
-            model="gpt-4",
-            choices=[
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": "Cost calculation test"},
-                    "finish_reason": "stop",
-                }
-            ],
-            usage={"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
-            router_metadata={
-                "selected_provider": "openai",
-                "selected_model": "gpt-4",
-                "routing_reason": "test",
-                "estimated_cost": 0.01,
-                "response_time_ms": 100,
-            },
-        )
-
         # Configure the mock router
         mock_router.select_model = AsyncMock(
             return_value=(
@@ -522,14 +409,18 @@ class TestCostTrackingIntegration:
                 },
             )
         )
+        mock_router.invoke_via_adapter = AsyncMock(
+            return_value=ProviderResponse(
+                output_text="Cost calculation test",
+                tokens_in=100,
+                tokens_out=50,
+                latency_ms=100,
+                raw={},
+                error=None,
+            )
+        )
 
-        # Configure the mock provider
-        mock_provider = AsyncMock()
-        mock_provider.chat_completion = AsyncMock(return_value=mock_response)
-
-        with patch("app.providers.registry.get_provider_registry") as mock_registry:
-            mock_registry.return_value = {"openai": mock_provider}
-
+        with wired_router(mock_router, {"openai": Mock()}):
             response = client.post(
                 "/v1/chat/completions",
                 json={
@@ -697,18 +588,19 @@ class TestErrorScenarios:
             )
         )
 
-        response = client.post(
-            "/v1/chat/completions",
-            json={
-                "model": "gpt-4",
-                "messages": [{"role": "user", "content": "Budget test"}],
-                "max_tokens": 1000,
-            },
-            headers={"Authorization": "Bearer test-api-key"},
-        )
+        with wired_router(mock_router, {"openai": Mock()}):
+            response = client.post(
+                "/v1/chat/completions",
+                json={
+                    "model": "gpt-4",
+                    "messages": [{"role": "user", "content": "Budget test"}],
+                    "max_tokens": 1000,
+                },
+                headers={"Authorization": "Bearer test-api-key"},
+            )
 
-        # Should return 402 Payment Required
-        assert response.status_code == 402
+            # Should return 402 Payment Required
+            assert response.status_code == 402
 
     def test_402_payment_required_responses(self, client, mock_router):
         """Test 402 Payment Required responses."""
@@ -722,17 +614,18 @@ class TestErrorScenarios:
             )
         )
 
-        response = client.post(
-            "/v1/chat/completions",
-            json={
-                "model": "gpt-4",
-                "messages": [{"role": "user", "content": "Payment test"}],
-                "max_tokens": 500,
-            },
-            headers={"Authorization": "Bearer test-api-key"},
-        )
+        with wired_router(mock_router, {"openai": Mock()}):
+            response = client.post(
+                "/v1/chat/completions",
+                json={
+                    "model": "gpt-4",
+                    "messages": [{"role": "user", "content": "Payment test"}],
+                    "max_tokens": 500,
+                },
+                headers={"Authorization": "Bearer test-api-key"},
+            )
 
-        assert response.status_code == 402
+            assert response.status_code == 402
 
     def test_503_service_unavailable_when_no_providers_available(self, client, mock_router):
         """Test 503 Service Unavailable when no providers available."""
@@ -778,32 +671,6 @@ class TestComprehensiveIntegration:
 
     def test_complete_direct_provider_request_flow(self, client, mock_router):
         """Test complete direct provider request flow."""
-        # Mock successful response
-        mock_response = ChatCompletionResponse(
-            id="comprehensive-test",
-            object="chat.completion",
-            created=1234567890,
-            model="gpt-4",
-            choices=[
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": "Comprehensive integration test successful!",
-                    },
-                    "finish_reason": "stop",
-                }
-            ],
-            usage={"prompt_tokens": 25, "completion_tokens": 12, "total_tokens": 37},
-            router_metadata={
-                "selected_provider": "openai",
-                "selected_model": "gpt-4",
-                "routing_reason": "test",
-                "estimated_cost": 0.003,
-                "response_time_ms": 200,
-            },
-        )
-
         # Configure the mock router
         mock_router.select_model = AsyncMock(
             return_value=(
@@ -820,14 +687,18 @@ class TestComprehensiveIntegration:
                 },
             )
         )
+        mock_router.invoke_via_adapter = AsyncMock(
+            return_value=ProviderResponse(
+                output_text="Comprehensive integration test successful!",
+                tokens_in=25,
+                tokens_out=12,
+                latency_ms=200,
+                raw={},
+                error=None,
+            )
+        )
 
-        # Configure the mock provider
-        mock_provider = AsyncMock()
-        mock_provider.chat_completion = AsyncMock(return_value=mock_response)
-
-        with patch("app.providers.registry.get_provider_registry") as mock_registry:
-            mock_registry.return_value = {"openai": mock_provider}
-
+        with wired_router(mock_router, {"openai": Mock()}):
             # Test complete request flow
             response = client.post(
                 "/v1/chat/completions",
@@ -846,8 +717,8 @@ class TestComprehensiveIntegration:
             # Verify complete response
             assert response.status_code == 200
             data = response.json()
-            assert data["id"] == "comprehensive-test"
-            assert data["model"] == "gpt-4"
+            assert "id" in data
+            assert data["model"] == "gpt-4o-mini"
             assert len(data["choices"]) == 1
             assert (
                 data["choices"][0]["message"]["content"]
@@ -855,7 +726,7 @@ class TestComprehensiveIntegration:
             )
             assert "router_metadata" in data
             assert data["router_metadata"]["selected_provider"] == "openai"
-            assert data["router_metadata"]["selected_model"] == "gpt-4"
+            assert data["router_metadata"]["selected_model"] == "gpt-4o-mini"
 
     def test_direct_provider_architecture_validation_summary(self):
         """Generate a summary of direct provider architecture validation."""

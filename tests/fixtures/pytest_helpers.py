@@ -3,15 +3,70 @@
 """
 Pytest helper utilities for working with ModelMuxer's testing infrastructure.
 
-This module provides utilities to properly test specific scenarios
-while working with the pytest short-circuit logic in main.py.
+These helpers mock the HTTP request path at its two seams:
+- the provider registry (``app.providers.registry.get_provider_registry``)
+- the router (``HeuristicRouter`` constructor, since the chat handler
+  re-instantiates the router per request outside production mode)
 """
 
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, Mock, patch
 
 from app.core.exceptions import BudgetExceededError
-from app.providers.base import ProviderError
+from app.providers.base import ProviderError, ProviderResponse
+
+
+def make_provider_response(
+    output_text: str = "Test response",
+    tokens_in: int = 10,
+    tokens_out: int = 20,
+    latency_ms: int = 150,
+    error: str | None = None,
+) -> ProviderResponse:
+    """Build a deterministic ProviderResponse for adapter mocking."""
+    return ProviderResponse(
+        output_text=output_text,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        latency_ms=latency_ms,
+        raw={},
+        error=error,
+    )
+
+
+def _make_mock_registry() -> dict:
+    """Registry with a single mock adapter exposing an async invoke()."""
+    mock_adapter = Mock()
+    mock_adapter.invoke = AsyncMock(return_value=make_provider_response())
+    mock_adapter.get_supported_models = Mock(return_value=["gpt-3.5-turbo"])
+    return {"openai": mock_adapter}
+
+
+def _make_selecting_router() -> Mock:
+    """Router mock that selects openai:gpt-3.5-turbo and succeeds on invoke."""
+    mock_router = Mock()
+    mock_router.select_model = AsyncMock(
+        return_value=(
+            "openai",  # provider_name
+            "gpt-3.5-turbo",  # model_name
+            "selected",  # routing_reason
+            {"label": "simple", "confidence": 0.9, "signals": {}},  # intent_metadata
+            {"usd": 0.01, "eta_ms": 500, "tokens_in": 10, "tokens_out": 20},  # estimate_metadata
+        )
+    )
+    mock_router.invoke_via_adapter = AsyncMock(return_value=make_provider_response())
+    mock_router.record_latency = Mock()
+    return mock_router
+
+
+@contextmanager
+def _patched_request_path(mock_router: Mock, registry: dict):
+    """Patch the registry and router constructor used by the chat handler."""
+    with patch("app.providers.registry.get_provider_registry", return_value=registry):
+        with patch("app.router.HeuristicRouter", return_value=mock_router):
+            with patch("app.main.HeuristicRouter", return_value=mock_router):
+                with patch("app.main.router", mock_router):
+                    yield
 
 
 @contextmanager
@@ -19,14 +74,9 @@ def mock_for_budget_exceeded_test():
     """
     Context manager that sets up proper mocking for budget exceeded tests.
 
-    This works by:
-    1. Providing an empty provider registry (bypasses pytest short-circuits)
-    2. Mocking the HeuristicRouter to raise BudgetExceededError
-    3. Ensuring the error handling path is tested
+    The registry contains a provider (so the request passes the availability
+    check) and the router raises BudgetExceededError during selection.
     """
-    empty_registry = {}
-
-    # Create a mock router that raises BudgetExceededError (async method)
     mock_router = Mock()
     mock_router.select_model = AsyncMock(
         side_effect=BudgetExceededError(
@@ -34,11 +84,8 @@ def mock_for_budget_exceeded_test():
         )
     )
 
-    # Mock the HeuristicRouter constructor to return our mock
-    with patch("app.providers.registry.get_provider_registry", return_value=empty_registry):
-        with patch("app.router.HeuristicRouter", return_value=mock_router):
-            with patch("app.main.HeuristicRouter", return_value=mock_router):
-                yield mock_router
+    with _patched_request_path(mock_router, _make_mock_registry()):
+        yield mock_router
 
 
 @contextmanager
@@ -46,57 +93,20 @@ def mock_for_provider_error_test():
     """
     Context manager that sets up proper mocking for provider error tests.
 
-    Simplified approach: Use empty registry to force router path, then directly
-    mock the provider access when it's retrieved by dictionary access.
+    The router selects a provider but the adapter invocation fails with
+    ProviderError, which the handler maps to a 502 response.
     """
-    # Use empty registry to force router path (same as budget exceeded test)
-    empty_registry = {}
+    registry = _make_mock_registry()
+    mock_provider = registry["openai"]
+    mock_provider.invoke = AsyncMock(side_effect=ProviderError("API Error"))
 
-    # Create mock provider that throws error
-    mock_provider = Mock()
-    mock_provider.chat_completion = AsyncMock(side_effect=ProviderError("API Error"))
-
-    # Create router that returns selection (async method) - needs 5 values
-    mock_router = Mock()
-    mock_router.select_model = AsyncMock(
-        return_value=(
-            "openai",  # provider_name
-            "gpt-3.5-turbo",  # model_name
-            "selected",  # routing_reason
-            {"label": "simple", "confidence": 0.9},  # intent_metadata
-            {"usd": 0.01, "eta_ms": 500, "tokens_in": 10, "tokens_out": 20},  # estimate_metadata
-        )
-    )
-    # Router also needs invoke_via_adapter method that will fail with ProviderError
+    mock_router = _make_selecting_router()
     mock_router.invoke_via_adapter = AsyncMock(side_effect=ProviderError("API Error"))
 
-    # Mock the HeuristicRouter constructor (proven approach)
-    with patch("app.providers.registry.get_provider_registry", return_value=empty_registry):
-        with patch("app.router.HeuristicRouter", return_value=mock_router):
-            with patch("app.main.HeuristicRouter", return_value=mock_router):
-                # After router selection, when provider_registry[provider_name] is accessed,
-                # we need that specific access to return the failing provider
-                # Mock this specific access pattern by patching the registry module's get_provider_registry
-                # to return a registry that has the provider when accessed after router selection
-                registry_with_provider = {"openai": mock_provider}
-
-                # Create a context where the second call to get_provider_registry returns the provider
-                call_count = {"value": 0}
-
-                def counting_get_provider_registry():
-                    call_count["value"] += 1
-                    if call_count["value"] == 1:
-                        return empty_registry  # First call during initial check
-                    else:
-                        return registry_with_provider  # Subsequent calls return provider
-
-                with patch(
-                    "app.providers.registry.get_provider_registry",
-                    side_effect=counting_get_provider_registry,
-                ):
-                    # Mock database logging to prevent OperationalError
-                    with patch("app.main.db.log_request", new=AsyncMock()) as mock_log_request:
-                        yield mock_router, mock_provider
+    with _patched_request_path(mock_router, registry):
+        # Mock database logging to prevent OperationalError
+        with patch("app.main.db.log_request", new=AsyncMock()):
+            yield mock_router, mock_provider
 
 
 @contextmanager
@@ -105,33 +115,16 @@ def mock_for_database_logging_test():
     Context manager for database logging tests that need to verify log_request calls.
 
     Unlike other test helpers, this does NOT mock database calls since we need
-    to verify that database logging actually happens.
+    to verify that database logging actually happens. The advanced cost tracker
+    is disabled so the handler falls back to db.log_request.
     """
-    from tests.fixtures.mocks.provider_mocks import create_mock_provider_response
+    registry = _make_mock_registry()
+    mock_provider = registry["openai"]
+    mock_router = _make_selecting_router()
 
-    # Create successful mock provider
-    mock_provider = Mock()
-    mock_response = create_mock_provider_response()
-    mock_provider.chat_completion = AsyncMock(return_value=mock_response)
-    mock_registry = {"openai": mock_provider}
-
-    # Create router that returns selection
-    mock_router = Mock()
-    mock_router.select_model = AsyncMock(
-        return_value=(
-            "openai",
-            "gpt-3.5-turbo",
-            "selected",
-            {"label": "simple", "confidence": 0.9},
-            {"usd": 0.01, "eta_ms": 500, "tokens_in": 10, "tokens_out": 20},
-        )
-    )
-
-    with patch("app.providers.registry.get_provider_registry", return_value=mock_registry):
-        with patch("app.router.HeuristicRouter", return_value=mock_router):
-            with patch("app.main.HeuristicRouter", return_value=mock_router):
-                # NOTE: We do NOT mock db.log_request here since these tests verify it's called
-                yield mock_router, mock_provider
+    with _patched_request_path(mock_router, registry):
+        with patch("app.main.model_muxer.advanced_cost_tracker", None):
+            yield mock_router, mock_provider
 
 
 @contextmanager
@@ -141,25 +134,12 @@ def mock_for_successful_test():
 
     This creates a working provider and router setup.
     """
-    from tests.fixtures.mocks.provider_mocks import create_mock_provider_response
+    registry = _make_mock_registry()
+    mock_provider = registry["openai"]
+    mock_router = _make_selecting_router()
 
-    # Create successful mock provider
-    mock_provider = Mock()
-    mock_response = create_mock_provider_response()
-    mock_provider.chat_completion = AsyncMock(return_value=mock_response)
-    mock_registry = {"openai": mock_provider}
-
-    # Create router that returns selection
-    mock_router = Mock()
-    mock_router.select_model.return_value = (
-        "openai",
-        "gpt-3.5-turbo",
-        "selected",
-        {"usd": 0.01, "eta_ms": 500, "tokens_in": 10, "tokens_out": 20},
-    )
-
-    with patch("app.providers.registry.get_provider_registry", return_value=mock_registry):
-        with patch("app.main.router", mock_router):
+    with _patched_request_path(mock_router, registry):
+        with patch("app.main.db.log_request", new=AsyncMock()):
             yield mock_router, mock_provider
 
 
@@ -169,29 +149,14 @@ def mock_for_provider_timeout_test():
     Context manager for testing provider timeout scenarios.
     Sets up mocking to simulate asyncio.TimeoutError from providers.
     """
-    import asyncio
+    registry = _make_mock_registry()
+    mock_provider = registry["openai"]
+    mock_provider.invoke = AsyncMock(side_effect=TimeoutError("Provider timeout"))
 
-    # Create provider that raises TimeoutError
-    mock_provider = Mock()
-    mock_provider.chat_completion = AsyncMock(side_effect=TimeoutError("Provider timeout"))
+    mock_router = _make_selecting_router()
+    mock_router.invoke_via_adapter = AsyncMock(side_effect=TimeoutError("Provider timeout"))
 
-    mock_registry = {"openai": mock_provider}
-
-    # Create router that returns selection
-    mock_router = Mock()
-    mock_router.select_model = AsyncMock(
-        return_value=(
-            "openai",
-            "gpt-3.5-turbo",
-            "selected",
-            {"label": "simple", "confidence": 0.9},
-            {"usd": 0.01, "eta_ms": 500, "tokens_in": 10, "tokens_out": 20},
-        )
-    )
-
-    with patch("app.providers.registry.get_provider_registry", return_value=mock_registry):
-        with patch("app.router.HeuristicRouter", return_value=mock_router):
-            with patch("app.main.HeuristicRouter", return_value=mock_router):
-                # Prevent database errors during timeout handling
-                with patch("app.main.db.log_request", new=AsyncMock()):
-                    yield mock_router, mock_provider
+    with _patched_request_path(mock_router, registry):
+        # Prevent database errors during timeout handling
+        with patch("app.main.db.log_request", new=AsyncMock()):
+            yield mock_router, mock_provider

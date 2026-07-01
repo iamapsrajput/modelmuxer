@@ -94,6 +94,7 @@ class TestRouterBudgetIntegration:
     def teardown_method(self):
         """Clean up test fixtures."""
         Path(self.temp_file.name).unlink()
+        app.dependency_overrides.clear()
 
     async def test_budget_gate_with_affordable_models(self):
         """Test that budget gate allows affordable models."""
@@ -404,6 +405,7 @@ class TestEndToEndBudgetFlow:
         """Clean up test fixtures."""
         if hasattr(self, "db_patcher"):
             self.db_patcher.stop()
+        app.dependency_overrides.clear()
 
     def test_budget_exceeded_api_response(self):
         """Test that API returns correct 402 response when budget exceeded."""
@@ -418,7 +420,13 @@ class TestEndToEndBudgetFlow:
             )
         )
 
-        with patch("app.main.HeuristicRouter", return_value=mock_router):
+        with (
+            patch("app.main.HeuristicRouter", return_value=mock_router),
+            patch(
+                "app.main.providers_registry.get_provider_registry",
+                return_value={"openai": MagicMock()},
+            ),
+        ):
             response = self.client.post(
                 "/v1/chat/completions",
                 json={"messages": [{"role": "user", "content": "Hello"}], "max_tokens": 1000},
@@ -452,7 +460,6 @@ class TestEndToEndBudgetFlow:
                 "app.main.providers_registry.get_provider_registry",
                 return_value={"dummy": object()},
             ),
-            patch.dict("os.environ", {"DISABLE_PYTEST_SHORTCUT": "1"}),
         ):
             response = self.client.post(
                 "/v1/chat/completions",
@@ -486,38 +493,21 @@ class TestEndToEndBudgetFlow:
                 },
             )
         )
+        from app.providers.base import ProviderResponse
+
+        mock_router.invoke_via_adapter = AsyncMock(
+            return_value=ProviderResponse(
+                output_text="Hello!",
+                tokens_in=5,
+                tokens_out=5,
+                latency_ms=800,
+                raw={},
+                error=None,
+            )
+        )
 
         with patch("app.main.HeuristicRouter", return_value=mock_router):
-            # Mock provider to return successful response
-            from app.models import ChatCompletionResponse, ChatMessage, Choice, Usage
-
             mock_provider = AsyncMock()
-            from app.models import RouterMetadata
-
-            mock_provider.chat_completion.return_value = ChatCompletionResponse(
-                id="test-id",
-                object="chat.completion",
-                created=1234567890,
-                model="gpt-4o-mini",
-                choices=[
-                    Choice(
-                        index=0,
-                        message=ChatMessage(role="assistant", content="Hello!", name=None),
-                        finish_reason="stop",
-                    )
-                ],
-                usage=Usage(prompt_tokens=5, completion_tokens=5, total_tokens=10),
-                router_metadata=RouterMetadata(
-                    selected_provider="openai",
-                    selected_model="gpt-4o-mini",
-                    routing_reason="Selected for cost efficiency",
-                    estimated_cost=0.05,
-                    response_time_ms=800,
-                    intent_label="general",
-                    intent_confidence=0.8,
-                    intent_signals={},
-                ),
-            )
             with patch(
                 "app.providers.registry.get_provider_registry",
                 return_value={"openai": mock_provider},
@@ -552,41 +542,21 @@ class TestEndToEndBudgetFlow:
             )
         )
         mock_router.record_latency = MagicMock()
+        from app.providers.base import ProviderResponse
 
-        with (
-            patch("app.main.HeuristicRouter", return_value=mock_router),
-            patch.dict("os.environ", {"DISABLE_PYTEST_SHORTCUT": "1"}),
-        ):
-            # Mock provider to return successful response
-            from app.models import ChatCompletionResponse, ChatMessage, Choice, Usage
-
-            mock_provider = AsyncMock()
-            from app.models import RouterMetadata
-
-            mock_provider.chat_completion.return_value = ChatCompletionResponse(
-                id="test-id",
-                object="chat.completion",
-                created=1234567890,
-                model="gpt-4o-mini",
-                choices=[
-                    Choice(
-                        index=0,
-                        message=ChatMessage(role="assistant", content="Hello!", name=None),
-                        finish_reason="stop",
-                    )
-                ],
-                usage=Usage(prompt_tokens=5, completion_tokens=5, total_tokens=10),
-                router_metadata=RouterMetadata(
-                    selected_provider="openai",
-                    selected_model="gpt-4o-mini",
-                    routing_reason="Selected for cost efficiency",
-                    estimated_cost=0.05,
-                    response_time_ms=800,
-                    intent_label="general",
-                    intent_confidence=0.8,
-                    intent_signals={},
-                ),
+        mock_router.invoke_via_adapter = AsyncMock(
+            return_value=ProviderResponse(
+                output_text="Hello!",
+                tokens_in=5,
+                tokens_out=5,
+                latency_ms=800,
+                raw={},
+                error=None,
             )
+        )
+
+        with patch("app.main.HeuristicRouter", return_value=mock_router):
+            mock_provider = AsyncMock()
             with patch(
                 "app.providers.registry.get_provider_registry",
                 return_value={"openai": mock_provider},

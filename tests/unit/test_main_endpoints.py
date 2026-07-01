@@ -74,26 +74,40 @@ def mock_db():
 
 @pytest.fixture
 def mock_router():
-    """Mock router for tests."""
-    with patch("app.main.router") as mock:
-        mock.select_model = AsyncMock(
-            return_value=(
-                "openai",
-                "gpt-4",
-                "Selected based on task complexity",
-                {"label": "complex", "confidence": 0.9, "signals": {}},
-                {
-                    "usd": 0.05,
-                    "eta_ms": 500,
-                    "tokens_in": 100,
-                    "tokens_out": 200,
-                    "model_key": "openai:gpt-4",
-                },
-            )
+    """Mock router for tests (patches the per-request constructor too)."""
+    from app.providers.base import ProviderResponse
+
+    mock = Mock()
+    mock.select_model = AsyncMock(
+        return_value=(
+            "openai",
+            "gpt-4",
+            "Selected based on task complexity",
+            {"label": "complex", "confidence": 0.9, "signals": {}},
+            {
+                "usd": 0.05,
+                "eta_ms": 500,
+                "tokens_in": 100,
+                "tokens_out": 200,
+                "model_key": "openai:gpt-4",
+            },
         )
-        mock.invoke_via_adapter = AsyncMock()
-        mock.record_latency = Mock()
-        yield mock
+    )
+    mock.invoke_via_adapter = AsyncMock(
+        return_value=ProviderResponse(
+            output_text="Test response",
+            tokens_in=100,
+            tokens_out=50,
+            latency_ms=500,
+            raw={},
+            error=None,
+        )
+    )
+    mock.record_latency = Mock()
+    with patch("app.main.router", mock):
+        with patch("app.main.HeuristicRouter", return_value=mock):
+            with patch("app.router.HeuristicRouter", return_value=mock):
+                yield mock
 
 
 @pytest.fixture
@@ -385,15 +399,19 @@ class TestChatCompletionsEndpoint:
             "max_tokens": 1000,
         }
 
-        with patch("app.main.router", mock_router):
-            response = test_client.post(
-                "/v1/chat/completions",
-                json=request_data,
-                headers={"Authorization": "Bearer test-key"},
-            )
-            assert response.status_code == 402
-            data = response.json()
-            assert data["error"]["type"] == "budget_exceeded"
+        with patch(
+            "app.providers.registry.get_provider_registry", return_value={"openai": Mock()}
+        ):
+            with patch("app.main.router", mock_router):
+                with patch("app.main.HeuristicRouter", return_value=mock_router):
+                    response = test_client.post(
+                        "/v1/chat/completions",
+                        json=request_data,
+                        headers={"Authorization": "Bearer test-key"},
+                    )
+                    assert response.status_code == 402
+                    data = response.json()
+                    assert data["error"]["type"] == "budget_exceeded"
 
     async def test_chat_completions_no_pricing(self, test_client, mock_auth):
         """Test chat completion with no pricing error."""
@@ -406,20 +424,27 @@ class TestChatCompletionsEndpoint:
 
         request_data = {"messages": [{"role": "user", "content": "Hello"}], "model": "gpt-4"}
 
-        with patch("app.main.router", mock_router):
-            response = test_client.post(
-                "/v1/chat/completions",
-                json=request_data,
-                headers={"Authorization": "Bearer test-key"},
-            )
-            assert response.status_code == 402
-            data = response.json()
-            assert data["error"]["code"] == "no_pricing"
+        with patch(
+            "app.providers.registry.get_provider_registry", return_value={"openai": Mock()}
+        ):
+            with patch("app.main.router", mock_router):
+                with patch("app.main.HeuristicRouter", return_value=mock_router):
+                    response = test_client.post(
+                        "/v1/chat/completions",
+                        json=request_data,
+                        headers={"Authorization": "Bearer test-key"},
+                    )
+                    assert response.status_code == 402
+                    data = response.json()
+                    assert data["error"]["code"] == "no_pricing"
 
     async def test_chat_completions_provider_error(self, test_client, mock_auth, mock_router):
         """Test chat completion with provider error."""
         mock_provider = Mock()
-        mock_provider.chat_completion = AsyncMock(side_effect=ProviderError("Provider unavailable"))
+        mock_provider.invoke = AsyncMock(side_effect=ProviderError("Provider unavailable"))
+        mock_router.invoke_via_adapter = AsyncMock(
+            side_effect=ProviderError("Provider unavailable")
+        )
 
         with patch(
             "app.providers.registry.get_provider_registry", return_value={"openai": mock_provider}
@@ -442,7 +467,8 @@ class TestChatCompletionsEndpoint:
     async def test_chat_completions_auth_error(self, test_client, mock_auth, mock_router):
         """Test chat completion with authentication error."""
         mock_provider = Mock()
-        mock_provider.chat_completion = AsyncMock(
+        mock_provider.invoke = AsyncMock(side_effect=AuthenticationError("Invalid API key"))
+        mock_router.invoke_via_adapter = AsyncMock(
             side_effect=AuthenticationError("Invalid API key")
         )
 
@@ -467,7 +493,10 @@ class TestChatCompletionsEndpoint:
     async def test_chat_completions_rate_limit(self, test_client, mock_auth, mock_router):
         """Test chat completion with rate limit error."""
         mock_provider = Mock()
-        mock_provider.chat_completion = AsyncMock(side_effect=RateLimitError("Rate limit exceeded"))
+        mock_provider.invoke = AsyncMock(side_effect=RateLimitError("Rate limit exceeded"))
+        mock_router.invoke_via_adapter = AsyncMock(
+            side_effect=RateLimitError("Rate limit exceeded")
+        )
 
         with patch(
             "app.providers.registry.get_provider_registry", return_value={"openai": mock_provider}

@@ -2,10 +2,14 @@
 # Licensed under Business Source License 1.1 – see LICENSE for details.
 """Test API contract stability for /providers and /v1/models endpoints."""
 
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+
+_TEST_USER = {"user_id": "contract-test-user", "api_key": "sk-test-claude-dev"}
 
 
 def test_providers_endpoint_contract():
@@ -14,7 +18,10 @@ def test_providers_endpoint_contract():
 
     # Test both /providers and /v1/providers endpoints
     for endpoint in ["/providers", "/v1/providers"]:
-        response = client.get(endpoint, headers={"Authorization": "Bearer sk-test-claude-dev"})
+        with patch("app.auth.auth.authenticate_request", return_value=_TEST_USER):
+            response = client.get(
+                endpoint, headers={"Authorization": "Bearer sk-test-claude-dev"}
+            )
 
         # Should not return 401 (authentication error) or 500 (server error)
         assert response.status_code in [
@@ -52,7 +59,10 @@ def test_models_endpoint_contract():
     """Test that /v1/models endpoint maintains stable contract."""
     client = TestClient(app)
 
-    response = client.get("/v1/models", headers={"Authorization": "Bearer sk-test-claude-dev"})
+    with patch("app.auth.auth.authenticate_request", return_value=_TEST_USER):
+        response = client.get(
+            "/v1/models", headers={"Authorization": "Bearer sk-test-claude-dev"}
+        )
 
     # Should not return 401 (authentication error) or 500 (server error)
     assert response.status_code in [200, 404, 503], f"Unexpected status code {response.status_code}"
