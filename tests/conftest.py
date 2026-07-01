@@ -484,14 +484,6 @@ def deterministic_env(monkeypatch):
 
 
 @pytest.fixture
-def mock_settings_max_tokens():
-    """Mock settings.max_tokens_default for provider tests."""
-    with patch("app.providers.anthropic_provider.settings") as mock_settings:
-        mock_settings.max_tokens_default = 1000
-        yield
-
-
-@pytest.fixture
 def mock_provider_registry_patch(mock_provider_registry):
     """Patch the global provider registry function to return mock providers."""
     with patch("app.providers.registry.get_provider_registry", return_value=mock_provider_registry):

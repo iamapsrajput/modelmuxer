@@ -5,21 +5,21 @@
 Supplementary tests for app/providers/base.py to increase coverage.
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from typing import Any
+
 import pytest
-from typing import Any, Dict, List, Optional
 
 from app.providers.base import (
-    LLMProvider,
-    ProviderError,
-    RateLimitError,
     AuthenticationError,
+    LLMProviderAdapter,
     ModelNotFoundError,
+    ProviderError,
     ProviderResponse,
+    RateLimitError,
     SimpleCircuitBreaker,
+    _is_retryable_error,
     estimate_tokens,
     normalize_finish_reason,
-    _is_retryable_error,
 )
 from app.models import ChatMessage
 
@@ -193,11 +193,11 @@ class TestProviderBase:
         assert error.status_code == 404
         assert error.provider == "test-provider"
 
-    def test_llm_provider_abstract_class(self):
-        """Test that LLMProvider is abstract and cannot be instantiated."""
+    def test_adapter_abstract_class(self):
+        """Test that LLMProviderAdapter is abstract and cannot be instantiated."""
         with pytest.raises(TypeError):
             # Should raise TypeError because abstract methods are not implemented
-            LLMProvider("test-key", "https://api.test.com", "test-provider")
+            LLMProviderAdapter()
 
     def test_exception_inheritance(self):
         """Test that custom exceptions inherit from ProviderError."""
@@ -245,102 +245,92 @@ class TestProviderBase:
         assert normalize_finish_reason("together", "unknown") == "stop"
 
 
-class MockProvider(LLMProvider):
-    """Mock provider for testing concrete implementation."""
+class MockAdapter(LLMProviderAdapter):
+    """Mock adapter for testing the LLMProviderAdapter shims."""
 
-    def __init__(self, api_key: str, base_url: str, provider_name: str):
-        super().__init__(api_key, base_url, provider_name)
+    def __init__(self, error: str | None = None):
+        self._error = error
+        self.closed = False
 
-    async def chat_completion(
-        self,
-        messages: List[ChatMessage],
-        model: str,
-        max_tokens: int | None = None,
-        temperature: float | None = None,
-        stream: bool = False,
-        **kwargs,
-    ):
-        """Mock chat completion."""
-        return {
-            "id": "mock-id",
-            "choices": [{"message": {"role": "assistant", "content": "Mock response"}}],
-            "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
-        }
+    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:
+        return ProviderResponse(
+            output_text="Mock response",
+            tokens_in=10,
+            tokens_out=20,
+            latency_ms=5,
+            error=self._error,
+        )
 
-    async def stream_chat_completion(
-        self,
-        messages: List[ChatMessage],
-        model: str,
-        max_tokens: int | None = None,
-        temperature: float | None = None,
-        **kwargs,
-    ):
-        """Mock streaming chat completion."""
-        yield {"choices": [{"delta": {"content": "Mock"}}]}
-        yield {"choices": [{"delta": {"content": " response"}}]}
+    async def aclose(self) -> None:
+        self.closed = True
 
-    def calculate_cost(self, input_tokens: int, output_tokens: int, model: str) -> float:
-        """Mock cost calculation."""
-        # Simple mock calculation
-        return (input_tokens * 0.001) + (output_tokens * 0.002)
-
-    def get_supported_models(self) -> List[str]:
-        """Get list of supported models."""
+    def get_supported_models(self) -> list[str]:
         return ["mock-model-1", "mock-model-2"]
 
-    def validate_model(self, model: str) -> bool:
-        """Validate if model is supported."""
-        return model in self.get_supported_models()
 
-
-class TestMockProvider:
-    """Test the mock provider implementation."""
+class TestMockAdapter:
+    """Test the LLMProviderAdapter shim behavior via a mock adapter."""
 
     @pytest.fixture
-    def mock_provider(self):
-        """Create a mock provider instance."""
-        return MockProvider("mock-key", "https://api.mock.com", "mock-provider")
+    def mock_adapter(self):
+        """Create a mock adapter instance."""
+        return MockAdapter()
 
     @pytest.mark.asyncio
-    async def test_mock_chat_completion(self, mock_provider):
-        """Test mock provider chat completion."""
+    async def test_invoke(self, mock_adapter):
+        """Test adapter invoke returns a ProviderResponse."""
+        response = await mock_adapter.invoke("mock-model-1", "Hello")
+
+        assert isinstance(response, ProviderResponse)
+        assert response.output_text == "Mock response"
+        assert response.tokens_in == 10
+        assert response.tokens_out == 20
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_shim(self, mock_adapter):
+        """Test the chat_completion shim converts invoke output."""
         messages = [ChatMessage(role="user", content="Hello")]
-        response = await mock_provider.chat_completion(messages, "mock-model-1")
+        response = await mock_adapter.chat_completion(messages, "mock-model-1")
 
-        assert response["id"] == "mock-id"
-        assert response["choices"][0]["message"]["content"] == "Mock response"
-        assert response["usage"]["total_tokens"] == 30
+        assert response.choices[0].message.content == "Mock response"
+        assert response.usage.prompt_tokens == 10
+        assert response.usage.completion_tokens == 20
+        assert response.usage.total_tokens == 30
+        assert response.model == "mock-model-1"
 
     @pytest.mark.asyncio
-    async def test_mock_stream_chat_completion(self, mock_provider):
-        """Test mock provider streaming."""
+    async def test_chat_completion_shim_error(self):
+        """Test the chat_completion shim raises ProviderError on adapter error."""
+        adapter = MockAdapter(error="upstream failure")
+        messages = [ChatMessage(role="user", content="Hello")]
+
+        with pytest.raises(ProviderError):
+            await adapter.chat_completion(messages, "mock-model-1")
+
+    @pytest.mark.asyncio
+    async def test_stream_chat_completion_shim(self, mock_adapter):
+        """Test the streaming shim yields SSE chunks and DONE marker."""
         messages = [ChatMessage(role="user", content="Hello")]
 
         chunks = []
-        async for chunk in mock_provider.stream_chat_completion(messages, "mock-model-1"):
+        async for chunk in mock_adapter.stream_chat_completion(messages, "mock-model-1"):
             chunks.append(chunk)
 
         assert len(chunks) == 2
-        assert chunks[0]["choices"][0]["delta"]["content"] == "Mock"
-        assert chunks[1]["choices"][0]["delta"]["content"] == " response"
+        assert chunks[0].startswith("data: ")
+        assert "Mock response" in chunks[0]
+        assert chunks[1] == "data: [DONE]\n\n"
 
-    def test_mock_calculate_cost(self, mock_provider):
-        """Test mock provider cost calculation."""
-        cost = mock_provider.calculate_cost(100, 200, "mock-model-1")
+    @pytest.mark.asyncio
+    async def test_aclose(self, mock_adapter):
+        """Test adapter close lifecycle."""
+        await mock_adapter.aclose()
+        assert mock_adapter.closed is True
 
-        # 100 * 0.001 + 200 * 0.002 = 0.1 + 0.4 = 0.5
-        assert cost == 0.5
-
-    def test_mock_get_supported_models(self, mock_provider):
+    def test_get_supported_models(self, mock_adapter):
         """Test getting supported models."""
-        models = mock_provider.get_supported_models()
+        models = mock_adapter.get_supported_models()
 
         assert len(models) == 2
         assert "mock-model-1" in models
         assert "mock-model-2" in models
-
-    def test_mock_validate_model(self, mock_provider):
-        """Test model validation."""
-        assert mock_provider.validate_model("mock-model-1") is True
-        assert mock_provider.validate_model("mock-model-2") is True
-        assert mock_provider.validate_model("unsupported-model") is False
