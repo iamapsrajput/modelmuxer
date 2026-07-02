@@ -640,9 +640,9 @@ class TestMainApplication:
         """Test model format validation in production mode."""
         with patch("app.auth.auth.authenticate_request", return_value=mock_user_info):
             with patch("app.main.app_settings.features.mode", "production"):
-                # Test with proxy-style model name
+                # Test with legacy proxy-style model name (colon separator)
                 invalid_request = sample_chat_request.copy()
-                invalid_request.model = "openai/gpt-4"
+                invalid_request.model = "openai:gpt-4"
 
                 response = client.post(
                     "/v1/chat/completions",

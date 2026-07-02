@@ -15,9 +15,27 @@ def validate_model_format(model: str) -> None:
         model: The model name to validate
 
     Raises:
-        HTTPException: If the model name contains ':' or '/' separators
+        HTTPException: If the model name contains ':' or invalid '/' separators
     """
-    if model and (":" in model or "/" in model):
+    if not model or model in {"auto", "router"}:
+        return
+
+    # OpenWebUI-style provider/model IDs (e.g. ollama/llama3.2)
+    if "/" in model:
+        parts = model.split("/")
+        if len(parts) == 2 and all(parts):
+            return
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponse.create(
+                message="Invalid model name format. Use provider/model (e.g., 'ollama/llama3.2') or a direct model id.",
+                error_type="invalid_request",
+                code="invalid_model_format",
+                details={"provided_model": model},
+            ).dict(),
+        )
+
+    if model and ":" in model:
         raise HTTPException(
             status_code=400,
             detail=ErrorResponse.create(

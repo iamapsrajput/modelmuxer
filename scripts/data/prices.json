@@ -4,7 +4,7 @@
     "_source": "Direct provider pricing APIs and documentation",
     "_note": "Prices in USD per 1k tokens (1k tokens = 1,000 tokens = 1 mtok). Only direct providers supported.",
     "_note2": "Note: input_per_1k_usd is equivalent to input_per_mtok_usd (mtoks = tokens/1000)",
-    "_providers": "openai, anthropic, mistral, groq, google, cohere, together",
+    "_providers": "openai, anthropic, mistral, groq, google, cohere, together, ollama",
     "openai:gpt-4o": {
         "input_per_1k_usd": 2.50,
         "output_per_1k_usd": 10.00
@@ -188,5 +188,9 @@
     "together:mistralai/Mixtral-8x7B-Instruct-v0.1": {
         "input_per_1k_usd": 0.60,
         "output_per_1k_usd": 0.60
+    },
+    "ollama:llama3.2": {
+        "input_per_1k_usd": 0.0,
+        "output_per_1k_usd": 0.0
     }
 }

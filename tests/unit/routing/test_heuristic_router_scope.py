@@ -31,6 +31,8 @@ class TestHeuristicRouterScope:
         # Mock settings to avoid configuration issues
         self.router.settings = Mock()
         self.router.settings.router_thresholds.max_estimated_usd_per_request = 0.50
+        self.router.settings.router.prefer_local = False
+        self.router.settings.router.local_default_model = None
         self.router.settings.pricing.min_tokens_in_floor = 50
         self.router.settings.server.debug = False
         self.router.settings.features.mode = "test"
@@ -93,20 +95,24 @@ class TestHeuristicRouterScope:
     async def test_span_context_exception_does_not_cause_unbound_local_error(self):
         """Test that span context exceptions don't cause UnboundLocalError."""
         messages = [ChatMessage(role="user", content="Hello", name=None)]
+        self.router.settings.router.prefer_local = False
 
         # Mock classify_intent to return proper dict to avoid Mock conversion errors
         with patch(
             "app.router.classify_intent",
             return_value={"label": "general", "confidence": 0.5, "signals": {}, "method": "test"},
         ):
-            # Mock start_span_async to raise an exception (router uses start_span_async, not start_span)
-            with patch("app.router.start_span_async", side_effect=Exception("Span context failed")):
-                with pytest.raises(Exception) as exc_info:
-                    await self.router.select_model(messages=messages)
+            with patch("app.router.estimate_tokens", return_value=(50, 100)):
+                # Mock start_span_async to raise an exception (router uses start_span_async, not start_span)
+                with patch(
+                    "app.router.start_span_async", side_effect=Exception("Span context failed")
+                ):
+                    with pytest.raises(Exception) as exc_info:
+                        await self.router.select_model(messages=messages)
 
-                # Should raise the original exception, not UnboundLocalError
-                assert "Span context failed" in str(exc_info.value)
-                assert "UnboundLocalError" not in str(exc_info.value)
+                    # Should raise the original exception, not UnboundLocalError
+                    assert "Span context failed" in str(exc_info.value)
+                    assert "UnboundLocalError" not in str(exc_info.value)
 
     async def test_estimate_tokens_exception_does_not_cause_unbound_local_error(self):
         """Test that estimate_tokens exceptions don't cause UnboundLocalError."""

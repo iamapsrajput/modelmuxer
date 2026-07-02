@@ -240,6 +240,17 @@ class Estimator:
         if tokens_out is None:
             tokens_out = self.settings.pricing.estimator_default_tokens_out
 
+        # Local Ollama models are always zero-cost
+        if model_key.startswith("ollama:"):
+            latency_stats = self.latency_priors.get(model_key)
+            return Estimate(
+                usd=0.0,
+                eta_ms=latency_stats["p95"],
+                model_key=model_key,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+            )
+
         # Get price for model
         price = self.prices.get(model_key)
 

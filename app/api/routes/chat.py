@@ -121,6 +121,11 @@ async def chat_completions(
                 user_id=user_id,
                 max_tokens=request.max_tokens,
                 budget_constraint=getattr(request, "max_budget", None),
+                requested_model=(
+                    request.model
+                    if request.model and request.model not in {"auto", "router"}
+                    else None
+                ),
             )
             if app_settings.server.debug:
                 logger.debug(

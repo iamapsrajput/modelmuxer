@@ -365,12 +365,63 @@ class HeuristicRouter:
             analysis["task_type"] = "general"
         return analysis
 
+    def _parse_requested_model(self, requested_model: str | None) -> tuple[str, str] | None:
+        """Parse OpenWebUI-style provider/model IDs into (provider, model)."""
+        if not requested_model or requested_model in {"auto", "router"}:
+            return None
+        if "/" not in requested_model:
+            return None
+        provider, model = requested_model.split("/", 1)
+        if not provider or not model:
+            return None
+        return provider, model
+
+    def _pick_ollama_model(self, adapter: object) -> str | None:
+        """Select an Ollama model from adapter listing or configured default."""
+        configured = self.settings.router.local_default_model
+        if configured:
+            return configured
+        get_models = getattr(adapter, "get_supported_models", None)
+        if callable(get_models):
+            models = get_models()
+            if models:
+                return models[0]
+        return None
+
+    def _local_route_metadata(
+        self,
+        provider: str,
+        model: str,
+        analysis: "HeuristicRouter.Analysis",
+        intent_metadata: dict[str, object],
+        tokens_in: int,
+        tokens_out: int,
+        reason: str,
+    ) -> tuple[str, str, str, dict[str, object], dict[str, object]]:
+        """Build a zero-cost local routing result."""
+        model_key = f"{provider}:{model}"
+        estimate = self.estimator.estimate(model_key, tokens_in, tokens_out)
+        return (
+            provider,
+            model,
+            reason or self._generate_reasoning(analysis),
+            intent_metadata,
+            {
+                "usd": float(estimate.usd or 0.0),
+                "eta_ms": estimate.eta_ms,
+                "tokens_in": estimate.tokens_in,
+                "tokens_out": estimate.tokens_out,
+                "model_key": estimate.model_key,
+            },
+        )
+
     async def select_model(
         self,
         messages: list[ChatMessage],
         user_id: str | None = None,
         budget_constraint: float | None = None,
         max_tokens: int | None = None,
+        requested_model: str | None = None,
     ) -> tuple[str, str, str, dict[str, object], dict[str, object]]:
         """Select the best model based on prompt analysis and constraints."""
         logger.debug("select_model called with budget_constraint=%s", budget_constraint)
@@ -381,7 +432,8 @@ class HeuristicRouter:
         if not self.provider_registry_fn():
             ROUTER_FALLBACKS.labels("chat", "no_providers").inc()
             raise NoProvidersAvailableError("No LLM providers available")
-        preferences: list[tuple[str, str]] = []
+
+        analysis = self.analyze_prompt(messages)
         intent_metadata: dict[str, object] = {
             "label": "unknown",
             "confidence": 0.0,
@@ -393,7 +445,76 @@ class HeuristicRouter:
             ROUTER_INTENT_TOTAL.labels(cast(str, intent_metadata["label"]).__str__()).inc()
         except Exception as e:
             logger.warning("Intent classification failed: %s", e)
-        analysis = self.analyze_prompt(messages)
+
+        tokens_in, tokens_out = estimate_tokens(
+            messages, self.settings, self.settings.pricing.min_tokens_in_floor
+        )
+        if max_tokens is not None:
+            tokens_out = int(max_tokens)
+
+        available_providers = self.provider_registry_fn()
+        parsed_request = self._parse_requested_model(requested_model)
+        if parsed_request:
+            provider_name, model_name = parsed_request
+            if provider_name == "ollama":
+                if provider_name not in available_providers:
+                    raise NoProvidersAvailableError(
+                        "Ollama provider is not available",
+                        details={"requested_model": requested_model},
+                    )
+                return self._local_route_metadata(
+                    provider_name,
+                    model_name,
+                    analysis,
+                    intent_metadata,
+                    tokens_in,
+                    tokens_out,
+                    f"Explicit local model requested: {requested_model}",
+                )
+            if provider_name in available_providers:
+                model_key = f"{provider_name}:{model_name}"
+                estimate = self.estimator.estimate(model_key, tokens_in, tokens_out)
+                budget = (
+                    budget_constraint
+                    if budget_constraint is not None
+                    else self.settings.router_thresholds.max_estimated_usd_per_request
+                )
+                if estimate.usd is not None and estimate.usd <= budget:
+                    return (
+                        provider_name,
+                        model_name,
+                        f"Explicit model requested: {requested_model}",
+                        intent_metadata,
+                        {
+                            "usd": float(estimate.usd),
+                            "eta_ms": estimate.eta_ms,
+                            "tokens_in": estimate.tokens_in,
+                            "tokens_out": estimate.tokens_out,
+                            "model_key": estimate.model_key,
+                        },
+                    )
+                raise BudgetExceededError(
+                    f"Requested model {requested_model} exceeds budget limit of ${budget}",
+                    limit=budget,
+                    estimates=[(model_key, estimate.usd)],
+                    reason="budget_exceeded",
+                )
+
+        if self.settings.router.prefer_local and "ollama" in available_providers:
+            ollama_adapter = available_providers["ollama"]
+            local_model = self._pick_ollama_model(ollama_adapter)
+            if local_model:
+                return self._local_route_metadata(
+                    "ollama",
+                    local_model,
+                    analysis,
+                    intent_metadata,
+                    tokens_in,
+                    tokens_out,
+                    "Local model preferred via PREFER_LOCAL",
+                )
+
+        preferences: list[tuple[str, str]] = []
         task_type = analysis["task_type"]
         route_label: str = "chat"
         ROUTER_REQUESTS.labels(route_label).inc()
@@ -411,11 +532,6 @@ class HeuristicRouter:
             route_intent_label=str(intent_metadata.get("label", "unknown")),
             route_intent_confidence=_conf,
         ) as span:
-            tokens_in, tokens_out = estimate_tokens(
-                messages, self.settings, self.settings.pricing.min_tokens_in_floor
-            )
-            if max_tokens is not None:
-                tokens_out = int(max_tokens)
             if span is not None:
                 span.set_attribute("route.tokens_in", tokens_in)
                 span.set_attribute("route.tokens_out", tokens_out)

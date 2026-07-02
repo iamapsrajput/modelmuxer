@@ -451,6 +451,16 @@ class RouterSettings(BaseSettings):
         "with practical routing decisions. Can be tuned based on production performance.",
         validation_alias=AliasChoices("INTENT_MIN_CONF_FOR_DIRECT"),
     )
+    prefer_local: bool = Field(
+        default=False,
+        description="When true, prefer local Ollama models over cloud providers when available.",
+        validation_alias=AliasChoices("PREFER_LOCAL", "ROUTER_PREFER_LOCAL"),
+    )
+    local_default_model: str | None = Field(
+        default=None,
+        description="Default Ollama model name when prefer_local is enabled (uses first listed model if unset).",
+        validation_alias=AliasChoices("LOCAL_DEFAULT_MODEL", "ROUTER_LOCAL_DEFAULT_MODEL"),
+    )
 
     @field_validator("max_tokens_default", "simple_query_max_length")
     @classmethod
@@ -811,6 +821,16 @@ class ProviderEndpointsSettings(BaseSettings):
         default=None,
         description="Together AI base URL (optional).",
         validation_alias=AliasChoices("TOGETHER_BASE_URL"),
+    )
+    ollama_base_url: HttpUrl | None = Field(
+        default=None,
+        description="Ollama base URL for local model inference (e.g. http://localhost:11434).",
+        validation_alias=AliasChoices("OLLAMA_BASE_URL"),
+    )
+    ollama_api_key: str | None = Field(
+        default=None,
+        description="Optional API key when Ollama is fronted by an authenticated proxy.",
+        validation_alias=AliasChoices("OLLAMA_API_KEY"),
     )
 
 

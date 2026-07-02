@@ -45,6 +45,11 @@ try:
 except Exception:  # pragma: no cover
     TogetherAdapter = None  # type: ignore[assignment]
 
+try:
+    from .ollama import OllamaAdapter
+except Exception:  # pragma: no cover
+    OllamaAdapter = None  # type: ignore[assignment]
+
 
 def build_registry() -> Dict[str, object]:
     # Check if provider adapters are enabled via feature flag
@@ -129,6 +134,12 @@ def build_registry() -> Dict[str, object]:
         registry["together"] = TogetherAdapter(
             api_key=settings.api.together_api_key,
             base_url=base_url,
+        )
+
+    if settings.endpoints.ollama_base_url and OllamaAdapter is not None:
+        registry["ollama"] = OllamaAdapter(
+            base_url=str(settings.endpoints.ollama_base_url),
+            api_key=settings.endpoints.ollama_api_key,
         )
 
     return registry
