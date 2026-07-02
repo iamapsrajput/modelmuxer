@@ -234,7 +234,7 @@ class TestProvidersEndpoint:
 class TestModelsEndpoint:
     """Test models listing endpoint."""
 
-    def test_list_models(self, test_client, mock_auth):
+    def test_list_models(self, test_client, mock_auth, mock_provider_registry):
         """Test /v1/models endpoint."""
         with patch("app.main.load_price_table") as mock_load:
             mock_load.return_value = {
@@ -245,8 +245,13 @@ class TestModelsEndpoint:
             assert response.status_code == 200
             data = response.json()
             assert data["object"] == "list"
-            assert len(data["data"]) == 2
-            assert any(m["model"] == "gpt-4" for m in data["data"])
+            assert len(data["data"]) >= 2
+            openai_models = [m for m in data["data"] if m["provider"] == "openai"]
+            assert any(m["model"] == "gpt-4" for m in openai_models)
+            for model in data["data"]:
+                assert "id" in model
+                assert "created" in model
+                assert "owned_by" in model
 
 
 class TestAnalyticsEndpoints:

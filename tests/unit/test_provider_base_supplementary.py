@@ -309,17 +309,17 @@ class TestMockAdapter:
 
     @pytest.mark.asyncio
     async def test_stream_chat_completion_shim(self, mock_adapter):
-        """Test the streaming shim yields SSE chunks and DONE marker."""
+        """Test the streaming shim yields OpenAI chunk dicts."""
         messages = [ChatMessage(role="user", content="Hello")]
 
         chunks = []
         async for chunk in mock_adapter.stream_chat_completion(messages, "mock-model-1"):
             chunks.append(chunk)
 
-        assert len(chunks) == 2
-        assert chunks[0].startswith("data: ")
-        assert "Mock response" in chunks[0]
-        assert chunks[1] == "data: [DONE]\n\n"
+        assert len(chunks) >= 2
+        assert chunks[0]["object"] == "chat.completion.chunk"
+        assert "Mock response" in (chunks[1]["choices"][0]["delta"].get("content") or "")
+        assert chunks[-1]["choices"][0]["finish_reason"] == "stop"
 
     @pytest.mark.asyncio
     async def test_aclose(self, mock_adapter):

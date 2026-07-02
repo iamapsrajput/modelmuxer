@@ -7,6 +7,7 @@ This module contains the unified Provider Adapter interface (invoke) with
 shared resilience helpers and a common ProviderResponse dataclass.
 """
 
+import json
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
@@ -176,6 +177,48 @@ def _is_retryable_error(provider: str, status_code: int | None, payload: dict | 
 USER_AGENT = "ModelMuxer/1.0.0"
 
 
+def messages_to_openai_format(messages: list[ChatMessage]) -> list[dict[str, str]]:
+    """Convert ChatMessage list to OpenAI chat message dicts."""
+    return [{"role": msg.role, "content": msg.content} for msg in messages if msg.content]
+
+
+def build_stream_chunk(
+    *,
+    chunk_id: str,
+    model: str,
+    content: str | None = None,
+    role: str | None = None,
+    finish_reason: str | None = None,
+    created: int | None = None,
+) -> dict[str, Any]:
+    """Build an OpenAI-compatible chat.completion.chunk payload."""
+    delta: dict[str, str] = {}
+    if role is not None:
+        delta["role"] = role
+    if content is not None:
+        delta["content"] = content
+    return {
+        "id": chunk_id,
+        "object": "chat.completion.chunk",
+        "created": created or int(datetime.now().timestamp()),
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "delta": delta,
+                "finish_reason": finish_reason,
+            }
+        ],
+    }
+
+
+def format_sse_data(payload: dict[str, Any] | str) -> str:
+    """Format a payload as an SSE data line."""
+    if isinstance(payload, str):
+        return f"data: {payload}\n\n"
+    return f"data: {json.dumps(payload)}\n\n"
+
+
 async def with_retries(
     coro_factory, *, max_attempts: int, base_s: float, retry_on: tuple[type[Exception], ...]
 ):
@@ -254,6 +297,52 @@ class LLMProviderAdapter(ABC):
         """Get the list of models supported by this provider."""
         raise NotImplementedError
 
+    def supports_streaming(self) -> bool:
+        """Return True when the adapter implements native streaming."""
+        return type(self).invoke_stream is not LLMProviderAdapter.invoke_stream
+
+    async def invoke_stream(
+        self,
+        model: str,
+        messages: list[ChatMessage],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """Stream OpenAI-compatible chunk dicts. Override for provider-native streaming."""
+        if False:  # pragma: no cover - makes this a generator for type checkers
+            yield {}
+        response = await self.chat_completion(
+            messages=messages,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stream=False,
+            **kwargs,
+        )
+        chunk_id = response.id
+        yield build_stream_chunk(
+            chunk_id=chunk_id,
+            model=model,
+            role="assistant",
+            content="",
+            created=response.created,
+        )
+        content = response.choices[0].message.content or ""
+        if content:
+            yield build_stream_chunk(
+                chunk_id=chunk_id,
+                model=model,
+                content=content,
+                created=response.created,
+            )
+        yield build_stream_chunk(
+            chunk_id=chunk_id,
+            model=model,
+            finish_reason=response.choices[0].finish_reason or "stop",
+            created=response.created,
+        )
+
     async def chat_completion(
         self,
         messages: list[ChatMessage],
@@ -319,26 +408,13 @@ class LLMProviderAdapter(ABC):
         max_tokens: int | None = None,
         temperature: float | None = None,
         **kwargs: Any,
-    ) -> AsyncGenerator[str, None]:
-        """
-        Streaming chat completion shim that calls invoke() internally.
-
-        Note: This is a simplified implementation that calls invoke() and yields
-        the result. Real streaming would require adapter-specific implementation.
-        """
-        # For now, call the regular chat completion and yield chunks
-        response = await self.chat_completion(
-            messages=messages,
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """Yield OpenAI-compatible streaming chunk dicts for the chat route."""
+        async for chunk in self.invoke_stream(
             model=model,
+            messages=messages,
             max_tokens=max_tokens,
             temperature=temperature,
-            stream=False,  # Force non-streaming for the underlying call
             **kwargs,
-        )
-
-        # Simulate streaming by yielding the response in chunks
-        import json
-
-        response_dict = response.dict()
-        yield f"data: {json.dumps(response_dict)}\n\n"
-        yield "data: [DONE]\n\n"
+        ):
+            yield chunk

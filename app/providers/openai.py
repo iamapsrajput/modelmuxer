@@ -2,17 +2,23 @@
 # Licensed under Business Source License 1.1 – see LICENSE for details.
 from __future__ import annotations
 
-import asyncio
+import json
 import random
 import time
+import uuid
+from collections.abc import AsyncGenerator
 from typing import Any, Optional
 
 import httpx
 
+from app.models import ChatMessage
 from app.providers.base import (
     LLMProviderAdapter,
+    ProviderError,
     ProviderResponse,
     SimpleCircuitBreaker,
+    build_stream_chunk,
+    messages_to_openai_format,
     with_retries,
 )
 from app.settings import settings
@@ -187,6 +193,118 @@ class OpenAIAdapter(LLMProviderAdapter):
                     raw=None,
                     error=error_msg or "request_failed",
                 )
+
+    async def invoke_stream(
+        self,
+        model: str,
+        messages: list[ChatMessage],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """Stream OpenAI chat completion chunks via provider-native SSE."""
+        provider = "openai"
+        chunk_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
+        created = int(time.time())
+
+        if self.circuit.is_open():
+            PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="circuit_open").inc()
+            raise ProviderError("circuit_open", provider=provider)
+
+        if model in {"o1", "o1-mini"}:
+            async for chunk in super().invoke_stream(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                **kwargs,
+            ):
+                yield chunk
+            return
+
+        payload = {
+            "model": model,
+            "messages": messages_to_openai_format(messages),
+            "temperature": (
+                temperature if temperature is not None else settings.router.temperature_default
+            ),
+            "max_tokens": (
+                max_tokens if max_tokens is not None else settings.router.max_tokens_default
+            ),
+            "stream": True,
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+        }
+
+        start = time.perf_counter()
+        saw_content = False
+        finish_reason: str | None = None
+
+        async with start_span_async("provider.invoke_stream", provider=provider, model=model):
+            try:
+                async with self._client.stream(
+                    "POST",
+                    f"{self.base_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                ) as resp:
+                    resp.raise_for_status()
+                    async for line in resp.aiter_lines():
+                        if not line or not line.startswith("data: "):
+                            continue
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            event = json.loads(data_str)
+                        except json.JSONDecodeError:
+                            continue
+
+                        for choice in event.get("choices", []):
+                            delta = choice.get("delta") or {}
+                            if delta.get("role") and not saw_content:
+                                yield build_stream_chunk(
+                                    chunk_id=event.get("id", chunk_id),
+                                    model=event.get("model", model),
+                                    role=delta["role"],
+                                    created=event.get("created", created),
+                                )
+                            if delta.get("content"):
+                                saw_content = True
+                                yield build_stream_chunk(
+                                    chunk_id=event.get("id", chunk_id),
+                                    model=event.get("model", model),
+                                    content=delta["content"],
+                                    created=event.get("created", created),
+                                )
+                            if choice.get("finish_reason"):
+                                finish_reason = choice["finish_reason"]
+
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="success").inc()
+                PROVIDER_LATENCY.labels(provider=provider, model=model).observe(latency_ms)
+                self.circuit.on_success()
+                yield build_stream_chunk(
+                    chunk_id=chunk_id,
+                    model=model,
+                    finish_reason=finish_reason or "stop",
+                    created=created,
+                )
+            except httpx.HTTPStatusError as e:
+                self.circuit.on_failure()
+                PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="error").inc()
+                raise ProviderError(
+                    f"Non-retryable error: {e.response.status_code} - {e}",
+                    status_code=e.response.status_code,
+                    provider=provider,
+                ) from e
+            except Exception as e:
+                self.circuit.on_failure()
+                PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="error").inc()
+                raise ProviderError(str(e), provider=provider) from e
 
     async def aclose(self) -> None:
         """Close the HTTP client to prevent connection leaks."""

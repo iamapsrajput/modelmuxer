@@ -26,7 +26,7 @@ from app.models import (
     RouterMetadata,
     Usage,
 )
-from app.providers.base import AuthenticationError, ProviderError, RateLimitError
+from app.providers.base import AuthenticationError, ProviderError, RateLimitError, format_sse_data
 from app.telemetry.metrics import LLM_ROUTER_BUDGET_EXCEEDED_TOTAL
 
 router = APIRouter()
@@ -71,7 +71,8 @@ async def chat_completions(
 
         # Validate model name format only in production (tests use provider-native IDs like Together with '/')
         if app_settings.features.mode == "production" and request.model:
-            validate_model_format(request.model)
+            if request.model not in {"auto", "router"}:
+                validate_model_format(request.model)
 
         # Check providers at request time
         current_registry = app_main.providers_registry.get_provider_registry()
@@ -510,9 +511,9 @@ async def stream_chat_completion(
                 and v is not None
             },
         ):
-            yield f"data: {json.dumps(chunk)}\n\n"
+            yield format_sse_data(chunk)
 
-        yield "data: [DONE]\n\n"
+        yield format_sse_data("[DONE]")
 
         # Update latency priors with actual measured latency (only on success)
         response_time_ms = (time.time() - start_time) * 1000
@@ -551,7 +552,7 @@ async def stream_chat_completion(
         error_chunk = {
             "error": {"message": "An internal error occurred.", "type": "provider_error"}
         }
-        yield f"data: {json.dumps(error_chunk)}\n\n"
+        yield format_sse_data(error_chunk)
 
 
 # =============================================================================

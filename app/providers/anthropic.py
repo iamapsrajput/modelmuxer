@@ -2,18 +2,23 @@
 # Licensed under Business Source License 1.1 – see LICENSE for details.
 from __future__ import annotations
 
-import asyncio
+import json
 import random
 import time
+import uuid
+from collections.abc import AsyncGenerator
 from typing import Any, Optional
 
 import httpx
 
+from app.models import ChatMessage
 from app.providers.base import (
     USER_AGENT,
     LLMProviderAdapter,
+    ProviderError,
     ProviderResponse,
     SimpleCircuitBreaker,
+    build_stream_chunk,
     normalize_finish_reason,
     with_retries,
 )
@@ -167,6 +172,150 @@ class AnthropicAdapter(LLMProviderAdapter):
                     raw=None,
                     error=str(e),
                 )
+
+    def _anthropic_messages_from_chat(
+        self, messages: list[ChatMessage]
+    ) -> tuple[str | None, list[dict[str, Any]]]:
+        """Split system prompt and convert chat messages to Anthropic format."""
+        system_prompt: str | None = None
+        anthropic_messages: list[dict[str, Any]] = []
+        for msg in messages:
+            if msg.role == "system":
+                system_prompt = msg.content
+                continue
+            role = "assistant" if msg.role == "assistant" else "user"
+            anthropic_messages.append(
+                {
+                    "role": role,
+                    "content": [{"type": "text", "text": msg.content}],
+                }
+            )
+        if not anthropic_messages:
+            anthropic_messages = [
+                {"role": "user", "content": [{"type": "text", "text": ""}]},
+            ]
+        return system_prompt, anthropic_messages
+
+    async def invoke_stream(
+        self,
+        model: str,
+        messages: list[ChatMessage],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """Stream Anthropic Messages API events as OpenAI-compatible chunks."""
+        provider = "anthropic"
+        chunk_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
+        created = int(time.time())
+
+        if self.circuit.is_open():
+            PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="circuit_open").inc()
+            raise ProviderError("circuit_open", provider=provider)
+
+        system_prompt, anthropic_messages = self._anthropic_messages_from_chat(messages)
+        payload: dict[str, Any] = {
+            "model": model,
+            "max_tokens": (
+                max_tokens if max_tokens is not None else settings.router.max_tokens_default
+            ),
+            "messages": anthropic_messages,
+            "temperature": (
+                temperature if temperature is not None else settings.router.temperature_default
+            ),
+            "stream": True,
+        }
+        if system_prompt:
+            payload["system"] = system_prompt
+
+        headers = {
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "User-Agent": f"{USER_AGENT} (Anthropic)",
+        }
+
+        start = time.perf_counter()
+        sent_role = False
+        finish_reason: str | None = None
+
+        async with start_span_async("provider.invoke_stream", provider=provider, model=model):
+            try:
+                async with self._client.stream(
+                    "POST",
+                    f"{self.base_url}/v1/messages",
+                    json=payload,
+                    headers=headers,
+                ) as resp:
+                    resp.raise_for_status()
+                    event_name: str | None = None
+                    async for raw_line in resp.aiter_lines():
+                        line = raw_line.strip()
+                        if not line:
+                            continue
+                        if line.startswith("event:"):
+                            event_name = line.split(":", 1)[1].strip()
+                            continue
+                        if not line.startswith("data:"):
+                            continue
+                        data_str = line.split(":", 1)[1].strip()
+                        if not data_str:
+                            continue
+                        try:
+                            event = json.loads(data_str)
+                        except json.JSONDecodeError:
+                            continue
+
+                        event_type = event.get("type") or event_name
+                        if event_type == "message_start":
+                            msg = event.get("message", {})
+                            chunk_id = msg.get("id", chunk_id)
+                            if not sent_role:
+                                sent_role = True
+                                yield build_stream_chunk(
+                                    chunk_id=chunk_id,
+                                    model=msg.get("model", model),
+                                    role="assistant",
+                                    content="",
+                                    created=created,
+                                )
+                        elif event_type == "content_block_delta":
+                            delta = event.get("delta", {})
+                            if delta.get("type") == "text_delta" and delta.get("text"):
+                                yield build_stream_chunk(
+                                    chunk_id=chunk_id,
+                                    model=model,
+                                    content=delta["text"],
+                                    created=created,
+                                )
+                        elif event_type == "message_delta":
+                            stop_reason = event.get("delta", {}).get("stop_reason")
+                            if stop_reason:
+                                finish_reason = normalize_finish_reason("anthropic", stop_reason)
+
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="success").inc()
+                PROVIDER_LATENCY.labels(provider=provider, model=model).observe(latency_ms)
+                self.circuit.on_success()
+                yield build_stream_chunk(
+                    chunk_id=chunk_id,
+                    model=model,
+                    finish_reason=finish_reason or "stop",
+                    created=created,
+                )
+            except httpx.HTTPStatusError as e:
+                self.circuit.on_failure()
+                PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="error").inc()
+                raise ProviderError(
+                    f"Non-retryable error: {e.response.status_code} - {e}",
+                    status_code=e.response.status_code,
+                    provider=provider,
+                ) from e
+            except Exception as e:
+                self.circuit.on_failure()
+                PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="error").inc()
+                raise ProviderError(str(e), provider=provider) from e
 
     async def aclose(self) -> None:
         """Close the HTTP client to prevent connection leaks."""

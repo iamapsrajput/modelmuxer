@@ -76,6 +76,8 @@ def test_models_endpoint_contract():
         for model in data["data"]:
             assert "id" in model, "Model missing 'id' field"
             assert "object" in model, "Model missing 'object' field"
+            assert "created" in model, "Model missing 'created' field"
+            assert "owned_by" in model, "Model missing 'owned_by' field"
             assert "provider" in model, "Model missing 'provider' field"
             assert "model" in model, "Model missing 'model' field"
             assert "pricing" in model, "Model missing 'pricing' field"
@@ -90,7 +92,5 @@ def test_models_endpoint_contract():
             assert "unit" in pricing, "Pricing missing 'unit' field"
             assert pricing["unit"] == "per_1k_tokens", "'unit' should be 'per_1k_tokens'"
 
-            # Verify model name format (no proxy-style separators)
-            assert (
-                ":" not in model["model"] and "/" not in model["model"]
-            ), f"Model name should not contain ':' or '/': {model['model']}"
+            # Model segment must not contain ':' (provider delimiter in price keys)
+            assert ":" not in model["model"], f"Model name should not contain ':': {model['model']}"
