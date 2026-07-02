@@ -251,8 +251,8 @@ class TogetherAdapter(LLMProviderAdapter):
                 # Use centralized retry logic
                 result = await with_retries(
                     make_request,
-                    max_attempts=settings.providers.retry_max_attempts,
-                    base_s=settings.providers.retry_base_ms / 1000,
+                    max_attempts=settings.adapters.retry_max_attempts,
+                    base_s=settings.adapters.retry_base_ms / 1000,
                     retry_on=(httpx.TimeoutException, httpx.RequestError),
                 )
                 return result

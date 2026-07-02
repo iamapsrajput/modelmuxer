@@ -613,30 +613,39 @@ async def anthropic_messages(
         response = await app_main.chat_completions(openai_request, user_info)
 
         # Handle different response types
-        if isinstance(response, JSONResponse):
-            # Error response - pass through
-            return response
-        elif isinstance(response, StreamingResponse):
+        if isinstance(response, StreamingResponse):
             # For streaming responses, return as-is (already in correct SSE format)
             # Claude Dev expects Server-Sent Events, which our streaming already provides
             return response
 
+        if isinstance(response, JSONResponse):
+            if response.status_code != 200:
+                # Error response - pass through
+                return response
+            # chat_completions returns successful payloads as JSONResponse;
+            # decode the body so it can be converted to Anthropic format below.
+            payload = json.loads(response.body)
+        else:
+            payload = response.dict()
+
         # Convert non-streaming OpenAI response to Anthropic format
+        choice = payload["choices"][0]
+        selected_model = (payload.get("router_metadata") or {}).get(
+            "selected_model"
+        ) or payload.get("model")
         anthropic_response = {
-            "id": response.id,
+            "id": payload["id"],
             "type": "message",
             "role": "assistant",
-            "content": [{"type": "text", "text": response.choices[0].message.content}],
-            "model": response.router_metadata.selected_model,
+            "content": [{"type": "text", "text": choice["message"]["content"]}],
+            "model": selected_model,
             "stop_reason": (
-                "end_turn"
-                if response.choices[0].finish_reason == "stop"
-                else response.choices[0].finish_reason
+                "end_turn" if choice["finish_reason"] == "stop" else choice["finish_reason"]
             ),
             "stop_sequence": None,
             "usage": {
-                "input_tokens": response.usage.prompt_tokens,
-                "output_tokens": response.usage.completion_tokens,
+                "input_tokens": payload["usage"]["prompt_tokens"],
+                "output_tokens": payload["usage"]["completion_tokens"],
             },
         }
 

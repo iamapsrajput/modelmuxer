@@ -378,6 +378,9 @@ class HeuristicRouter:
             "select_model: original_preferences length = %d",
             len(self.model_preferences.get("complex", [])),
         )
+        if not self.provider_registry_fn():
+            ROUTER_FALLBACKS.labels("chat", "no_providers").inc()
+            raise NoProvidersAvailableError("No LLM providers available")
         preferences: list[tuple[str, str]] = []
         intent_metadata: dict[str, object] = {
             "label": "unknown",

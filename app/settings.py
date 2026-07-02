@@ -842,7 +842,9 @@ class Settings(BaseSettings):
     providers: ProvidersSettings = ProvidersSettings()
     monitoring: MonitoringSettings = MonitoringSettings()
     security: SecuritySettings = SecuritySettings()
-    workers: WorkersSettings = WorkersSettings()
+    # default_factory so env vars (ENABLE_AUTO_SCALING, MIN_WORKERS, ...) are read
+    # at Settings() construction time rather than at import time
+    workers: WorkersSettings = Field(default_factory=WorkersSettings)
     budget: BudgetSettings = BudgetSettings()
     logging: LoggingSettings = LoggingSettings()
     cache: CacheSettings = CacheSettings()
