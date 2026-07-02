@@ -808,7 +808,7 @@ class HeuristicRouter:
             raise NoProvidersAvailableError("No LLM providers available")
 
     async def invoke_via_adapter(
-        self, provider: str, model: str, prompt: str, **kwargs: object
+        self, provider: str, model: str, messages: list[ChatMessage], **kwargs: object
     ) -> ProviderResponse:
         """Invoke a model via its provider adapter."""
         available = self.provider_registry_fn()
@@ -831,7 +831,7 @@ class HeuristicRouter:
                     f"Provider does not implement adapter interface: {provider}",
                     details={"provider": provider},
                 )
-        return await adapter.invoke(model=model, prompt=prompt, **kwargs)
+        return await adapter.invoke(model=model, messages=messages, **kwargs)
 
     def _generate_reasoning(self, analysis: "HeuristicRouter.Analysis") -> str:
         """Generate human-readable reasoning for routing decision."""

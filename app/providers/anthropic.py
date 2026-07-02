@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import json
-import random
 import time
 import uuid
 from collections.abc import AsyncGenerator
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -20,6 +19,7 @@ from app.providers.base import (
     SimpleCircuitBreaker,
     build_stream_chunk,
     normalize_finish_reason,
+    openai_tools_to_anthropic,
     with_retries,
 )
 from app.settings import settings
@@ -37,8 +37,137 @@ class AnthropicAdapter(LLMProviderAdapter):
         )
         self._client = httpx.AsyncClient(timeout=settings.providers.timeout_ms / 1000)
 
+    def _parse_tool_arguments(self, arguments: Any) -> dict[str, Any]:
+        if isinstance(arguments, dict):
+            return arguments
+        if isinstance(arguments, str):
+            try:
+                parsed = json.loads(arguments)
+                return parsed if isinstance(parsed, dict) else {"raw": arguments}
+            except json.JSONDecodeError:
+                return {"raw": arguments}
+        return {}
+
+    def _anthropic_messages_from_chat(
+        self, messages: list[ChatMessage]
+    ) -> tuple[str | None, list[dict[str, Any]]]:
+        """Split system prompt and convert chat messages to Anthropic format."""
+        system_prompt: str | None = None
+        anthropic_messages: list[dict[str, Any]] = []
+        for msg in messages:
+            if msg.role == "system":
+                system_prompt = msg.content or ""
+                continue
+            if msg.role == "tool":
+                anthropic_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": msg.tool_call_id or "",
+                                "content": msg.content or "",
+                            }
+                        ],
+                    }
+                )
+                continue
+            if msg.role == "assistant" and msg.tool_calls:
+                content_blocks: list[dict[str, Any]] = []
+                if msg.content:
+                    content_blocks.append({"type": "text", "text": msg.content})
+                for tool_call in msg.tool_calls:
+                    fn = tool_call.get("function", {})
+                    content_blocks.append(
+                        {
+                            "type": "tool_use",
+                            "id": tool_call.get("id", ""),
+                            "name": fn.get("name", ""),
+                            "input": self._parse_tool_arguments(fn.get("arguments", "{}")),
+                        }
+                    )
+                anthropic_messages.append({"role": "assistant", "content": content_blocks})
+                continue
+            role = "assistant" if msg.role == "assistant" else "user"
+            anthropic_messages.append(
+                {
+                    "role": role,
+                    "content": [{"type": "text", "text": msg.content or ""}],
+                }
+            )
+        if not anthropic_messages:
+            anthropic_messages = [
+                {"role": "user", "content": [{"type": "text", "text": ""}]},
+            ]
+        return system_prompt, anthropic_messages
+
+    def _parse_anthropic_response(
+        self, data: dict[str, Any]
+    ) -> tuple[str, list[dict[str, Any]] | None, str]:
+        text_parts: list[str] = []
+        tool_calls: list[dict[str, Any]] = []
+        for part in data.get("content", []):
+            if not isinstance(part, dict):
+                continue
+            if part.get("type") == "text":
+                text_parts.append(part.get("text", ""))
+            elif part.get("type") == "tool_use":
+                tool_calls.append(
+                    {
+                        "id": part.get("id", ""),
+                        "type": "function",
+                        "function": {
+                            "name": part.get("name", ""),
+                            "arguments": json.dumps(part.get("input", {})),
+                        },
+                    }
+                )
+        text = "".join(text_parts)
+        stop_reason = data.get("stop_reason")
+        if stop_reason == "tool_use" and tool_calls:
+            finish_reason = "tool_calls"
+        elif stop_reason:
+            finish_reason = normalize_finish_reason("anthropic", stop_reason)
+        else:
+            finish_reason = "tool_calls" if tool_calls else "stop"
+        return text, tool_calls or None, finish_reason
+
+    def _build_payload(
+        self,
+        model: str,
+        messages: list[ChatMessage],
+        max_tokens: int | None,
+        temperature: float | None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        system_prompt, anthropic_messages = self._anthropic_messages_from_chat(messages)
+        payload: dict[str, Any] = {
+            "model": model,
+            "max_tokens": (
+                max_tokens if max_tokens is not None else settings.router.max_tokens_default
+            ),
+            "messages": anthropic_messages,
+            "temperature": (
+                temperature if temperature is not None else settings.router.temperature_default
+            ),
+        }
+        if system_prompt:
+            payload["system"] = system_prompt
+        if kwargs.get("tools"):
+            payload["tools"] = openai_tools_to_anthropic(kwargs["tools"])
+        tool_choice = kwargs.get("tool_choice")
+        if tool_choice == "required":
+            payload["tool_choice"] = {"type": "any"}
+        elif tool_choice == "none":
+            payload["tool_choice"] = {"type": "none"}
+        elif isinstance(tool_choice, dict) and tool_choice.get("type") == "function":
+            fn = tool_choice.get("function", {})
+            if fn.get("name"):
+                payload["tool_choice"] = {"type": "tool", "name": fn["name"]}
+        return payload
+
     async def invoke(
-        self, model: str, prompt: str, **kwargs: Any
+        self, model: str, messages: list[ChatMessage], **kwargs: Any
     ) -> ProviderResponse:  # noqa: D401
         start = time.perf_counter()
         provider = "anthropic"
@@ -59,32 +188,13 @@ class AnthropicAdapter(LLMProviderAdapter):
 
                 async def make_request(attempt: int):
                     async with start_span_async("anthropic.request", attempt=attempt):
-                        # Build messages with optional system prompt
-                        messages = []
-                        if kwargs.get("system"):
-                            messages.append(
-                                {
-                                    "role": "system",
-                                    "content": [{"type": "text", "text": kwargs["system"]}],
-                                }
-                            )
-                        messages.append(
-                            {
-                                "role": "user",
-                                "content": [{"type": "text", "text": prompt}],
-                            }
+                        payload = self._build_payload(
+                            model,
+                            messages,
+                            kwargs.get("max_tokens"),
+                            kwargs.get("temperature"),
+                            **kwargs,
                         )
-
-                        payload = {
-                            "model": model,
-                            "max_tokens": kwargs.get(
-                                "max_tokens", settings.router.max_tokens_default
-                            ),
-                            "messages": messages,
-                            "temperature": kwargs.get(
-                                "temperature", settings.router.temperature_default
-                            ),
-                        }
                         headers = {
                             "x-api-key": self.api_key,
                             "anthropic-version": "2023-06-01",
@@ -95,35 +205,18 @@ class AnthropicAdapter(LLMProviderAdapter):
                             f"{self.base_url}/v1/messages", json=payload, headers=headers
                         )
 
-                        # Handle HTTP status errors for retry logic
                         try:
                             resp.raise_for_status()
                         except httpx.HTTPStatusError as e:
-                            # Retry 429/5xx errors by re-raising as RequestError
                             if e.response.status_code == 429 or e.response.status_code >= 500:
                                 raise httpx.RequestError(
                                     f"Retryable HTTP error: {e.response.status_code}",
                                     request=e.request,
                                 ) from e
-                            # Non-retryable errors (401, 403, 404) are handled by outer exception handler
                             raise
 
                         data = resp.json()
-                        # Anthropic response parsing
-                        text = ""
-                        parts = data.get("content", [])
-                        text = "".join(
-                            p.get("text", "")
-                            for p in parts
-                            if isinstance(p, dict) and p.get("type") == "text"
-                        )
-
-                        # Extract and normalize finish reason
-                        finish_reason = "stop"  # default
-                        if data.get("stop_reason"):
-                            finish_reason = normalize_finish_reason(
-                                "anthropic", data["stop_reason"]
-                            )
+                        text, tool_calls, finish_reason = self._parse_anthropic_response(data)
                         data["_parsed_finish_reason"] = finish_reason
 
                         usage = data.get("usage", {})
@@ -131,7 +224,6 @@ class AnthropicAdapter(LLMProviderAdapter):
                         out_tokens = int(usage.get("output_tokens", 0))
                         latency_ms = int((time.perf_counter() - start) * 1000)
 
-                        # Metrics
                         PROVIDER_REQUESTS.labels(
                             provider=provider, model=model, outcome="success"
                         ).inc()
@@ -150,9 +242,10 @@ class AnthropicAdapter(LLMProviderAdapter):
                             tokens_out=out_tokens,
                             latency_ms=latency_ms,
                             raw=data,
+                            tool_calls=tool_calls,
+                            finish_reason=finish_reason,
                         )
 
-                # Use centralized retry logic
                 result = await with_retries(
                     make_request,
                     max_attempts=settings.adapters.retry_max_attempts,
@@ -173,29 +266,6 @@ class AnthropicAdapter(LLMProviderAdapter):
                     error=str(e),
                 )
 
-    def _anthropic_messages_from_chat(
-        self, messages: list[ChatMessage]
-    ) -> tuple[str | None, list[dict[str, Any]]]:
-        """Split system prompt and convert chat messages to Anthropic format."""
-        system_prompt: str | None = None
-        anthropic_messages: list[dict[str, Any]] = []
-        for msg in messages:
-            if msg.role == "system":
-                system_prompt = msg.content
-                continue
-            role = "assistant" if msg.role == "assistant" else "user"
-            anthropic_messages.append(
-                {
-                    "role": role,
-                    "content": [{"type": "text", "text": msg.content}],
-                }
-            )
-        if not anthropic_messages:
-            anthropic_messages = [
-                {"role": "user", "content": [{"type": "text", "text": ""}]},
-            ]
-        return system_prompt, anthropic_messages
-
     async def invoke_stream(
         self,
         model: str,
@@ -213,20 +283,8 @@ class AnthropicAdapter(LLMProviderAdapter):
             PROVIDER_REQUESTS.labels(provider=provider, model=model, outcome="circuit_open").inc()
             raise ProviderError("circuit_open", provider=provider)
 
-        system_prompt, anthropic_messages = self._anthropic_messages_from_chat(messages)
-        payload: dict[str, Any] = {
-            "model": model,
-            "max_tokens": (
-                max_tokens if max_tokens is not None else settings.router.max_tokens_default
-            ),
-            "messages": anthropic_messages,
-            "temperature": (
-                temperature if temperature is not None else settings.router.temperature_default
-            ),
-            "stream": True,
-        }
-        if system_prompt:
-            payload["system"] = system_prompt
+        payload = self._build_payload(model, messages, max_tokens, temperature, **kwargs)
+        payload["stream"] = True
 
         headers = {
             "x-api-key": self.api_key,

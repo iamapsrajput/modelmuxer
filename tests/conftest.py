@@ -37,9 +37,10 @@ class MockProviderAdapter:
         self.circuit_open = False
         self.request_count = 0
 
-    async def invoke(self, model: str, prompt: str, **kwargs) -> ProviderResponse:
+    async def invoke(self, model: str, messages: list[ChatMessage], **kwargs) -> ProviderResponse:
         """Mock invoke method that returns deterministic responses."""
         self.request_count += 1
+        prompt = " ".join(m.content for m in messages if m.content)
 
         if self.circuit_open:
             return ProviderResponse(

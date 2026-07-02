@@ -13,6 +13,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import httpx
 import pytest
 
+from app.models import ChatMessage
+
 from app.providers.base import ProviderError, ProviderResponse
 
 ADAPTER_CLASS_BY_PROVIDER = {
@@ -55,7 +57,9 @@ class TestProviderResponseContract:
             )
 
             # Call the invoke method
-            result = await adapter.invoke("test-model", "test prompt")
+            result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
 
             # Verify ProviderResponse contract
             assert isinstance(result, ProviderResponse)
@@ -99,7 +103,9 @@ class TestProviderResponseContract:
             )
 
             # Call the invoke method
-            result = await adapter.invoke("test-model", "test prompt")
+            result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
 
             # Verify error response structure
             assert isinstance(result, ProviderResponse)
@@ -126,7 +132,9 @@ class TestProviderResponseContract:
             with patch.object(adapter, "circuit") as mock_circuit:
                 mock_circuit.is_open.return_value = True
 
-                result = await adapter.invoke("test-model", "test prompt")
+                result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
 
                 # Verify circuit open response
                 assert result.error == "circuit_open"
@@ -150,7 +158,9 @@ class TestProviderResponseContract:
                 mock_invoke.side_effect = httpx.TimeoutException("timeout")
 
                 with pytest.raises(httpx.TimeoutException):
-                    await adapter.invoke("test-model", "test prompt")
+                    await adapter.invoke(
+                        "test-model", [ChatMessage(role="user", content="test prompt")]
+                    )
 
     async def test_exponential_backoff_timing(self):
         """Test exponential backoff timing for retries."""
@@ -171,7 +181,9 @@ class TestProviderResponseContract:
                 mock_invoke.return_value = ProviderResponse(
                     output_text="success", tokens_in=10, tokens_out=20, latency_ms=100, error=None
                 )
-                result = await adapter.invoke("test-model", "test prompt")
+                result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
                 assert result.output_text == "success"
 
     async def test_circuit_breaker_state_transitions(self):
@@ -197,7 +209,9 @@ class TestProviderResponseContract:
                     mock_invoke.return_value = ProviderResponse(
                         output_text="", tokens_in=0, tokens_out=0, latency_ms=0, error="test error"
                     )
-                    await adapter.invoke("test-model", "test prompt")
+                    await adapter.invoke(
+                        "test-model", [ChatMessage(role="user", content="test prompt")]
+                    )
                     # Circuit breaker integration is implementation-specific
                     # We just verify the adapter can handle circuit breaker presence
 
@@ -211,7 +225,9 @@ class TestProviderResponseContract:
                         latency_ms=100,
                         error=None,
                     )
-                    result = await adapter.invoke("test-model", "test prompt")
+                    result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
                     assert result.output_text == "success"
 
     async def test_latency_measurement_consistency(self):
@@ -236,7 +252,9 @@ class TestProviderResponseContract:
                     error=None,
                 )
 
-                result = await adapter.invoke("test-model", "test prompt")
+                result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
 
                 # Verify latency is measured and reasonable
                 assert result.latency_ms > 0
@@ -308,7 +326,9 @@ class TestProviderResponseParsing:
         with patch.object(adapter._client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = mock_response
 
-            result = await adapter.invoke("test-model", "test prompt")
+            result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
 
             # Verify raw response contains expected fields
             for field in expected_fields:
@@ -350,7 +370,9 @@ class TestProviderResponseParsing:
             with patch.object(adapter._client, "post", new_callable=AsyncMock) as mock_post:
                 mock_post.return_value = mock_response
 
-                result = await adapter.invoke("test-model", "test prompt")
+                result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
 
                 # Verify token usage is correctly extracted
                 assert result.tokens_in == expected_in, f"{provider_name} tokens_in mismatch"
@@ -377,7 +399,9 @@ class TestProviderResponseParsing:
             with patch.object(adapter._client, "post", new_callable=AsyncMock) as mock_post:
                 mock_post.return_value = mock_response
 
-                result = await adapter.invoke("test-model", "test prompt")
+                result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
 
                 # Should handle missing usage gracefully
                 assert result.tokens_in >= 0
@@ -411,7 +435,9 @@ class TestProviderResponseParsing:
             with patch.object(adapter._client, "post", new_callable=AsyncMock) as mock_post:
                 mock_post.return_value = mock_response
 
-                result = await adapter.invoke("test-model", "test prompt")
+                result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
 
                 # Verify raw response is preserved
                 assert result.raw == unique_response
@@ -471,7 +497,9 @@ class TestProviderResponseParsing:
             with patch.object(adapter._client, "post", new_callable=AsyncMock) as mock_post:
                 mock_post.return_value = mock_response
 
-                result = await adapter.invoke("test-model", "test prompt")
+                result = await adapter.invoke(
+                "test-model", [ChatMessage(role="user", content="test prompt")]
+            )
 
                 # Verify text is correctly extracted from provider-specific response format
                 assert (

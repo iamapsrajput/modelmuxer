@@ -9,12 +9,14 @@ from typing import Any, Optional
 
 import httpx
 
+from app.models import ChatMessage
 from app.providers.base import (
     USER_AGENT,
     LLMProviderAdapter,
     ProviderResponse,
     SimpleCircuitBreaker,
     _is_retryable_error,
+    messages_to_prompt_text,
     normalize_finish_reason,
     with_retries,
 )
@@ -34,8 +36,9 @@ class MistralAdapter(LLMProviderAdapter):
         self._client = httpx.AsyncClient(timeout=settings.providers.timeout_ms / 1000)
 
     async def invoke(
-        self, model: str, prompt: str, **kwargs: Any
+        self, model: str, messages: list[ChatMessage], **kwargs: Any
     ) -> ProviderResponse:  # noqa: D401
+        prompt = messages_to_prompt_text(messages)
         start = time.perf_counter()
         provider = "mistral"
 

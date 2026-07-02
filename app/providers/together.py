@@ -60,22 +60,9 @@ class TogetherAdapter(LLMProviderAdapter):
                 norm.append(message_dict)
         return norm
 
-    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:
-        # Early validation for messages and system parameters
-        messages = kwargs.get("messages")
-        if messages is not None:
-            if not isinstance(messages, list):
-                raise ValueError("messages must be a list of dicts or ChatMessage objects")
-            for i, msg in enumerate(messages):
-                if hasattr(msg, "role") and hasattr(msg, "content"):
-                    # ChatMessage object - already validated by Pydantic
-                    continue
-                if isinstance(msg, dict):
-                    if "role" not in msg or "content" not in msg:
-                        raise ValueError(f"message {i} must have 'role' and 'content' keys")
-                else:
-                    raise TypeError(f"message {i} must be a dict or ChatMessage object")
-
+    async def invoke(
+        self, model: str, messages: list[ChatMessage], **kwargs: Any
+    ) -> ProviderResponse:
         system = kwargs.get("system")
         if system is not None and not isinstance(system, str):
             raise ValueError("system parameter must be a string")
@@ -99,12 +86,7 @@ class TogetherAdapter(LLMProviderAdapter):
 
                 async def make_request(attempt: int):
                     async with start_span_async("together.request", attempt=attempt):
-                        # Check if messages are provided, otherwise use single user prompt
-                        messages = kwargs.get("messages")
-                        if messages and isinstance(messages, list) and len(messages) > 0:
-                            payload_messages = self._normalize_messages(messages)
-                        else:
-                            payload_messages = [{"role": "user", "content": prompt}]
+                        payload_messages = self._normalize_messages(messages)
 
                         # Add system message if provided
                         if kwargs.get("system"):
@@ -116,12 +98,9 @@ class TogetherAdapter(LLMProviderAdapter):
                         if not payload_messages or all(
                             not m.get("content") for m in payload_messages
                         ):
-                            if isinstance(prompt, str) and prompt:
-                                payload_messages = [{"role": "user", "content": prompt}]
-                            else:
-                                raise ValueError(
-                                    "Together payload requires a non-empty prompt or messages"
-                                )
+                            raise ValueError(
+                                "Together payload requires a non-empty prompt or messages"
+                            )
 
                         # Together AI uses OpenAI-compatible format
                         payload = {

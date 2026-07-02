@@ -97,22 +97,9 @@ class GoogleAdapter(LLMProviderAdapter):
 
         return result
 
-    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:
-        # Early validation for messages and system parameters
-        messages = kwargs.get("messages")
-        if messages is not None:
-            if not isinstance(messages, list):
-                raise ValueError("messages must be a list of dicts or ChatMessage objects")
-            for i, msg in enumerate(messages):
-                if hasattr(msg, "role") and hasattr(msg, "content"):
-                    # ChatMessage object - already validated by Pydantic
-                    continue
-                if isinstance(msg, dict):
-                    if "role" not in msg or "content" not in msg:
-                        raise ValueError(f"message {i} must have 'role' and 'content' keys")
-                else:
-                    raise TypeError(f"message {i} must be a dict or ChatMessage object")
-
+    async def invoke(
+        self, model: str, messages: list[ChatMessage], **kwargs: Any
+    ) -> ProviderResponse:
         system = kwargs.get("system")
         if system is not None and not isinstance(system, str):
             raise ValueError("system parameter must be a string")
@@ -136,21 +123,8 @@ class GoogleAdapter(LLMProviderAdapter):
 
                 async def make_request(attempt: int):
                     async with start_span_async("google.request", attempt=attempt):
-                        # Check if messages are provided for chat history
-                        messages = kwargs.get("messages")
-                        if messages:
-                            # Convert messages to Google format
-                            google_payload = self._convert_messages_to_google_format(
-                                messages, prompt
-                            )
-                        else:
-                            # Validate prompt is non-empty
-                            if not isinstance(prompt, str) or not prompt.strip():
-                                raise ValueError(
-                                    "Google payload requires a non-empty prompt or messages"
-                                )
-                            # Convert simple prompt to Google format
-                            google_payload = self._convert_prompt_to_google_format(prompt)
+                        # Convert messages to Google format
+                        google_payload = self._convert_messages_to_google_format(messages, "")
 
                         # Add system instruction if provided and not already set
                         if kwargs.get("system") and "systemInstruction" not in google_payload:

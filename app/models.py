@@ -14,11 +14,17 @@ from pydantic import BaseModel, Field, validator
 class ChatMessage(BaseModel):
     """Individual chat message in a conversation."""
 
-    role: Literal["system", "user", "assistant"] = Field(
+    role: Literal["system", "user", "assistant", "tool"] = Field(
         ..., description="The role of the message author"
     )
-    content: str = Field(..., description="The content of the message")
+    content: str | None = Field(None, description="The content of the message")
     name: str | None = Field(None, description="Optional name of the message author")
+    tool_calls: list[dict[str, Any]] | None = Field(
+        None, description="Tool calls requested by the assistant (OpenAI format)"
+    )
+    tool_call_id: str | None = Field(
+        None, description="ID of the tool call this message responds to (tool role)"
+    )
 
 
 class ChatCompletionRequest(BaseModel):
@@ -38,6 +44,12 @@ class ChatCompletionRequest(BaseModel):
     user: str | None = Field(None, description="User identifier")
     region: str | None = Field(None, description="Region identifier for compliance/policy checks")
     max_budget: float | None = Field(None, description="Maximum budget in USD for this request")
+    tools: list[dict[str, Any]] | None = Field(
+        None, description="OpenAI-style tool definitions for function calling"
+    )
+    tool_choice: str | dict[str, Any] | None = Field(
+        None, description="Tool choice constraint (auto, none, required, or specific tool)"
+    )
 
 
 class Usage(BaseModel):

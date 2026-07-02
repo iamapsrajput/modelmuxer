@@ -83,22 +83,9 @@ class CohereAdapter(LLMProviderAdapter):
 
         return {"message": message, "chat_history": chat_history, "system_message": system_message}
 
-    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:
-        # Early validation for messages and system parameters
-        messages = kwargs.get("messages")
-        if messages is not None:
-            if not isinstance(messages, list):
-                raise ValueError("messages must be a list of dicts or ChatMessage objects")
-            for i, msg in enumerate(messages):
-                if hasattr(msg, "role") and hasattr(msg, "content"):
-                    # ChatMessage object - already validated by Pydantic
-                    continue
-                if isinstance(msg, dict):
-                    if "role" not in msg or "content" not in msg:
-                        raise ValueError(f"message {i} must have 'role' and 'content' keys")
-                else:
-                    raise TypeError(f"message {i} must be a dict or ChatMessage object")
-
+    async def invoke(
+        self, model: str, messages: list[ChatMessage], **kwargs: Any
+    ) -> ProviderResponse:
         system = kwargs.get("system")
         if system is not None and not isinstance(system, str):
             raise ValueError("system parameter must be a string")
@@ -122,26 +109,13 @@ class CohereAdapter(LLMProviderAdapter):
 
                 async def make_request(attempt: int):
                     async with start_span_async("cohere.request", attempt=attempt):
-                        # Check if messages are provided for chat history
-                        messages = kwargs.get("messages")
-                        if messages:
-                            # Convert messages to Cohere format
-                            cohere_format = self._convert_messages_to_cohere_format(messages)
-                            payload = {
-                                "model": model,
-                                "message": cohere_format["message"],
-                                "chat_history": cohere_format["chat_history"],
-                                "stream": False,
-                            }
-                        else:
-                            # Convert simple prompt to Cohere format
-                            cohere_format = self._convert_prompt_to_cohere_format(prompt)
-                            payload = {
-                                "model": model,
-                                "message": cohere_format["message"],
-                                "chat_history": cohere_format["chat_history"],
-                                "stream": False,
-                            }
+                        cohere_format = self._convert_messages_to_cohere_format(messages)
+                        payload = {
+                            "model": model,
+                            "message": cohere_format["message"],
+                            "chat_history": cohere_format["chat_history"],
+                            "stream": False,
+                        }
 
                         # Add optional parameters with normalized sampling parameters
                         payload["temperature"] = kwargs.get(
@@ -184,8 +158,6 @@ class CohereAdapter(LLMProviderAdapter):
                                 if payload["chat_history"][i]["role"] == "USER":
                                     payload["message"] = payload["chat_history"].pop(i)["message"]
                                     break
-                        if not payload.get("message") and isinstance(prompt, str) and prompt:
-                            payload["message"] = prompt
                         if not payload.get("message"):
                             raise ValueError("Cohere payload requires non-empty 'message'")
 

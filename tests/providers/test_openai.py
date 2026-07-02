@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.models import ChatMessage
 from app.providers.openai import OpenAIAdapter
 
 
@@ -25,7 +26,9 @@ async def test_openai_adapter_success(monkeypatch):
         return R()
 
     monkeypatch.setattr(adapter._client, "post", fake_post)
-    r = await adapter.invoke(model="gpt-3.5-turbo", prompt="hi")
+    r = await adapter.invoke(
+        model="gpt-3.5-turbo", messages=[ChatMessage(role="user", content="hi")]
+    )
     assert r.output_text == "ok"
     assert r.tokens_in == 1 and r.tokens_out == 2
 
@@ -34,5 +37,7 @@ async def test_openai_adapter_success(monkeypatch):
 async def test_openai_adapter_circuit_open():
     adapter = OpenAIAdapter(api_key="k", base_url="http://example.com")
     adapter.circuit.open_until = 9999999999
-    r = await adapter.invoke(model="gpt-3.5-turbo", prompt="hi")
+    r = await adapter.invoke(
+        model="gpt-3.5-turbo", messages=[ChatMessage(role="user", content="hi")]
+    )
     assert r.error == "circuit_open"

@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import json
-import random
 import time
 import uuid
 from collections.abc import AsyncGenerator
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -19,6 +18,7 @@ from app.providers.base import (
     SimpleCircuitBreaker,
     build_stream_chunk,
     messages_to_openai_format,
+    messages_to_prompt_text,
     with_retries,
 )
 from app.settings import settings
@@ -37,7 +37,7 @@ class OpenAIAdapter(LLMProviderAdapter):
         self._client = httpx.AsyncClient(timeout=settings.providers.timeout_ms / 1000)
 
     async def invoke(
-        self, model: str, prompt: str, **kwargs: Any
+        self, model: str, messages: list[ChatMessage], **kwargs: Any
     ) -> ProviderResponse:  # noqa: D401
         start = time.perf_counter()
         provider = "openai"
@@ -61,7 +61,7 @@ class OpenAIAdapter(LLMProviderAdapter):
                         use_responses = model in {"o1", "o1-mini"}
 
                         if use_responses:
-                            # Use OpenAI Responses API for o1 models
+                            prompt = messages_to_prompt_text(messages)
                             payload = {
                                 "model": model,
                                 "input": prompt,
@@ -80,10 +80,9 @@ class OpenAIAdapter(LLMProviderAdapter):
                                 f"{self.base_url}/responses", json=payload, headers=headers
                             )
                         else:
-                            # Use standard chat completions API
                             payload = {
                                 "model": model,
-                                "messages": [{"role": "user", "content": prompt}],
+                                "messages": messages_to_openai_format(messages),
                                 "temperature": kwargs.get(
                                     "temperature", settings.router.temperature_default
                                 ),
@@ -91,6 +90,10 @@ class OpenAIAdapter(LLMProviderAdapter):
                                     "max_tokens", settings.router.max_tokens_default
                                 ),
                             }
+                            if kwargs.get("tools"):
+                                payload["tools"] = kwargs["tools"]
+                            if kwargs.get("tool_choice") is not None:
+                                payload["tool_choice"] = kwargs["tool_choice"]
                             headers = {
                                 "Authorization": f"Bearer {self.api_key}",
                                 "Content-Type": "application/json",
@@ -99,23 +102,19 @@ class OpenAIAdapter(LLMProviderAdapter):
                                 f"{self.base_url}/chat/completions", json=payload, headers=headers
                             )
 
-                        # Handle HTTP status errors for retry logic
                         try:
                             resp.raise_for_status()
                         except httpx.HTTPStatusError as e:
-                            # Retry 429/5xx errors by re-raising as RequestError
                             if e.response.status_code == 429 or e.response.status_code >= 500:
                                 raise httpx.RequestError(
                                     f"Retryable HTTP error: {e.response.status_code}",
                                     request=e.request,
                                 ) from e
-                            # Non-retryable errors (401, 403, 404) are handled by outer exception handler
                             raise  # noqa: B904
 
                         data = resp.json()
 
                         if use_responses:
-                            # Parse Responses API format
                             text = ""
                             out = data.get("output", [])
                             for item in out:
@@ -125,15 +124,21 @@ class OpenAIAdapter(LLMProviderAdapter):
                             usage = data.get("usage", {})
                             in_tokens = int(usage.get("input_tokens", 0))
                             out_tokens = int(usage.get("output_tokens", 0))
+                            tool_calls = None
+                            finish_reason = "stop"
                         else:
-                            # Parse standard chat completions format
-                            text = data["choices"][0]["message"]["content"]
+                            choice = data["choices"][0]
+                            message = choice.get("message", {})
+                            text = message.get("content") or ""
+                            tool_calls = message.get("tool_calls")
+                            finish_reason = choice.get("finish_reason") or (
+                                "tool_calls" if tool_calls else "stop"
+                            )
                             usage = data.get("usage", {})
                             in_tokens = int(usage.get("prompt_tokens", 0))
                             out_tokens = int(usage.get("completion_tokens", 0))
                         latency_ms = int((time.perf_counter() - start) * 1000)
 
-                        # Metrics
                         PROVIDER_REQUESTS.labels(
                             provider=provider, model=model, outcome="success"
                         ).inc()
@@ -152,9 +157,10 @@ class OpenAIAdapter(LLMProviderAdapter):
                             tokens_out=out_tokens,
                             latency_ms=latency_ms,
                             raw=data,
+                            tool_calls=tool_calls,
+                            finish_reason=finish_reason,
                         )
 
-                # Use centralized retry logic
                 result = await with_retries(
                     make_request,
                     max_attempts=settings.adapters.retry_max_attempts,
@@ -164,7 +170,6 @@ class OpenAIAdapter(LLMProviderAdapter):
                 return result
 
             except httpx.HTTPStatusError as e:
-                # Non-retryable HTTP errors
                 error_msg = f"Non-retryable error: {e.response.status_code} - {str(e)}"
                 self.circuit.on_failure()
                 latency_ms = int((time.perf_counter() - start) * 1000)
@@ -179,7 +184,6 @@ class OpenAIAdapter(LLMProviderAdapter):
                     error=error_msg,
                 )
             except Exception as e:  # pragma: no cover - safety net
-                # Any other exceptions
                 error_msg = str(e)
                 self.circuit.on_failure()
                 latency_ms = int((time.perf_counter() - start) * 1000)
@@ -222,7 +226,7 @@ class OpenAIAdapter(LLMProviderAdapter):
                 yield chunk
             return
 
-        payload = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": messages_to_openai_format(messages),
             "temperature": (
@@ -233,6 +237,10 @@ class OpenAIAdapter(LLMProviderAdapter):
             ),
             "stream": True,
         }
+        if kwargs.get("tools"):
+            payload["tools"] = kwargs["tools"]
+        if kwargs.get("tool_choice") is not None:
+            payload["tool_choice"] = kwargs["tool_choice"]
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",

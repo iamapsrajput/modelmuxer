@@ -115,7 +115,9 @@ class TestCompleteProviderCoverage:
                 mock_invoke.return_value = mock_response
 
                 # Test that the response is properly formatted
-                response = await adapter.invoke(model="test-model", prompt="test")
+                response = await adapter.invoke(
+                    model="test-model", messages=[ChatMessage(role="user", content="test")]
+                )
 
                 assert isinstance(response, ProviderResponse)
                 assert response.output_text == "Test response"
@@ -133,7 +135,9 @@ class TestCompleteProviderCoverage:
             # Test that providers can handle circuit breaker failures
             with patch.object(adapter, "invoke", side_effect=Exception("Circuit breaker open")):
                 with pytest.raises(Exception):  # noqa: B017
-                    await adapter.invoke(model="test-model", prompt="test")
+                    await adapter.invoke(
+                        model="test-model", messages=[ChatMessage(role="user", content="test")]
+                    )
 
 
 class TestRouterModelPreferenceValidation:
@@ -320,13 +324,17 @@ class TestErrorHandlingAndFallback:
         for _name, adapter in registry.items():
             if hasattr(adapter, "circuit"):
                 adapter.circuit.open_until = time() + 60
-                resp = await adapter.invoke(model="test-model", prompt="hi")
+                resp = await adapter.invoke(
+                    model="test-model", messages=[ChatMessage(role="user", content="hi")]
+                )
                 assert getattr(resp, "error", None) == "circuit_open"
             else:
                 # Fallback: ensure invoking raises/returns error when patched
                 with patch.object(adapter, "invoke", side_effect=Exception("Circuit breaker")):
                     with pytest.raises(Exception):  # noqa: B017
-                        await adapter.invoke(model="test-model", prompt="hi")
+                        await adapter.invoke(
+                            model="test-model", messages=[ChatMessage(role="user", content="hi")]
+                        )
 
     @pytest.mark.asyncio
     async def test_network_error_handling(self):
@@ -341,7 +349,9 @@ class TestErrorHandlingAndFallback:
             # Test network error handling
             with patch.object(adapter, "invoke", side_effect=httpx.HTTPError("Network error")):
                 with pytest.raises(httpx.HTTPError):
-                    await adapter.invoke(model="test-model", prompt="test")
+                    await adapter.invoke(
+                        model="test-model", messages=[ChatMessage(role="user", content="test")]
+                    )
 
     @pytest.mark.asyncio
     async def test_graceful_degradation_scenarios(self):

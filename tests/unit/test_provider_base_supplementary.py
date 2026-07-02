@@ -252,7 +252,7 @@ class MockAdapter(LLMProviderAdapter):
         self._error = error
         self.closed = False
 
-    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:
+    async def invoke(self, model: str, messages: list[ChatMessage], **kwargs: Any) -> ProviderResponse:
         return ProviderResponse(
             output_text="Mock response",
             tokens_in=10,
@@ -279,7 +279,9 @@ class TestMockAdapter:
     @pytest.mark.asyncio
     async def test_invoke(self, mock_adapter):
         """Test adapter invoke returns a ProviderResponse."""
-        response = await mock_adapter.invoke("mock-model-1", "Hello")
+        response = await mock_adapter.invoke(
+            "mock-model-1", [ChatMessage(role="user", content="Hello")]
+        )
 
         assert isinstance(response, ProviderResponse)
         assert response.output_text == "Mock response"

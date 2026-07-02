@@ -49,7 +49,8 @@ async def chat_completions(
     try:
         # Sanitize input messages early
         for message in request.messages:
-            message.content = app_main.sanitize_user_input(message.content)
+            if message.content is not None:
+                message.content = app_main.sanitize_user_input(message.content)
 
         # Enforce policies early so metrics/redactions run even if providers are unavailable later
         tenant_id = user_id or "anonymous"
@@ -65,8 +66,8 @@ async def chat_completions(
                     }
                 },
             )
-        # Replace last message content with sanitized prompt
-        if request.messages:
+        # Replace last message content with sanitized prompt when present
+        if request.messages and request.messages[-1].content is not None:
             request.messages[-1].content = policy_result.sanitized_prompt
 
         # Validate model name format only in production (tests use provider-native IDs like Together with '/')
@@ -242,23 +243,19 @@ async def chat_completions(
 
             try:
                 if app_settings.features.provider_adapters_enabled:
-                    # Use router's unified adapter interface for consistency
-                    prompt_text = "\n".join(
-                        [msg.content for msg in request.messages if msg.content]
-                    )
+                    invoke_kwargs = {
+                        k: v
+                        for k, v in request.dict().items()
+                        if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
+                        and v is not None
+                    }
                     adapter_resp = await _active_router.invoke_via_adapter(
                         provider=provider_name,
                         model=model_name,
-                        prompt=prompt_text,
+                        messages=request.messages,
                         temperature=request.temperature or app_settings.router.temperature_default,
                         max_tokens=request.max_tokens,
-                        user_id=user_id,
-                        metadata={
-                            k: v
-                            for k, v in request.dict().items()
-                            if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
-                            and v is not None
-                        },
+                        **invoke_kwargs,
                     )
                     if adapter_resp.error:
                         raise ProviderError(adapter_resp.error)
@@ -282,6 +279,19 @@ async def chat_completions(
                             adapter_resp.tokens_in,
                             adapter_resp.tokens_out,
                         )
+                    raw_tool_calls = getattr(adapter_resp, "tool_calls", None)
+                    tool_calls = raw_tool_calls if isinstance(raw_tool_calls, list) else None
+                    raw_finish_reason = getattr(adapter_resp, "finish_reason", None)
+                    finish_reason = (
+                        raw_finish_reason
+                        if isinstance(raw_finish_reason, str) and raw_finish_reason
+                        else ("tool_calls" if tool_calls else "stop")
+                    )
+                    assistant_message = ChatMessage(
+                        role="assistant",
+                        content=getattr(adapter_resp, "output_text", None) or None,
+                        tool_calls=tool_calls,
+                    )
                     response = ChatCompletionResponse(
                         id=f"chatcmpl-adapter-{int(time.time() * 1000)}",
                         object="chat.completion",
@@ -290,10 +300,8 @@ async def chat_completions(
                         choices=[
                             Choice(
                                 index=0,
-                                message=ChatMessage(
-                                    role="assistant", content=adapter_resp.output_text, name=None
-                                ),
-                                finish_reason="stop",
+                                message=assistant_message,
+                                finish_reason=finish_reason,
                             )
                         ],
                         usage=Usage(
@@ -333,19 +341,20 @@ async def chat_completions(
                     resp_dict["router_metadata"]["model"] = model_name
                     return JSONResponse(content=resp_dict)
                 else:
-                    # Use router's adapter interface for consistent invocation
-                    prompt_text = "\n".join(
-                        [msg.content for msg in request.messages if msg.content]
-                    )
-
-                    # Measure actual provider latency
+                    invoke_kwargs = {
+                        k: v
+                        for k, v in request.dict().items()
+                        if k not in ["messages", "model", "max_tokens", "temperature", "stream"]
+                        and v is not None
+                    }
                     provider_start_time = time.perf_counter()
                     response = await app_main.router.invoke_via_adapter(
                         provider=provider_name,
                         model=model_name,
-                        prompt=prompt_text,
+                        messages=request.messages,
                         max_tokens=request.max_tokens,
                         temperature=request.temperature,
+                        **invoke_kwargs,
                     )
                     provider_latency_ms = int((time.perf_counter() - provider_start_time) * 1000)
 
@@ -607,6 +616,8 @@ async def anthropic_messages(
             max_tokens=body.get("max_tokens", 1000),
             temperature=body.get("temperature", 0.7),
             stream=body.get("stream", False),
+            tools=body.get("tools"),
+            tool_choice=body.get("tool_choice"),
         )
 
         # Route through normal chat completions (resolved via app.main so
@@ -631,18 +642,47 @@ async def anthropic_messages(
 
         # Convert non-streaming OpenAI response to Anthropic format
         choice = payload["choices"][0]
+        message = choice["message"]
         selected_model = (payload.get("router_metadata") or {}).get(
             "selected_model"
         ) or payload.get("model")
+        content_blocks: list[dict[str, Any]] = []
+        if message.get("content"):
+            content_blocks.append({"type": "text", "text": message["content"]})
+        for tool_call in message.get("tool_calls") or []:
+            fn = tool_call.get("function", {})
+            arguments = fn.get("arguments", "{}")
+            if isinstance(arguments, str):
+                try:
+                    tool_input = json.loads(arguments)
+                except json.JSONDecodeError:
+                    tool_input = {"raw": arguments}
+            else:
+                tool_input = arguments
+            content_blocks.append(
+                {
+                    "type": "tool_use",
+                    "id": tool_call.get("id", ""),
+                    "name": fn.get("name", ""),
+                    "input": tool_input,
+                }
+            )
+        if not content_blocks:
+            content_blocks = [{"type": "text", "text": ""}]
+        stop_reason = choice.get("finish_reason")
+        if stop_reason == "tool_calls":
+            anthropic_stop_reason = "tool_use"
+        elif stop_reason == "stop":
+            anthropic_stop_reason = "end_turn"
+        else:
+            anthropic_stop_reason = stop_reason
         anthropic_response = {
             "id": payload["id"],
             "type": "message",
             "role": "assistant",
-            "content": [{"type": "text", "text": choice["message"]["content"]}],
+            "content": content_blocks,
             "model": selected_model,
-            "stop_reason": (
-                "end_turn" if choice["finish_reason"] == "stop" else choice["finish_reason"]
-            ),
+            "stop_reason": anthropic_stop_reason,
             "stop_sequence": None,
             "usage": {
                 "input_tokens": payload["usage"]["prompt_tokens"],

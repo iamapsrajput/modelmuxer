@@ -67,7 +67,9 @@ class TestErrorHandlingFallbacks:
         provider_preferences = direct_router.model_preferences.get("simple", [])
 
         for provider, model in provider_preferences:
-            response = await direct_router.invoke_via_adapter(provider, model, "hello")
+            response = await direct_router.invoke_via_adapter(
+                provider, model, [ChatMessage(role="user", content="hello")]
+            )
             if response and not response.error:
                 break
 
@@ -136,7 +138,9 @@ class TestErrorHandlingFallbacks:
         provider_preferences = direct_router.model_preferences.get("simple", [])
 
         for provider, model in provider_preferences:
-            response = await direct_router.invoke_via_adapter(provider, model, "hello")
+            response = await direct_router.invoke_via_adapter(
+                provider, model, [ChatMessage(role="user", content="hello")]
+            )
             if response and not response.error:
                 break
 
@@ -191,7 +195,9 @@ class TestErrorHandlingFallbacks:
 
         with pytest.raises(NoProvidersAvailableError):
             for provider, model in provider_preferences:
-                response = await direct_router.invoke_via_adapter(provider, model, "hello")
+                response = await direct_router.invoke_via_adapter(
+                    provider, model, [ChatMessage(role="user", content="hello")]
+                )
                 if response and not response.error:
                     break
             if response and response.error:
@@ -892,9 +898,10 @@ class MockProviderAdapter:
         self.circuit_open = False
         self.request_count = 0
 
-    async def invoke(self, model: str, prompt: str, **kwargs):
+    async def invoke(self, model: str, messages: list[ChatMessage], **kwargs):
         """Mock invoke method that simulates errors."""
         self.request_count += 1
+        prompt = " ".join(m.content for m in messages if m.content)
 
         if self.circuit_open:
             return ProviderResponse(

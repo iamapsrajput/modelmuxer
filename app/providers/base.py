@@ -177,9 +177,51 @@ def _is_retryable_error(provider: str, status_code: int | None, payload: dict | 
 USER_AGENT = "ModelMuxer/1.0.0"
 
 
-def messages_to_openai_format(messages: list[ChatMessage]) -> list[dict[str, str]]:
+def messages_to_prompt_text(messages: list[ChatMessage]) -> str:
+    """Flatten structured messages to a single prompt for legacy adapters."""
+    parts = [msg.content for msg in messages if msg.content]
+    return "\n".join(parts) if parts else ""
+
+
+def messages_to_openai_format(messages: list[ChatMessage]) -> list[dict[str, Any]]:
     """Convert ChatMessage list to OpenAI chat message dicts."""
-    return [{"role": msg.role, "content": msg.content} for msg in messages if msg.content]
+    result: list[dict[str, Any]] = []
+    for msg in messages:
+        entry: dict[str, Any] = {"role": msg.role}
+        if msg.role == "assistant":
+            if msg.tool_calls:
+                entry["tool_calls"] = msg.tool_calls
+            entry["content"] = msg.content
+        elif msg.role == "tool":
+            entry["content"] = msg.content or ""
+            if msg.tool_call_id:
+                entry["tool_call_id"] = msg.tool_call_id
+            if msg.name:
+                entry["name"] = msg.name
+        else:
+            if msg.content is not None:
+                entry["content"] = msg.content
+        if msg.name and msg.role != "tool":
+            entry["name"] = msg.name
+        result.append(entry)
+    return result
+
+
+def openai_tools_to_anthropic(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert OpenAI tool definitions to Anthropic Messages API tool schemas."""
+    anthropic_tools: list[dict[str, Any]] = []
+    for tool in tools:
+        if tool.get("type") != "function":
+            continue
+        fn = tool.get("function", {})
+        anthropic_tools.append(
+            {
+                "name": fn.get("name", ""),
+                "description": fn.get("description", ""),
+                "input_schema": fn.get("parameters", {"type": "object", "properties": {}}),
+            }
+        )
+    return anthropic_tools
 
 
 def build_stream_chunk(
@@ -247,6 +289,8 @@ class ProviderResponse:
     - latency_ms: total latency in milliseconds
     - raw: raw provider payload (optional)
     - error: error string if any
+    - tool_calls: OpenAI-format tool calls when the model requests tools
+    - finish_reason: normalized finish reason from the provider
     """
 
     output_text: str
@@ -255,6 +299,8 @@ class ProviderResponse:
     latency_ms: int
     raw: Any | None = None
     error: str | None = None
+    tool_calls: list[dict[str, Any]] | None = None
+    finish_reason: str | None = None
 
 
 class SimpleCircuitBreaker:
@@ -283,8 +329,10 @@ class LLMProviderAdapter(ABC):
     """Abstract provider adapter with a unified invoke() method and lifecycle management."""
 
     @abstractmethod
-    async def invoke(self, model: str, prompt: str, **kwargs: Any) -> ProviderResponse:
-        """Invoke the provider synchronously and return standardized response."""
+    async def invoke(
+        self, model: str, messages: list[ChatMessage], **kwargs: Any
+    ) -> ProviderResponse:
+        """Invoke the provider with structured messages and return standardized response."""
         raise NotImplementedError
 
     @abstractmethod
@@ -358,13 +406,10 @@ class LLMProviderAdapter(ABC):
         This provides compatibility with the legacy chat_completion interface
         while using the unified invoke() method internally.
         """
-        # Convert messages to prompt text
-        prompt_text = " ".join([msg.content for msg in messages if msg.content])
-
         # Call the unified invoke method
         provider_response = await self.invoke(
             model=model,
-            prompt=prompt_text,
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             **kwargs,
@@ -374,6 +419,15 @@ class LLMProviderAdapter(ABC):
         if provider_response.error:
             raise ProviderError(provider_response.error)
 
+        assistant_message = ChatMessage(
+            role="assistant",
+            content=provider_response.output_text or None,
+            tool_calls=provider_response.tool_calls,
+        )
+        finish_reason = provider_response.finish_reason or (
+            "tool_calls" if provider_response.tool_calls else "stop"
+        )
+
         return ChatCompletionResponse(
             id=str(uuid.uuid4()),
             object="chat.completion",
@@ -382,8 +436,8 @@ class LLMProviderAdapter(ABC):
             choices=[
                 Choice(
                     index=0,
-                    message=ChatMessage(role="assistant", content=provider_response.output_text),
-                    finish_reason="stop",
+                    message=assistant_message,
+                    finish_reason=finish_reason,
                 )
             ],
             usage=Usage(
