@@ -61,20 +61,25 @@ class TestFinalCoverageBoost:
 
     def test_security_config_additional(self):
         """Test additional security config."""
-        from app.security.config import SecurityConfig
+        from app.security.config import (
+            DEFAULT_RATE_LIMITS,
+            MIN_API_KEY_LENGTH,
+            SECURE_HEADERS,
+            SecurityConfig,
+        )
 
-        config = SecurityConfig()
+        # Header sanitization masks sensitive values
+        sanitized = SecurityConfig.sanitize_headers(
+            {"Authorization": "Bearer secret", "X-Api-Key": "abc", "Accept": "application/json"}
+        )
+        assert sanitized["Authorization"] == "***REDACTED***"
+        assert sanitized["X-Api-Key"] == "***REDACTED***"
+        assert sanitized["Accept"] == "application/json"
 
-        # Test JWT settings
-        assert hasattr(config, "jwt_secret_key")
-        assert hasattr(config, "jwt_algorithm")
-        assert hasattr(config, "jwt_expiration_minutes")
-
-        # Test CORS settings
-        assert hasattr(config, "cors_origins")
-        assert hasattr(config, "cors_allow_credentials")
-        assert hasattr(config, "cors_allow_methods")
-        assert hasattr(config, "cors_allow_headers")
+        # Module-level security constants
+        assert SECURE_HEADERS["X-Frame-Options"] == "DENY"
+        assert MIN_API_KEY_LENGTH > 0
+        assert DEFAULT_RATE_LIMITS["requests_per_minute"] > 0
 
     def test_providers_base_additional(self):
         """Test additional provider base functionality."""
@@ -153,7 +158,7 @@ class TestFinalCoverageBoost:
         # Test logging settings
         if hasattr(settings, "logging"):
             assert hasattr(settings.logging, "level")
-            assert hasattr(settings.logging, "format")
+            assert hasattr(settings.logging, "audit_log_path")
 
     def test_more_auth_coverage(self):
         """Test more auth functionality."""

@@ -24,8 +24,9 @@ class TestHeuristicRouterScope:
         # Create a minimal router with mocked dependencies
         self.router = HeuristicRouter()
 
-        # Mock the provider registry to return empty dict
-        self.router.provider_registry_fn = Mock(return_value={})
+        # Mock the provider registry with a minimal adapter so select_model doesn't
+        # short-circuit with NoProvidersAvailableError (these tests target scope bugs).
+        self.router.provider_registry_fn = Mock(return_value={"openai": Mock(circuit_open=False)})
 
         # Mock settings to avoid configuration issues
         self.router.settings = Mock()
@@ -140,6 +141,9 @@ class TestHeuristicRouterScope:
     async def test_empty_preferences_handled_gracefully(self):
         """Test that empty preferences are handled gracefully."""
         messages = [ChatMessage(role="user", content="Hello", name=None)]
+
+        # Empty registry: select_model should raise NoProvidersAvailableError early
+        self.router.provider_registry_fn = Mock(return_value={})
 
         # Mock model_preferences to return empty list
         self.router.model_preferences = {"general": []}

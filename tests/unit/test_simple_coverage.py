@@ -112,17 +112,18 @@ class TestSimpleCoverage:
         """Test SecurityConfig class."""
         from app.security.config import SecurityConfig
 
-        config = SecurityConfig()
+        # Secure token generation
+        token = SecurityConfig.generate_secure_token()
+        assert isinstance(token, str)
+        assert len(token) > 0
+        assert token != SecurityConfig.generate_secure_token()
 
-        # Test attributes exist
-        assert hasattr(config, "enable_api_key_auth")
-        assert hasattr(config, "enable_rate_limiting")
-        assert hasattr(config, "max_request_size_mb")
-
-        # Test default values are reasonable
-        assert isinstance(config.enable_api_key_auth, bool)
-        assert isinstance(config.enable_rate_limiting, bool)
-        assert config.max_request_size_mb > 0
+        # Salted hashing round-trip
+        hashed = SecurityConfig.secure_hash("secret-value")
+        assert ":" in hashed
+        assert SecurityConfig.verify_hash("secret-value", hashed) is True
+        assert SecurityConfig.verify_hash("wrong-value", hashed) is False
+        assert SecurityConfig.verify_hash("secret-value", "not-a-valid-hash") is False
 
     def test_provider_adapter_interface(self):
         """Test the provider adapter interface is importable."""

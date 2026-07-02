@@ -8,6 +8,8 @@ when using direct providers only, ensuring the entire system works correctly.
 """
 
 import json
+import time
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -37,6 +39,7 @@ from app.core.exceptions import BudgetExceededError
 # Import app after mocks are applied
 from app.main import app, get_authenticated_user
 from app.models import ChatMessage
+from app.providers.base import ProviderResponse
 
 
 # Mock authentication for all tests
@@ -51,6 +54,117 @@ app.dependency_overrides[get_authenticated_user] = mock_auth
 def teardown_module(module):
     """Clean up dependency overrides so other test modules see real auth."""
     app.dependency_overrides.clear()
+
+
+def _make_provider_response(
+    output_text: str = "Test response",
+    tokens_in: int = 10,
+    tokens_out: int = 20,
+    latency_ms: int = 150,
+    raw: dict | None = None,
+    error: str | None = None,
+) -> ProviderResponse:
+    """Build a real ProviderResponse so the request path can serialize it."""
+    return ProviderResponse(
+        output_text=output_text,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        latency_ms=latency_ms,
+        raw=raw or {},
+        error=error,
+    )
+
+
+def _make_wired_router(provider: str, model: str, provider_response: ProviderResponse) -> MagicMock:
+    """Router mock matching HeuristicRouter's select/invoke/record contract."""
+    mock_router = MagicMock()
+    mock_router.select_model = AsyncMock(
+        return_value=(
+            provider,
+            model,
+            "test routing",
+            {"label": "simple", "confidence": 0.9, "signals": {}},
+            {
+                "usd": 0.001,
+                "eta_ms": provider_response.latency_ms,
+                "tokens_in": provider_response.tokens_in,
+                "tokens_out": provider_response.tokens_out,
+                "model_key": f"{provider}:{model}",
+            },
+        )
+    )
+    mock_router.invoke_via_adapter = AsyncMock(return_value=provider_response)
+    mock_router.record_latency = Mock()
+    return mock_router
+
+
+@contextmanager
+def _wired_request_path(mock_router: MagicMock, registry: dict):
+    """Patch the registry and per-request router constructor used by the chat handler.
+
+    app.main imports app.providers.registry as ``providers_registry``, so patching
+    the module attribute covers both access paths.
+    """
+    with (
+        patch("app.providers.registry.get_provider_registry", return_value=registry),
+        patch("app.main.HeuristicRouter", return_value=mock_router),
+        patch("app.main.router", mock_router),
+    ):
+        yield
+
+
+@contextmanager
+def _real_router_with_registry(registry: dict):
+    """Patch only the provider registry so the REAL HeuristicRouter logic runs.
+
+    The chat handler re-instantiates HeuristicRouter per request with the
+    (patched) registry function, so selection, budget gating, and latency
+    priors all execute for real against the mock adapters.
+    """
+    with patch("app.providers.registry.get_provider_registry", return_value=registry):
+        yield
+
+
+def _make_adapter(provider_response: ProviderResponse) -> Mock:
+    """Mock adapter whose async invoke returns a real ProviderResponse."""
+    adapter = Mock()
+    adapter.invoke = AsyncMock(return_value=provider_response)
+    # A bare Mock attribute would be truthy, making the router treat the
+    # adapter's circuit breaker as open and skip it during selection.
+    adapter.circuit_open = False
+    return adapter
+
+
+def _make_chat_completion_response(provider: str, model: str, tokens_in: int, tokens_out: int):
+    """Real ChatCompletionResponse for the legacy (non-adapter) invocation path,
+    which expects router.invoke_via_adapter to return a full response object."""
+    from app.models import ChatCompletionResponse, Choice, RouterMetadata, Usage
+
+    return ChatCompletionResponse(
+        id=f"chatcmpl-test-{int(time.time() * 1000)}",
+        object="chat.completion",
+        created=int(time.time()),
+        model=model,
+        choices=[
+            Choice(
+                index=0,
+                message=ChatMessage(role="assistant", content="Test response", name=None),
+                finish_reason="stop",
+            )
+        ],
+        usage=Usage(
+            prompt_tokens=tokens_in,
+            completion_tokens=tokens_out,
+            total_tokens=tokens_in + tokens_out,
+        ),
+        router_metadata=RouterMetadata(
+            selected_provider=provider,
+            selected_model=model,
+            routing_reason="test routing",
+            estimated_cost=0.001,
+            response_time_ms=200.0,
+        ),
+    )
 
 
 @pytest.mark.direct
@@ -309,27 +423,23 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Test response with specific token counts",
-                        tokens_in=25,
-                        tokens_out=35,
-                        latency_ms=250,
-                        raw={"provider": "mistral", "model": "mistral-small-latest"},
-                        error=None,
-                    )
-                )
-
-                mock_registry.return_value = {"mistral": mock_adapter}
+            provider_response = _make_provider_response(
+                output_text="Test response with specific token counts",
+                tokens_in=25,
+                tokens_out=35,
+                latency_ms=250,
+                raw={"provider": "mistral", "model": "mistral-small-latest"},
+            )
+            mock_router = _make_wired_router("mistral", "mistral-small-latest", provider_response)
+            registry = {"mistral": _make_adapter(provider_response)}
 
             request_data = {
                 "model": "mistral-small-latest",
                 "messages": [{"role": "user", "content": "Count the tokens in this message"}],
             }
 
-            response = client.post("/v1/chat/completions", json=request_data)
+            with _wired_request_path(mock_router, registry):
+                response = client.post("/v1/chat/completions", json=request_data)
 
             assert response.status_code == 200
             response_data = response.json()
@@ -346,42 +456,51 @@ class TestEndToEndDirect:
 
         client = TestClient(app)
 
+        from app.settings import settings
+
         # Mock authentication
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with (
-                patch("app.main.providers_registry.get_provider_registry") as mock_registry,
-                patch("app.cost_tracker.record_request", create=True) as mock_record,
-            ):
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Test response for cost tracking",
-                        tokens_in=20,
-                        tokens_out=30,
-                        latency_ms=300,
-                        raw={"provider": "google", "model": "gemini-1.5-flash"},
-                        error=None,
-                    )
+            provider_response = _make_provider_response(
+                output_text="Test response for cost tracking",
+                tokens_in=20,
+                tokens_out=30,
+                latency_ms=300,
+                raw={"provider": "google", "model": "gemini-1.5-flash"},
+            )
+            mock_router = _make_wired_router("google", "gemini-1.5-flash", provider_response)
+            # The legacy (non-adapter) path is the one that logs to the cost
+            # tracker; it expects a full ChatCompletionResponse from the router.
+            mock_router.invoke_via_adapter = AsyncMock(
+                return_value=_make_chat_completion_response(
+                    "google", "gemini-1.5-flash", tokens_in=20, tokens_out=30
                 )
+            )
+            registry = {"google": _make_adapter(provider_response)}
 
-                mock_registry.return_value = {"google": mock_adapter}
+            mock_tracker = Mock()
+            mock_tracker.log_simple_request = AsyncMock()
 
             request_data = {
                 "model": "gemini-1.5-flash",
                 "messages": [{"role": "user", "content": "Test cost tracking"}],
             }
 
-            response = client.post("/v1/chat/completions", json=request_data)
+            with (
+                _wired_request_path(mock_router, registry),
+                patch.object(settings.features, "provider_adapters_enabled", False),
+                patch("app.main.model_muxer.advanced_cost_tracker", mock_tracker),
+            ):
+                response = client.post("/v1/chat/completions", json=request_data)
 
             assert response.status_code == 200
 
             # Verify cost tracking was called
-            mock_record.assert_called_once()
+            mock_tracker.log_simple_request.assert_called_once()
 
             # Verify cost tracking includes direct provider metadata
-            call_args = mock_record.call_args
+            call_args = mock_tracker.log_simple_request.call_args
             assert "provider" in call_args.kwargs
             assert call_args.kwargs["provider"] == "google"
 
@@ -393,34 +512,41 @@ class TestEndToEndDirect:
 
         client = TestClient(app)
 
+        from app.settings import settings
+
         # Mock authentication
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with (
-                patch("app.main.providers_registry.get_provider_registry") as mock_registry,
-                patch("app.database.log_request", create=True) as mock_log,
-            ):
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Test response for database logging",
-                        tokens_in=15,
-                        tokens_out=25,
-                        latency_ms=220,
-                        raw={"provider": "cohere", "model": "command-r"},
-                        error=None,
-                    )
+            provider_response = _make_provider_response(
+                output_text="Test response for database logging",
+                tokens_in=15,
+                tokens_out=25,
+                latency_ms=220,
+                raw={"provider": "cohere", "model": "command-r"},
+            )
+            mock_router = _make_wired_router("cohere", "command-r", provider_response)
+            # The legacy (non-adapter) path falls back to db.log_request when
+            # the advanced cost tracker is disabled.
+            mock_router.invoke_via_adapter = AsyncMock(
+                return_value=_make_chat_completion_response(
+                    "cohere", "command-r", tokens_in=15, tokens_out=25
                 )
-
-                mock_registry.return_value = {"cohere": mock_adapter}
+            )
+            registry = {"cohere": _make_adapter(provider_response)}
 
             request_data = {
                 "model": "command-r",
                 "messages": [{"role": "user", "content": "Test database logging"}],
             }
 
-            response = client.post("/v1/chat/completions", json=request_data)
+            with (
+                _wired_request_path(mock_router, registry),
+                patch.object(settings.features, "provider_adapters_enabled", False),
+                patch("app.main.model_muxer.advanced_cost_tracker", None),
+                patch("app.main.db.log_request", new_callable=AsyncMock) as mock_log,
+            ):
+                response = client.post("/v1/chat/completions", json=request_data)
 
             assert response.status_code == 200
 
@@ -431,49 +557,62 @@ class TestEndToEndDirect:
             assert "provider" in call_args.kwargs
             assert "model" in call_args.kwargs
             assert call_args.kwargs["provider"] == "cohere"
+            assert call_args.kwargs["model"] == "command-r"
 
     def test_authentication_and_authorization(self, direct_providers_only_mode, simple_messages):
         """Test API key authentication with direct provider routing."""
+        from fastapi import HTTPException
+
         from app.main import app
 
         client = TestClient(app)
 
-        # Mock the authentication method directly
-        with patch("app.auth.auth.authenticate_request") as mock_auth:
-            mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
+        # Remove the module-level auth override so the real dependency runs
+        # and the patched authenticate_request is actually exercised.
+        app.dependency_overrides.pop(get_authenticated_user, None)
+        try:
+            # Mock the authentication method directly
+            with patch("app.auth.auth.authenticate_request") as mock_auth_method:
+                mock_auth_method.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Authenticated response",
-                        tokens_in=10,
-                        tokens_out=20,
-                        latency_ms=150,
-                        raw={"provider": "together", "model": "meta-llama/Llama-3.1-8B-Instruct"},
-                        error=None,
-                    )
+                provider_response = _make_provider_response(
+                    output_text="Authenticated response",
+                    tokens_in=10,
+                    tokens_out=20,
+                    latency_ms=150,
+                    raw={"provider": "together", "model": "meta-llama/Llama-3.1-8B-Instruct"},
                 )
-
-                mock_registry.return_value = {"together": mock_adapter}
+                mock_router = _make_wired_router(
+                    "together", "meta-llama/Llama-3.1-8B-Instruct", provider_response
+                )
+                registry = {"together": _make_adapter(provider_response)}
 
                 request_data = {
                     "model": "meta-llama/Llama-3.1-8B-Instruct",
                     "messages": [{"role": "user", "content": "Test authentication"}],
                 }
 
-                # Test with valid API key
-                headers = {"Authorization": "Bearer valid-api-key"}
-                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+                with _wired_request_path(mock_router, registry):
+                    # Test with valid API key
+                    headers = {"Authorization": "Bearer valid-api-key"}
+                    response = client.post(
+                        "/v1/chat/completions", json=request_data, headers=headers
+                    )
 
-                assert response.status_code == 200
+                    assert response.status_code == 200
 
-                # Test with invalid API key
-                mock_auth.side_effect = Exception("Invalid API key")
-                headers = {"Authorization": "Bearer invalid-api-key"}
-                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+                    # Test with invalid API key
+                    mock_auth_method.side_effect = HTTPException(
+                        status_code=401, detail="Invalid API key"
+                    )
+                    headers = {"Authorization": "Bearer invalid-api-key"}
+                    response = client.post(
+                        "/v1/chat/completions", json=request_data, headers=headers
+                    )
 
-                assert response.status_code == 401
+                    assert response.status_code == 401
+        finally:
+            app.dependency_overrides[get_authenticated_user] = mock_auth
 
     def test_rate_limiting_with_direct_providers(self, direct_providers_only_mode, simple_messages):
         """Test rate limiting works correctly with direct providers."""
@@ -544,36 +683,33 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Tenant isolated response",
-                        tokens_in=12,
-                        tokens_out=18,
-                        latency_ms=180,
-                        raw={"provider": "anthropic", "model": "claude-3-haiku-20240307"},
-                        error=None,
-                    )
-                )
-
-                mock_registry.return_value = {"anthropic": mock_adapter}
+            provider_response = _make_provider_response(
+                output_text="Tenant isolated response",
+                tokens_in=12,
+                tokens_out=18,
+                latency_ms=180,
+                raw={"provider": "anthropic", "model": "claude-3-haiku-20240307"},
+            )
+            registry = {"anthropic": _make_adapter(provider_response)}
 
             request_data = {
                 "model": "claude-3-haiku-20240307",
                 "messages": [{"role": "user", "content": "Test tenant isolation"}],
+                "max_budget": 1.0,  # Avoid budget-gate rejection with real pricing
             }
 
             # Test with different tenant API keys
             tenant1_headers = {"Authorization": "Bearer tenant1-key"}
             tenant2_headers = {"Authorization": "Bearer tenant2-key"}
 
-            response1 = client.post(
-                "/v1/chat/completions", json=request_data, headers=tenant1_headers
-            )
-            response2 = client.post(
-                "/v1/chat/completions", json=request_data, headers=tenant2_headers
-            )
+            # Real router logic runs; anthropic is in the default preferences.
+            with _real_router_with_registry(registry):
+                response1 = client.post(
+                    "/v1/chat/completions", json=request_data, headers=tenant1_headers
+                )
+                response2 = client.post(
+                    "/v1/chat/completions", json=request_data, headers=tenant2_headers
+                )
 
             # Both should work independently
             assert response1.status_code == 200
@@ -589,40 +725,41 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with (
-                patch("app.main.providers_registry.get_provider_registry") as mock_registry,
-                patch("app.telemetry.metrics.ROUTER_REQUESTS", create=True) as mock_requests,
-                patch(
-                    "app.telemetry.metrics.PROVIDER_REQUESTS", create=True
-                ) as mock_provider_requests,
-            ):
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Metrics test response",
-                        tokens_in=8,
-                        tokens_out=12,
-                        latency_ms=120,
-                        raw={"provider": "groq", "model": "llama3-8b-8192"},
-                        error=None,
-                    )
-                )
-
-                mock_registry.return_value = {"groq": mock_adapter}
+            provider_response = _make_provider_response(
+                output_text="Metrics test response",
+                tokens_in=8,
+                tokens_out=12,
+                latency_ms=120,
+                raw={"provider": "openai", "model": "gpt-3.5-turbo"},
+            )
+            registry = {"openai": _make_adapter(provider_response)}
 
             request_data = {
-                "model": "llama3-8b-8192",
+                "model": "gpt-3.5-turbo",
                 "messages": [{"role": "user", "content": "Test metrics collection"}],
+                "max_budget": 1.0,  # Avoid budget-gate rejection with real pricing
             }
 
             headers = {"Authorization": "Bearer test-key"}
-            response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+            # Run the REAL router (registry-only patch) so router metrics fire;
+            # patch the metric objects where the router imported them.
+            with (
+                _real_router_with_registry(registry),
+                patch("app.router.ROUTER_REQUESTS") as mock_requests,
+                patch("app.router.LLM_ROUTER_SELECTED_COST_ESTIMATE_USD") as mock_selected_cost,
+            ):
+                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
 
             assert response.status_code == 200
 
-            # Verify metrics were recorded
-            mock_requests.inc.assert_called()
-            mock_provider_requests.inc.assert_called()
+            # Verify router request counter was incremented
+            mock_requests.labels.assert_called_with("chat")
+            mock_requests.labels.return_value.inc.assert_called()
+            # Verify the selected model's cost estimate metric (provider:model label) was recorded
+            mock_selected_cost.labels.assert_called()
+            selected_model_key = mock_selected_cost.labels.call_args.args[1]
+            assert selected_model_key.startswith("openai:")
+            mock_selected_cost.labels.return_value.inc.assert_called()
 
     def test_opentelemetry_tracing(self, direct_providers_only_mode, simple_messages):
         """Test OpenTelemetry tracing through complete request flow."""
@@ -634,28 +771,19 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with (
-                patch("app.main.providers_registry.get_provider_registry") as mock_registry,
-                patch("app.telemetry.tracing.start_span", create=True) as mock_span,
-            ):
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Tracing test response",
-                        tokens_in=10,
-                        tokens_out=15,
-                        latency_ms=160,
-                        raw={"provider": "google", "model": "gemini-1.5-flash"},
-                        error=None,
-                    )
-                )
+            provider_response = _make_provider_response(
+                output_text="Tracing test response",
+                tokens_in=10,
+                tokens_out=15,
+                latency_ms=160,
+                raw={"provider": "google", "model": "gemini-1.5-flash"},
+            )
+            mock_router = _make_wired_router("google", "gemini-1.5-flash", provider_response)
+            registry = {"google": _make_adapter(provider_response)}
 
-            mock_registry.return_value = {"google": mock_adapter}
-
-            # Mock span context
+            # Mock span context returned by the policy-enforcement span
             mock_span_context = Mock()
             mock_span_context.set_attribute = Mock()
-            mock_span.return_value.__enter__.return_value = mock_span_context
 
             request_data = {
                 "model": "gemini-1.5-flash",
@@ -663,12 +791,22 @@ class TestEndToEndDirect:
             }
 
             headers = {"Authorization": "Bearer test-key"}
-            response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+            # Patch start_span where the request path imported it: the HTTP
+            # middleware (app.main) and policy enforcement (app.policy.rules).
+            with (
+                _wired_request_path(mock_router, registry),
+                patch("app.main.start_span") as mock_main_span,
+                patch("app.policy.rules.start_span") as mock_policy_span,
+            ):
+                mock_policy_span.return_value.__enter__.return_value = mock_span_context
+                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
 
             assert response.status_code == 200
 
-            # Verify tracing was used
-            mock_span.assert_called()
+            # Verify tracing was used through the complete request flow
+            mock_main_span.assert_called()
+            assert mock_main_span.call_args.args[0] == "http.request"
+            mock_policy_span.assert_called()
             mock_span_context.set_attribute.assert_called()
 
     def test_health_checks_with_direct_providers(self, direct_providers_only_mode, simple_messages):
@@ -737,20 +875,17 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Concurrent test response",
-                        tokens_in=5,
-                        tokens_out=10,
-                        latency_ms=50,
-                        raw={"provider": "together", "model": "meta-llama/Llama-3.1-8B-Instruct"},
-                        error=None,
-                    )
-                )
-
-                mock_registry.return_value = {"together": mock_adapter}
+            provider_response = _make_provider_response(
+                output_text="Concurrent test response",
+                tokens_in=5,
+                tokens_out=10,
+                latency_ms=50,
+                raw={"provider": "together", "model": "meta-llama/Llama-3.1-8B-Instruct"},
+            )
+            mock_router = _make_wired_router(
+                "together", "meta-llama/Llama-3.1-8B-Instruct", provider_response
+            )
+            registry = {"together": _make_adapter(provider_response)}
 
             request_data = {
                 "model": "meta-llama/Llama-3.1-8B-Instruct",
@@ -759,17 +894,18 @@ class TestEndToEndDirect:
 
             headers = {"Authorization": "Bearer test-key"}
 
-            transport = httpx.ASGITransport(app=app)
-            async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-                tasks = [
-                    client.post("/v1/chat/completions", json=request_data, headers=headers)
-                    for _ in range(5)
-                ]
-                responses = await asyncio.gather(*tasks)
+            with _wired_request_path(mock_router, registry):
+                transport = httpx.ASGITransport(app=app)
+                async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+                    tasks = [
+                        client.post("/v1/chat/completions", json=request_data, headers=headers)
+                        for _ in range(5)
+                    ]
+                    responses = await asyncio.gather(*tasks)
 
-                # All requests should succeed
-                for response in responses:
-                    assert response.status_code == 200
+                    # All requests should succeed
+                    for response in responses:
+                        assert response.status_code == 200
 
     def test_minimal_direct_provider_configuration(
         self, direct_providers_only_mode, simple_messages
@@ -783,29 +919,25 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                # Only one provider configured
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Minimal config response",
-                        tokens_in=8,
-                        tokens_out=12,
-                        latency_ms=140,
-                        raw={"provider": "openai", "model": "gpt-3.5-turbo"},
-                        error=None,
-                    )
-                )
-
-                mock_registry.return_value = {"openai": mock_adapter}
+            # Only one provider configured; real router routes to it
+            provider_response = _make_provider_response(
+                output_text="Minimal config response",
+                tokens_in=8,
+                tokens_out=12,
+                latency_ms=140,
+                raw={"provider": "openai", "model": "gpt-3.5-turbo"},
+            )
+            registry = {"openai": _make_adapter(provider_response)}
 
             request_data = {
                 "model": "gpt-3.5-turbo",
                 "messages": [{"role": "user", "content": "Minimal configuration test"}],
+                "max_budget": 1.0,  # Avoid budget-gate rejection with real pricing
             }
 
             headers = {"Authorization": "Bearer test-key"}
-            response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+            with _real_router_with_registry(registry):
+                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
 
             assert response.status_code == 200
 
@@ -819,37 +951,34 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                # All providers configured
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Full config response",
-                        tokens_in=10,
-                        tokens_out=15,
-                        latency_ms=160,
-                        raw={"provider": "anthropic", "model": "claude-3-haiku-20240307"},
-                        error=None,
-                    )
-                )
-
-                mock_registry.return_value = {
-                    "openai": mock_adapter,
-                    "anthropic": mock_adapter,
-                    "mistral": mock_adapter,
-                    "groq": mock_adapter,
-                    "google": mock_adapter,
-                    "cohere": mock_adapter,
-                    "together": mock_adapter,
-                }
+            # All providers configured; real router picks a preferred one
+            provider_response = _make_provider_response(
+                output_text="Full config response",
+                tokens_in=10,
+                tokens_out=15,
+                latency_ms=160,
+                raw={"provider": "anthropic", "model": "claude-3-haiku-20240307"},
+            )
+            mock_adapter = _make_adapter(provider_response)
+            registry = {
+                "openai": mock_adapter,
+                "anthropic": mock_adapter,
+                "mistral": mock_adapter,
+                "groq": mock_adapter,
+                "google": mock_adapter,
+                "cohere": mock_adapter,
+                "together": mock_adapter,
+            }
 
             request_data = {
                 "model": "claude-3-haiku-20240307",
                 "messages": [{"role": "user", "content": "Full configuration test"}],
+                "max_budget": 1.0,  # Avoid budget-gate rejection with real pricing
             }
 
             headers = {"Authorization": "Bearer test-key"}
-            response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+            with _real_router_with_registry(registry):
+                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
 
             assert response.status_code == 200
 
@@ -957,25 +1086,15 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with (
-                patch("app.main.providers_registry.get_provider_registry") as mock_registry,
-                patch(
-                    "app.router.HeuristicRouter.record_latency", create=True
-                ) as mock_record_latency,
-            ):
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="Latency recording test",
-                        tokens_in=10,
-                        tokens_out=15,
-                        latency_ms=180,
-                        raw={"provider": "mistral", "model": "mistral-small-latest"},
-                        error=None,
-                    )
-                )
-
-                mock_registry.return_value = {"mistral": mock_adapter}
+            provider_response = _make_provider_response(
+                output_text="Latency recording test",
+                tokens_in=10,
+                tokens_out=15,
+                latency_ms=180,
+                raw={"provider": "mistral", "model": "mistral-small-latest"},
+            )
+            mock_router = _make_wired_router("mistral", "mistral-small-latest", provider_response)
+            registry = {"mistral": _make_adapter(provider_response)}
 
             request_data = {
                 "model": "mistral-small-latest",
@@ -983,12 +1102,13 @@ class TestEndToEndDirect:
             }
 
             headers = {"Authorization": "Bearer test-key"}
-            response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+            with _wired_request_path(mock_router, registry):
+                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
 
             assert response.status_code == 200
 
-            # Verify latency recording was called
-            mock_record_latency.assert_called_once()
+            # Verify latency recording was called with the measured provider latency
+            mock_router.record_latency.assert_called_once_with("mistral:mistral-small-latest", 180)
 
     def test_latency_priors_influence_routing(self, direct_providers_only_mode, simple_messages):
         """Test that latency data influences future routing decisions."""
@@ -1000,45 +1120,46 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                # Create adapters with different latencies
-                fast_adapter = Mock()
-            fast_adapter.invoke = AsyncMock(
-                return_value=Mock(
+            # Create adapters with different latencies; both providers appear in
+            # the router's default preferences so the REAL routing logic runs.
+            fast_adapter = _make_adapter(
+                _make_provider_response(
                     output_text="Fast response",
                     tokens_in=10,
                     tokens_out=15,
                     latency_ms=50,  # Fast
-                    raw={"provider": "groq", "model": "llama3-8b-8192"},
-                    error=None,
+                    raw={"provider": "anthropic", "model": "claude-3-haiku-20240307"},
                 )
             )
-
-            slow_adapter = Mock()
-            slow_adapter.invoke = AsyncMock(
-                return_value=Mock(
+            slow_adapter = _make_adapter(
+                _make_provider_response(
                     output_text="Slow response",
                     tokens_in=10,
                     tokens_out=15,
                     latency_ms=500,  # Slow
                     raw={"provider": "openai", "model": "gpt-3.5-turbo"},
-                    error=None,
                 )
             )
 
-            mock_registry.return_value = {"groq": fast_adapter, "openai": slow_adapter}
+            registry = {"anthropic": fast_adapter, "openai": slow_adapter}
 
             request_data = {
                 "model": "gpt-3.5-turbo",
                 "messages": [{"role": "user", "content": "Latency influence test"}],
+                "max_budget": 1.0,  # Avoid budget-gate rejection with real pricing
             }
 
             headers = {"Authorization": "Bearer test-key"}
 
-            # Send multiple requests to build latency priors
-            for _ in range(3):
-                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
-                assert response.status_code == 200
+            # Send multiple requests to build latency priors via record_latency
+            with _real_router_with_registry(registry):
+                for _ in range(3):
+                    response = client.post(
+                        "/v1/chat/completions", json=request_data, headers=headers
+                    )
+                    assert response.status_code == 200
+                    provider = response.json()["router_metadata"]["provider"]
+                    assert provider in ("anthropic", "openai")
 
             # Future requests should prefer faster providers based on latency priors
             # (This would be verified by checking which provider was selected)

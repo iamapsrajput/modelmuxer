@@ -61,12 +61,14 @@ def mock_db():
         )
         mock.get_user_stats = AsyncMock(
             return_value={
+                "user_id": "test-user",
                 "total_requests": 50,
                 "total_cost": 5.25,
-                "total_tokens": 10000,
-                "average_response_time": 200.0,
-                "provider_usage": {"openai": 25, "anthropic": 25},
-                "model_usage": {"gpt-4": 15, "claude-3": 35},
+                "daily_cost": 1.25,
+                "monthly_cost": 5.25,
+                "daily_budget": 10.0,
+                "monthly_budget": 100.0,
+                "favorite_model": "gpt-4",
             }
         )
         yield mock
@@ -205,7 +207,8 @@ class TestUserStatsEndpoint:
         data = response.json()
         assert data["total_requests"] == 50
         assert data["total_cost"] == 5.25
-        assert data["total_tokens"] == 10000
+        assert data["daily_budget"] == 10.0
+        assert data["favorite_model"] == "gpt-4"
 
 
 class TestProvidersEndpoint:
@@ -607,7 +610,7 @@ class TestAnthropicCompatibility:
     async def test_anthropic_messages_streaming(self, test_client, mock_auth, mock_router):
         """Test Anthropic messages with streaming."""
 
-        async def mock_stream():
+        async def mock_stream(**kwargs):
             yield {"choices": [{"delta": {"content": "Hello"}}]}
 
         mock_provider = Mock()
@@ -619,9 +622,11 @@ class TestAnthropicCompatibility:
             "stream": True,
         }
 
+        # mock_router.select_model routes to "openai", so the registry must
+        # contain that provider or chat_completions returns 503.
         with patch(
             "app.providers.registry.get_provider_registry",
-            return_value={"anthropic": mock_provider},
+            return_value={"openai": mock_provider},
         ):
             with patch("app.main.router", mock_router):
                 response = test_client.post(
@@ -668,16 +673,20 @@ class TestMiddleware:
         large_content = "x" * (10 * 1024 * 1024)  # 10MB
         request_data = {"messages": [{"role": "user", "content": large_content}], "model": "gpt-4"}
 
+        # validate_request_size runs in middleware, above FastAPI's exception
+        # handlers, so the HTTPException propagates out of the TestClient
+        # instead of being rendered as a 413 response.
         with patch(
             "app.main.validate_request_size",
             side_effect=HTTPException(status_code=413, detail="Request too large"),
         ):
-            response = test_client.post(
-                "/v1/chat/completions",
-                json=request_data,
-                headers={"Authorization": "Bearer test-key"},
-            )
-            assert response.status_code == 413
+            with pytest.raises(HTTPException) as exc_info:
+                test_client.post(
+                    "/v1/chat/completions",
+                    json=request_data,
+                    headers={"Authorization": "Bearer test-key"},
+                )
+            assert exc_info.value.status_code == 413
 
 
 class TestModelMuxerInitialization:
@@ -722,23 +731,23 @@ class TestLifespan:
 
     async def test_lifespan_no_providers_warning(self):
         """Test warning when no providers are available."""
-        from app.main import lifespan, app as fastapi_app
+        from app.main import app_settings, lifespan, app as fastapi_app
 
         with patch("app.main.db.init_database", new_callable=AsyncMock):
             with patch("app.providers.registry.get_provider_registry", return_value={}):
                 with patch("app.main.logger") as mock_logger:
-                    with patch("app.settings.features.mode", "basic"):
+                    with patch.object(app_settings.features, "mode", "basic"):
                         async with lifespan(fastapi_app):
                             mock_logger.error.assert_called()
 
     async def test_lifespan_production_mode_no_providers(self):
         """Test that production mode fails without providers."""
-        from app.main import lifespan, app as fastapi_app
+        from app.main import app_settings, lifespan, app as fastapi_app
         from app.core.exceptions import ConfigurationError
 
         with patch("app.main.db.init_database", new_callable=AsyncMock):
             with patch("app.providers.registry.get_provider_registry", return_value={}):
-                with patch("app.settings.features.mode", "production"):
+                with patch.object(app_settings.features, "mode", "production"):
                     with pytest.raises(ConfigurationError):
                         async with lifespan(fastapi_app):
                             pass

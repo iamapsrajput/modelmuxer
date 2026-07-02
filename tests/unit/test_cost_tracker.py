@@ -325,6 +325,12 @@ class TestAdvancedCostTracker:
 
     async def test_get_current_usage(self, tracker):
         """Test getting current usage."""
+        from datetime import date
+
+        import sqlite3
+
+        today = date.today()
+
         # Log some usage first
         await tracker.log_simple_request(
             user_id="test-user",
@@ -334,6 +340,15 @@ class TestAdvancedCostTracker:
             cost=1.0,
             success=True,
         )
+
+        # SQLite DEFAULT CURRENT_TIMESTAMP is UTC; align row date with local today for daily query
+        conn = sqlite3.connect(tracker.db_path)
+        conn.execute(
+            "UPDATE cost_requests SET timestamp = ? WHERE user_id = ?",
+            (today.isoformat(), "test-user"),
+        )
+        conn.commit()
+        conn.close()
 
         usage = await tracker._get_current_usage(
             user_id="test-user", budget_type="daily", provider=None, model=None

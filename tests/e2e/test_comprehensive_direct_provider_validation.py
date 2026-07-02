@@ -209,10 +209,15 @@ class TestBudgetAndCostEstimation:
 
         router = HeuristicRouter()
 
-        # Test with very low budget
+        # Test with very low budget (registry must be non-empty so routing reaches budget gate)
         with pytest.raises(BudgetExceededError):
             messages = [ChatMessage(role="user", content="test")]
-            await router.select_model(messages, budget_constraint=0.01)
+            with patch.object(
+                router,
+                "provider_registry_fn",
+                return_value={"openai": Mock(), "anthropic": Mock()},
+            ):
+                await router.select_model(messages, budget_constraint=0.01)
 
     def test_cost_estimation_accuracy(self):
         """Test cost estimation accuracy across different token counts."""

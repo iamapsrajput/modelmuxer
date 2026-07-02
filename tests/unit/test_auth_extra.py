@@ -87,6 +87,9 @@ class TestAuthExtra:
         """Test APIKeyAuth initialization."""
         with patch("app.auth.settings") as mock_settings:
             mock_settings.api.api_keys = "key1,key2,key3"
+            # Force the string-parsing fallback branch (a bare Mock would
+            # otherwise satisfy hasattr(settings, "get_allowed_api_keys")).
+            del mock_settings.get_allowed_api_keys
 
             auth = APIKeyAuth()
 
@@ -99,6 +102,7 @@ class TestAuthExtra:
         """Test APIKeyAuth with no API keys configured."""
         with patch("app.auth.settings") as mock_settings:
             mock_settings.api.api_keys = ""
+            del mock_settings.get_allowed_api_keys
 
             auth = APIKeyAuth()
 
@@ -108,6 +112,7 @@ class TestAuthExtra:
         """Test APIKeyAuth with None API keys."""
         with patch("app.auth.settings") as mock_settings:
             mock_settings.api.api_keys = None
+            del mock_settings.get_allowed_api_keys
 
             auth = APIKeyAuth()
 
@@ -117,6 +122,7 @@ class TestAuthExtra:
         """Test APIKeyAuth handles whitespace in keys."""
         with patch("app.auth.settings") as mock_settings:
             mock_settings.api.api_keys = " key1 , key2 , key3 "
+            del mock_settings.get_allowed_api_keys
 
             auth = APIKeyAuth()
 
