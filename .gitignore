@@ -187,6 +187,7 @@ temp*.md
 debug_*.py
 .claude*
 temp_*
+!tests/fixtures/temp_files.py
 *.temp
 # Note: test_*.py files should be committed, not ignored
 
