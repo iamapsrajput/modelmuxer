@@ -120,7 +120,7 @@ jobs:
 
       - name: Run unit tests
         env:
-          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          DATABASE_URL: sqlite:////tmp/modelmuxer_test.db
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
           TEST_MODE: true
@@ -138,7 +138,7 @@ jobs:
 
       - name: Run integration tests
         env:
-          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          DATABASE_URL: sqlite:////tmp/modelmuxer_test.db
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
           TEST_MODE: true
@@ -156,7 +156,7 @@ jobs:
 
       - name: Run performance tests
         env:
-          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          DATABASE_URL: sqlite:////tmp/modelmuxer_test.db
           REDIS_URL: redis://localhost:6379/0
           TESTING: true
           TEST_MODE: true

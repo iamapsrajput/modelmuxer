@@ -51,6 +51,7 @@ def temp_database(suffix: str = ".db"):
 def temp_json_file(data: dict, suffix: str = ".json"):
     """Create a temporary JSON file with data."""
     import json
+
     temp_dir = get_test_temp_dir()
     temp_file = temp_dir / f"test_data_{os.getpid()}_{suffix}"
     try:
@@ -95,7 +96,9 @@ def temp_db():
 @pytest.fixture
 def temp_json():
     """Provide a temporary JSON file creator."""
+
     def _create_temp_json(data: dict):
         with temp_json_file(data) as json_path:
             return json_path
+
     return _create_temp_json

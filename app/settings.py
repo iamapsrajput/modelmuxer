@@ -871,9 +871,9 @@ class Settings(BaseSettings):
         default=None, validation_alias=AliasChoices("MODELMUXER_MODE", "APP_MODE")
     )
 
-    api: APIKeysSettings = APIKeysSettings()
-    db: DatabaseSettings = DatabaseSettings()
-    redis: RedisSettings = RedisSettings()
+    api: APIKeysSettings = Field(default_factory=APIKeysSettings)
+    db: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    redis: RedisSettings = Field(default_factory=RedisSettings)
     observability: ObservabilitySettings = ObservabilitySettings()
     features: FeatureFlagsSettings = FeatureFlagsSettings()
     server: ServerSettings = ServerSettings()
@@ -881,7 +881,7 @@ class Settings(BaseSettings):
     pricing: PricingSettings = PricingSettings()
     router_thresholds: RouterThresholds = RouterThresholds()
     provider_pricing: ProviderPricingSettings = ProviderPricingSettings()
-    providers: ProvidersSettings = ProvidersSettings()
+    providers: ProvidersSettings = Field(default_factory=ProvidersSettings)
     monitoring: MonitoringSettings = MonitoringSettings()
     security: SecuritySettings = SecuritySettings()
     # default_factory so env vars (ENABLE_AUTO_SCALING, MIN_WORKERS, ...) are read
@@ -889,7 +889,7 @@ class Settings(BaseSettings):
     workers: WorkersSettings = Field(default_factory=WorkersSettings)
     budget: BudgetSettings = BudgetSettings()
     logging: LoggingSettings = LoggingSettings()
-    cache: CacheSettings = CacheSettings()
+    cache: CacheSettings = Field(default_factory=CacheSettings)
 
     # Keep original adapter group for internal use
     adapters: ProviderAdapterSettings = ProviderAdapterSettings()

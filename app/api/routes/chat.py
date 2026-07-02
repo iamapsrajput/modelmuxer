@@ -553,6 +553,7 @@ async def stream_chat_completion(
     """Handle streaming chat completion."""
     app_settings = app_main.app_settings
     logger = app_main.logger
+    stream_completed = False
     try:
         # Get provider from registry
         provider_registry = app_main.providers_registry.get_provider_registry()
@@ -573,6 +574,7 @@ async def stream_chat_completion(
             yield format_sse_data(chunk)
 
         yield format_sse_data("[DONE]")
+        stream_completed = True
 
         # Update latency priors with actual measured latency (only on success)
         response_time_ms = (time.time() - start_time) * 1000
@@ -608,6 +610,11 @@ async def stream_chat_completion(
         )
 
     except Exception:
+        if stream_completed:
+            structlog.get_logger().exception(
+                "Post-stream error in stream_chat_completion", exc_info=True
+            )
+            return
         structlog.get_logger().exception("Exception in stream_chat_completion", exc_info=True)
         error_chunk = {
             "error": {"message": "An internal error occurred.", "type": "provider_error"}

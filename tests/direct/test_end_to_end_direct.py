@@ -34,7 +34,7 @@ with patch("app.main.router") as mock_global_router:
         return_value=("anthropic", "claude-3-haiku-20240307", "test", {}, {})
     )
 
-from app.core.exceptions import BudgetExceededError
+from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
 
 # Import app after mocks are applied
 from app.main import app, get_authenticated_user
@@ -836,21 +836,16 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                # Mock provider that fails
-                mock_adapter = Mock()
-                mock_adapter.invoke = AsyncMock(
-                    return_value=Mock(
-                        output_text="",
-                        tokens_in=0,
-                        tokens_out=0,
-                        latency_ms=0,
-                        raw={},
-                        error="provider_error",
-                    )
-                )
-
-                mock_registry.return_value = {"openai": mock_adapter}
+            provider_response = _make_provider_response(
+                output_text="",
+                tokens_in=0,
+                tokens_out=0,
+                latency_ms=0,
+                raw={},
+                error="provider_error",
+            )
+            mock_router = _make_wired_router("openai", "gpt-3.5-turbo", provider_response)
+            registry = {"openai": _make_adapter(provider_response)}
 
             request_data = {
                 "model": "gpt-3.5-turbo",
@@ -858,10 +853,11 @@ class TestEndToEndDirect:
             }
 
             headers = {"Authorization": "Bearer test-key"}
-            response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+            with _wired_request_path(mock_router, registry):
+                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
 
             # Should handle provider errors gracefully
-            assert response.status_code in [500, 503]
+            assert response.status_code in [500, 502, 503]
 
     async def test_concurrent_request_handling(self, direct_providers_only_mode, simple_messages):
         """Test concurrent request handling with direct providers."""
@@ -1033,9 +1029,10 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                # Empty provider registry
-                mock_registry.return_value = {}
+            mock_router = MagicMock()
+            mock_router.select_model = AsyncMock(
+                side_effect=NoProvidersAvailableError("No LLM providers available")
+            )
 
             request_data = {
                 "model": "gpt-3.5-turbo",
@@ -1043,7 +1040,8 @@ class TestEndToEndDirect:
             }
 
             headers = {"Authorization": "Bearer test-key"}
-            response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+            with _wired_request_path(mock_router, {}):
+                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
 
             # Should return 503 Service Unavailable
             assert response.status_code == 503
@@ -1058,8 +1056,10 @@ class TestEndToEndDirect:
         with patch("app.auth.auth.authenticate_request") as mock_auth:
             mock_auth.return_value = {"user_id": "test-user", "scopes": ["api_access"]}
 
-            with patch("app.main.providers_registry.get_provider_registry") as mock_registry:
-                mock_registry.return_value = {}
+            mock_router = MagicMock()
+            mock_router.select_model = AsyncMock(
+                side_effect=NoProvidersAvailableError("No LLM providers available")
+            )
 
             request_data = {
                 "model": "gpt-3.5-turbo",
@@ -1067,7 +1067,8 @@ class TestEndToEndDirect:
             }
 
             headers = {"Authorization": "Bearer test-key"}
-            response = client.post("/v1/chat/completions", json=request_data, headers=headers)
+            with _wired_request_path(mock_router, {}):
+                response = client.post("/v1/chat/completions", json=request_data, headers=headers)
 
             error_data = response.json()
             error_message = error_data["error"]["message"]

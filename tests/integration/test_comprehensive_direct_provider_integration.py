@@ -501,8 +501,8 @@ class TestMonitoringAndObservability:
             headers={"Authorization": "Bearer test-api-key"},
         )
 
-        # Should return an error response (503 Service Unavailable is also valid)
-        assert response.status_code in [400, 422, 500, 503]
+        # Should return an error response (502/503 from provider or routing failures)
+        assert response.status_code in [400, 422, 500, 502, 503]
 
 
 class TestConfigurationAndDeployment:
@@ -634,15 +634,16 @@ class TestErrorScenarios:
             side_effect=NoProvidersAvailableError("No providers available")
         )
 
-        response = client.post(
-            "/v1/chat/completions",
-            json={
-                "model": "gpt-4",
-                "messages": [{"role": "user", "content": "Provider test"}],
-                "max_tokens": 50,
-            },
-            headers={"Authorization": "Bearer test-api-key"},
-        )
+        with wired_router(mock_router, {}):
+            response = client.post(
+                "/v1/chat/completions",
+                json={
+                    "model": "gpt-4",
+                    "messages": [{"role": "user", "content": "Provider test"}],
+                    "max_tokens": 50,
+                },
+                headers={"Authorization": "Bearer test-api-key"},
+            )
 
         # Should return 503 Service Unavailable
         assert response.status_code == 503

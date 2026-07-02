@@ -30,7 +30,9 @@ async def test_provider_response_success(monkeypatch):
 
     monkeypatch.setattr(adapter._client, "post", fake_post)
 
-    resp = await adapter.invoke(model="gpt-3.5-turbo", messages=[ChatMessage(role="user", content="hi")])
+    resp = await adapter.invoke(
+        model="gpt-3.5-turbo", messages=[ChatMessage(role="user", content="hi")]
+    )
     assert isinstance(resp, ProviderResponse)
     assert resp.output_text == "hello"
     assert resp.tokens_in == 10
@@ -52,11 +54,15 @@ async def test_provider_retry_and_circuit(monkeypatch):
 
     monkeypatch.setattr(adapter._client, "post", boom)
 
-    resp = await adapter.invoke(model="gpt-3.5-turbo", messages=[ChatMessage(role="user", content="hi")])
+    resp = await adapter.invoke(
+        model="gpt-3.5-turbo", messages=[ChatMessage(role="user", content="hi")]
+    )
     assert resp.error is not None
     assert calls["count"] >= 1
 
     # Simulate circuit open
     adapter.circuit.open_until = 9999999999
-    resp2 = await adapter.invoke(model="gpt-3.5-turbo", messages=[ChatMessage(role="user", content="hi")])
+    resp2 = await adapter.invoke(
+        model="gpt-3.5-turbo", messages=[ChatMessage(role="user", content="hi")]
+    )
     assert resp2.error == "circuit_open"

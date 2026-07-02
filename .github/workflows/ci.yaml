@@ -124,7 +124,7 @@ jobs:
         env:
           TEST_MODE: "1"
           REDIS_URL: "redis://localhost:6379"
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/modelmuxer_test"
+          DATABASE_URL: "sqlite:////tmp/modelmuxer_test.db"
         run: |
           export PYTHONPATH=${{ github.workspace }}:$PYTHONPATH
           poetry run pytest --cov=app --cov-report=xml --cov-report=html --cov-fail-under=70

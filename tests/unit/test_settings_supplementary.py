@@ -33,7 +33,7 @@ class TestSettingsSupplementary:
                 "DATABASE_URL": "sqlite:///test.db",
                 "REDIS_URL": "redis://localhost:6379",
                 "LOG_LEVEL": "DEBUG",
-                "CORS_ORIGINS": "http://localhost:3000,http://localhost:8000",
+                "CORS_ORIGINS": '["http://localhost:3000","http://localhost:8000"]',
                 "API_KEYS": "key1,key2,key3",
                 "RATE_LIMIT_PER_MINUTE": "100",
                 "RATE_LIMIT_PER_HOUR": "5000",
@@ -150,8 +150,19 @@ class TestSettingsSupplementary:
             assert settings.providers.request_timeout == 45
             assert settings.providers.stream_timeout == 120
 
-    def test_settings_with_minimal_env_vars(self):
+    def test_settings_with_minimal_env_vars(self, monkeypatch):
         """Test Settings with minimal environment variables."""
+        for key in (
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "MISTRAL_API_KEY",
+            "GROQ_API_KEY",
+            "GOOGLE_API_KEY",
+            "COHERE_API_KEY",
+            "TOGETHER_API_KEY",
+            "DATABASE_URL",
+        ):
+            monkeypatch.delenv(key, raising=False)
         with patch.dict(os.environ, {}, clear=True):
             settings = Settings()
 
@@ -208,10 +219,8 @@ class TestSettingsSupplementary:
         with patch.dict(
             os.environ, {"RATE_LIMIT_PER_MINUTE": "invalid", "MAX_RETRIES": "not_a_number"}
         ):
-            settings = Settings()
-            # Should use defaults for invalid values
-            assert settings.api.rate_limit_per_minute == 60  # default
-            assert settings.providers.max_retries == 2  # default
+            with pytest.raises(ValidationError):
+                Settings()
 
     def test_settings_float_parsing(self):
         """Test float environment variable parsing."""
@@ -226,17 +235,15 @@ class TestSettingsSupplementary:
 
         # Test invalid float values
         with patch.dict(os.environ, {"DAILY_BUDGET": "invalid", "RETRY_DELAY": "not_a_float"}):
-            settings = Settings()
-            # Should use defaults for invalid values
-            assert settings.budget.daily_budget == 100.0  # default
-            assert settings.providers.retry_delay == 1.0  # default
+            with pytest.raises(ValidationError):
+                Settings()
 
     def test_settings_list_parsing(self):
         """Test list/comma-separated environment variable parsing."""
         with patch.dict(
             os.environ,
             {
-                "CORS_ORIGINS": "http://localhost:3000,http://localhost:8080,https://example.com",
+                "CORS_ORIGINS": '["http://localhost:3000","http://localhost:8080","https://example.com"]',
                 "API_KEYS": "key1, key2, key3, key4",  # with spaces
             },
         ):
@@ -264,11 +271,10 @@ class TestSettingsSupplementary:
             assert settings.db.database_url == "postgresql://user:pass@localhost/db"
             assert settings.cache.redis_url == "redis://localhost:6379/0"
 
-        # Invalid URLs should still be stored (validation happens elsewhere)
+        # Invalid URLs raise validation errors at construction time
         with patch.dict(os.environ, {"DATABASE_URL": "not_a_url", "REDIS_URL": "invalid"}):
-            settings = Settings()
-            assert settings.db.database_url == "not_a_url"
-            assert settings.cache.redis_url == "invalid"
+            with pytest.raises(ValidationError):
+                Settings()
 
     def test_settings_path_expansion(self):
         """Test path environment variable expansion."""

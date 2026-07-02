@@ -19,6 +19,11 @@ class Database:
         from .settings import settings as app_settings
 
         database_url = app_settings.db.database_url
+        if not database_url.startswith("sqlite:///"):
+            raise ValueError(
+                f"Unsupported database URL: {database_url!r}. "
+                "ModelMuxer currently supports SQLite only (database_url must start with 'sqlite:///')."
+            )
         self.db_path = db_path or database_url.replace("sqlite:///", "")
 
     async def init_database(self) -> None:

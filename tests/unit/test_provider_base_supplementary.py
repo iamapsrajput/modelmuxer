@@ -252,7 +252,9 @@ class MockAdapter(LLMProviderAdapter):
         self._error = error
         self.closed = False
 
-    async def invoke(self, model: str, messages: list[ChatMessage], **kwargs: Any) -> ProviderResponse:
+    async def invoke(
+        self, model: str, messages: list[ChatMessage], **kwargs: Any
+    ) -> ProviderResponse:
         return ProviderResponse(
             output_text="Mock response",
             tokens_in=10,
