@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ModelMuxer Cost Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div>
+        <h1>ModelMuxer Dashboard</h1>
+        <p class="subtitle">Routing-aware cost and usage analytics</p>
+      </div>
+      <div class="controls">
+        <label>
+          Period
+          <select id="period-select">
+            <option value="7">7 days</option>
+            <option value="30" selected>30 days</option>
+            <option value="90">90 days</option>
+          </select>
+        </label>
+        <label>
+          API Key
+          <input id="api-key" type="password" placeholder="Bearer token" />
+        </label>
+        <button id="refresh-btn" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="summary-grid">
+        <article class="card">
+          <h2>Total Cost</h2>
+          <p id="total-cost" class="metric">$0.00</p>
+        </article>
+        <article class="card">
+          <h2>Requests</h2>
+          <p id="total-requests" class="metric">0</p>
+        </article>
+        <article class="card">
+          <h2>Local Share</h2>
+          <p id="local-share" class="metric">0%</p>
+        </article>
+        <article class="card">
+          <h2>Top Intent</h2>
+          <p id="top-intent" class="metric">—</p>
+        </article>
+      </section>
+
+      <section class="panel-grid">
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Cost Over Time</h2>
+            <div class="toggle-group">
+              <button class="toggle active" data-range="daily" type="button">Daily</button>
+              <button class="toggle" data-range="weekly" type="button">Weekly</button>
+            </div>
+          </div>
+          <canvas id="cost-chart" height="220"></canvas>
+        </article>
+
+        <article class="panel">
+          <h2>Intent Distribution</h2>
+          <canvas id="intent-chart" height="220"></canvas>
+        </article>
+
+        <article class="panel">
+          <h2>Local vs Cloud</h2>
+          <canvas id="local-cloud-chart" height="220"></canvas>
+        </article>
+
+        <article class="panel">
+          <h2>Top Providers</h2>
+          <ul id="top-providers" class="list"></ul>
+        </article>
+
+        <article class="panel">
+          <h2>Top Models</h2>
+          <ul id="top-models" class="list"></ul>
+        </article>
+
+        <article class="panel wide">
+          <h2>Recent Requests</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Provider</th>
+                  <th>Model</th>
+                  <th>Intent</th>
+                  <th>Method</th>
+                  <th>Rule</th>
+                  <th>Cost</th>
+                </tr>
+              </thead>
+              <tbody id="recent-requests"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <p>No external CDN dependencies. Charts rendered with canvas in <code>app.js</code>.</p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

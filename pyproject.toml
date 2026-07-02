@@ -249,6 +249,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"app/database.py" = ["S608"]
+"app/cost_tracker.py" = ["S608"]
 
 [tool.mypy]
 python_version = "3.11"

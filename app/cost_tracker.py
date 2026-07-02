@@ -576,6 +576,106 @@ class AdvancedCostTracker(CostTracker):
         finally:
             conn.close()
 
+    async def get_cost_analytics(
+        self,
+        user_id: str,
+        days: int = 30,
+        provider: str | None = None,
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        """Get cost analytics from the enhanced cost tracker database."""
+        if not ENHANCED_FEATURES_AVAILABLE or not self.db_path:
+            return {
+                "total_cost": 0.0,
+                "total_requests": 0,
+                "cost_by_provider": {},
+                "cost_by_model": {},
+                "daily_breakdown": [],
+                "weekly_breakdown": [],
+            }
+
+        clauses = ["user_id = ?", "success = 1", "timestamp >= datetime('now', ?)"]
+        params: list[Any] = [user_id, f"-{days} days"]
+        if provider:
+            clauses.append("provider = ?")
+            params.append(provider)
+        if model:
+            clauses.append("model = ?")
+            params.append(model)
+        where_clause = " AND ".join(clauses)
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                f"SELECT COUNT(*), COALESCE(SUM(cost), 0) FROM cost_requests WHERE {where_clause}",
+                params,
+            )
+            total_requests, total_cost = cursor.fetchone()
+
+            cursor.execute(
+                f"""
+                SELECT provider, COALESCE(SUM(cost), 0)
+                FROM cost_requests
+                WHERE {where_clause}
+                GROUP BY provider
+            """,
+                params,
+            )
+            cost_by_provider = {row[0]: float(row[1]) for row in cursor.fetchall()}
+
+            cursor.execute(
+                f"""
+                SELECT model, COALESCE(SUM(cost), 0)
+                FROM cost_requests
+                WHERE {where_clause}
+                GROUP BY model
+            """,
+                params,
+            )
+            cost_by_model = {row[0]: float(row[1]) for row in cursor.fetchall()}
+
+            cursor.execute(
+                f"""
+                SELECT DATE(timestamp) as day, COALESCE(SUM(cost), 0), COUNT(*)
+                FROM cost_requests
+                WHERE {where_clause}
+                GROUP BY DATE(timestamp)
+                ORDER BY day ASC
+            """,
+                params,
+            )
+            daily_breakdown = [
+                {"date": row[0], "cost": float(row[1]), "requests": row[2]}
+                for row in cursor.fetchall()
+            ]
+
+            cursor.execute(
+                f"""
+                SELECT strftime('%Y-W%W', timestamp) as week, COALESCE(SUM(cost), 0), COUNT(*)
+                FROM cost_requests
+                WHERE {where_clause}
+                GROUP BY strftime('%Y-W%W', timestamp)
+                ORDER BY week ASC
+            """,
+                params,
+            )
+            weekly_breakdown = [
+                {"week": row[0], "cost": float(row[1]), "requests": row[2]}
+                for row in cursor.fetchall()
+            ]
+        finally:
+            conn.close()
+
+        return {
+            "total_cost": float(total_cost or 0.0),
+            "total_requests": int(total_requests or 0),
+            "cost_by_provider": cost_by_provider,
+            "cost_by_model": cost_by_model,
+            "daily_breakdown": daily_breakdown,
+            "weekly_breakdown": weekly_breakdown,
+        }
+
     async def _update_usage_cache(
         self, user_id: str, cost: float, provider: str, model: str
     ) -> None:

@@ -32,6 +32,28 @@ from app.telemetry.metrics import LLM_ROUTER_BUDGET_EXCEEDED_TOTAL
 router = APIRouter()
 
 
+def _routing_log_fields(intent_metadata: dict[str, Any] | None) -> dict[str, str | None]:
+    """Extract routing analytics fields for request logging."""
+    if not intent_metadata:
+        return {
+            "intent_label": None,
+            "intent_method": None,
+            "routing_rule": None,
+        }
+    routing_rule = intent_metadata.get("routing_rule")
+    return {
+        "intent_label": (
+            str(intent_metadata.get("label")) if intent_metadata.get("label") is not None else None
+        ),
+        "intent_method": (
+            str(intent_metadata.get("method"))
+            if intent_metadata.get("method") is not None
+            else None
+        ),
+        "routing_rule": str(routing_rule) if routing_rule else None,
+    }
+
+
 @router.post("/v1/chat/completions", response_model=ChatCompletionResponse)
 async def chat_completions(
     request: ChatCompletionRequest, user_info: dict[str, Any] = Depends(get_authenticated_user)
@@ -230,7 +252,13 @@ async def chat_completions(
         if request.stream:
             return StreamingResponse(
                 stream_chat_completion(
-                    provider_name, request, model_name, routing_reason, user_id, start_time
+                    provider_name,
+                    request,
+                    model_name,
+                    routing_reason,
+                    user_id,
+                    start_time,
+                    intent_metadata,
                 ),
                 media_type="text/event-stream",  # Correct media type for SSE
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
@@ -406,6 +434,7 @@ async def chat_completions(
                 pass
 
             # Log the request using the advanced cost tracker if available
+            routing_fields = _routing_log_fields(intent_metadata)
             if app_main.model_muxer.advanced_cost_tracker:
                 await app_main.model_muxer.advanced_cost_tracker.log_simple_request(
                     user_id=user_id,
@@ -417,20 +446,20 @@ async def chat_completions(
                     prompt_tokens=response.usage.prompt_tokens,
                     completion_tokens=response.usage.completion_tokens,
                 )
-            else:
-                # Fallback to basic database logging
-                await app_main.db.log_request(
-                    user_id=user_id,
-                    provider=provider_name,
-                    model=model_name,
-                    messages=[msg.dict() for msg in request.messages],
-                    input_tokens=response.usage.prompt_tokens,
-                    output_tokens=response.usage.completion_tokens,
-                    cost=response.router_metadata.estimated_cost,
-                    response_time_ms=response.router_metadata.response_time_ms,
-                    routing_reason=routing_reason,
-                    success=True,
-                )
+
+            await app_main.db.log_request(
+                user_id=user_id,
+                provider=provider_name,
+                model=model_name,
+                messages=[msg.dict() for msg in request.messages],
+                input_tokens=response.usage.prompt_tokens,
+                output_tokens=response.usage.completion_tokens,
+                cost=response.router_metadata.estimated_cost,
+                response_time_ms=response.router_metadata.response_time_ms,
+                routing_reason=routing_reason,
+                success=True,
+                **routing_fields,
+            )
 
             # Convert response to JSONResponse to add X-Route-Decision header
             response_dict = response.dict()
@@ -513,7 +542,13 @@ async def chat_completions(
 
 
 async def stream_chat_completion(
-    provider_name, request, model_name, routing_reason, user_id, start_time
+    provider_name,
+    request,
+    model_name,
+    routing_reason,
+    user_id,
+    start_time,
+    intent_metadata=None,
 ):
     """Handle streaming chat completion."""
     app_settings = app_main.app_settings
@@ -569,6 +604,7 @@ async def stream_chat_completion(
             response_time_ms=response_time_ms,
             routing_reason=routing_reason,
             success=True,
+            **_routing_log_fields(intent_metadata),
         )
 
     except Exception:

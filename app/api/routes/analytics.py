@@ -31,16 +31,56 @@ async def get_cost_analytics(
 ):
     """Get cost analytics for the user."""
     user_id = user_info["user_id"]
+    analytics = await app_main.db.get_cost_analytics(
+        user_id=user_id,
+        days=days,
+        provider=provider,
+        model=model,
+    )
 
-    return {
-        "user_id": user_id,
-        "period_days": days,
-        "total_cost": 0.0,
-        "total_requests": 0,
-        "cost_by_provider": {},
-        "cost_by_model": {},
-        "daily_breakdown": [],
-    }
+    tracker = getattr(app_main.model_muxer, "advanced_cost_tracker", None)
+    if tracker and hasattr(tracker, "get_cost_analytics"):
+        try:
+            tracker_analytics = await tracker.get_cost_analytics(
+                user_id=user_id,
+                days=days,
+                provider=provider,
+                model=model,
+            )
+            analytics = _merge_cost_analytics(analytics, tracker_analytics)
+        except Exception as e:
+            app_main.logger.warning(
+                "cost_tracker_analytics_merge_failed", error=str(e), user_id=user_id
+            )
+
+    return analytics
+
+
+@router.get("/v1/analytics/routing")
+async def get_routing_analytics(
+    user_info: dict[str, Any] = Depends(get_authenticated_user),
+    days: int = 30,
+):
+    """Get routing decision aggregates for the user."""
+    user_id = user_info["user_id"]
+    return await app_main.db.get_routing_analytics(user_id=user_id, days=days)
+
+
+def _merge_cost_analytics(primary: dict[str, Any], supplemental: dict[str, Any]) -> dict[str, Any]:
+    """Merge DB analytics with advanced cost tracker totals when both exist."""
+    if not supplemental or supplemental.get("total_requests", 0) == 0:
+        return primary
+    if primary.get("total_requests", 0) > 0:
+        return primary
+
+    merged = dict(primary)
+    merged["total_cost"] = supplemental.get("total_cost", 0.0)
+    merged["total_requests"] = supplemental.get("total_requests", 0)
+    merged["cost_by_provider"] = supplemental.get("cost_by_provider", {})
+    merged["cost_by_model"] = supplemental.get("cost_by_model", {})
+    merged["daily_breakdown"] = supplemental.get("daily_breakdown", [])
+    merged["weekly_breakdown"] = supplemental.get("weekly_breakdown", [])
+    return merged
 
 
 @router.get("/v1/analytics/budgets")

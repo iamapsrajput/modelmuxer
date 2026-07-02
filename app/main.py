@@ -11,13 +11,15 @@ cost tracking, and observability.
 import os
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 import structlog
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 import app.providers.registry as providers_registry
 from app.core.exceptions import BudgetExceededError
@@ -354,6 +356,21 @@ app.include_router(_chat_routes.router)
 app.include_router(_analytics_routes.router)
 app.include_router(_providers_routes.router)
 
+DASHBOARD_DIR = Path(__file__).resolve().parent / "static" / "dashboard"
+if DASHBOARD_DIR.is_dir():
+    app.mount(
+        "/dashboard",
+        StaticFiles(directory=str(DASHBOARD_DIR), html=True),
+        name="dashboard",
+    )
+
+    @app.get("/dashboard", include_in_schema=False)
+    async def dashboard_root() -> RedirectResponse:
+        return RedirectResponse(url="/dashboard/")
+
+else:
+    logger.warning("dashboard_static_dir_missing", path=str(DASHBOARD_DIR))
+
 # Re-export handlers so existing imports and patch targets (app.main.<name>)
 # keep working after the split into app/api/routes/.
 chat_completions = _chat_routes.chat_completions
@@ -364,6 +381,7 @@ health_check = _system_routes.health_check
 get_metrics = _system_routes.get_metrics
 get_user_stats = _analytics_routes.get_user_stats
 get_cost_analytics = _analytics_routes.get_cost_analytics
+get_routing_analytics = _analytics_routes.get_routing_analytics
 get_budget_status = _analytics_routes.get_budget_status
 set_budget = _analytics_routes.set_budget
 get_providers = _providers_routes.get_providers
