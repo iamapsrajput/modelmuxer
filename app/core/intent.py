@@ -4,17 +4,23 @@
 Routing Mind — lightweight intent classifier.
 
 Provides {label, confidence, signals} for routing. Uses heuristics by default,
-optionally a cheap LLM (stubbed) when available. Deterministic in test mode.
+optionally a cheap LLM when available. Deterministic in test mode.
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
+import re
 from typing import Any
 
 from app.models import ChatMessage
 from app.settings import settings
 
 from .features import extract_features
+
+logger = logging.getLogger(__name__)
 
 INTENT_LABELS = {
     "chat_lite",
@@ -25,6 +31,13 @@ INTENT_LABELS = {
     "vision",
     "safety_risk",
 }
+
+INTENT_CLASSIFIER_SYSTEM_PROMPT = """You classify user prompts for an LLM router.
+Respond with JSON only, no markdown, using this schema:
+{"label":"<one of chat_lite, deep_reason, code_gen, json_extract, translation, vision, safety_risk>","confidence":0.0}
+
+Use safety_risk for harmful or policy-violating requests. Use code_gen for programming tasks.
+Use deep_reason for analysis, explanation, or multi-step reasoning. Use chat_lite for general chat."""
 
 
 def _heuristic_classify(text: str) -> tuple[str, float, dict[str, Any]]:
@@ -78,6 +91,114 @@ def _heuristic_classify(text: str) -> tuple[str, float, dict[str, Any]]:
     return "chat_lite", 0.7, f
 
 
+def _parse_intent_model(value: str) -> tuple[str, str] | None:
+    normalized = value.strip()
+    if ":" in normalized:
+        provider, model = normalized.split(":", 1)
+    elif "/" in normalized:
+        provider, model = normalized.split("/", 1)
+    else:
+        return None
+    if not provider or not model:
+        return None
+    return provider, model
+
+
+def _parse_llm_intent_response(text: str) -> tuple[str, float] | None:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    try:
+        payload = json.loads(cleaned)
+    except json.JSONDecodeError:
+        match = re.search(r"\{[^{}]*\}", cleaned, re.DOTALL)
+        if not match:
+            return None
+        try:
+            payload = json.loads(match.group(0))
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(payload, dict):
+        return None
+    label = payload.get("label")
+    confidence = payload.get("confidence")
+    if not isinstance(label, str):
+        return None
+    label = label.strip().lower()
+    if label not in INTENT_LABELS:
+        return None
+    try:
+        conf_value = float(confidence)
+    except (TypeError, ValueError):
+        return None
+    return label, max(0.0, min(1.0, conf_value))
+
+
+async def _cheap_llm_classify(text: str) -> tuple[str, float, dict[str, Any]] | None:
+    """Call the configured cheap LLM for intent classification."""
+    intent_model = settings.router.intent_model
+    if not intent_model:
+        return None
+
+    parsed = _parse_intent_model(intent_model)
+    if not parsed:
+        logger.warning("Invalid ROUTER_INTENT_MODEL format: %s", intent_model)
+        return None
+    provider, model = parsed
+
+    try:
+        from app.providers.registry import get_provider_registry
+    except ImportError:
+        return None
+
+    adapter = get_provider_registry().get(provider)
+    if adapter is None:
+        logger.debug("Intent model provider unavailable: %s", provider)
+        return None
+
+    truncated = text[:4000]
+    messages = [
+        ChatMessage(role="system", content=INTENT_CLASSIFIER_SYSTEM_PROMPT),
+        ChatMessage(role="user", content=truncated),
+    ]
+    timeout_s = settings.router.intent_timeout_ms / 1000.0
+
+    try:
+        response = await asyncio.wait_for(
+            adapter.invoke(
+                model=model,
+                messages=messages,
+                max_tokens=settings.router.intent_max_tokens,
+                temperature=0.0,
+            ),
+            timeout=timeout_s,
+        )
+    except Exception as exc:
+        logger.debug("Cheap LLM intent classification failed: %s", exc)
+        return None
+
+    if response.error or not response.output_text:
+        logger.debug("Cheap LLM intent classification returned empty/error response")
+        return None
+
+    parsed_response = _parse_llm_intent_response(response.output_text)
+    if parsed_response is None:
+        return None
+
+    label, confidence = parsed_response
+    if confidence < settings.router.intent_low_confidence:
+        logger.debug(
+            "Cheap LLM intent confidence %.3f below threshold %.3f",
+            confidence,
+            settings.router.intent_low_confidence,
+        )
+        return None
+
+    feats = extract_features(text)
+    return label, confidence, feats
+
+
 async def classify_intent(messages: list[ChatMessage]) -> dict[str, Any]:
     """Classify intent for a list of chat messages.
 
@@ -100,11 +221,16 @@ async def classify_intent(messages: list[ChatMessage]) -> dict[str, Any]:
             "method": "heuristic",
         }
 
-    # Cheap LLM adapter path (optional, stubbed for now)
-    # Keep deterministic fallback even when LLM not available
     try:
-        # Placeholder: integrate with adapters (e.g., openai/anthropic/mistral) if desired
-        # For Phase 1, rely on heuristics to avoid network and preserve determinism.
+        llm_result = await _cheap_llm_classify(text)
+        if llm_result is not None:
+            label, conf, feats = llm_result
+            return {
+                "label": label,
+                "confidence": round(float(conf), 3),
+                "signals": feats,
+                "method": "cheap_llm",
+            }
         label, conf, feats = _heuristic_classify(text)
         return {
             "label": label,

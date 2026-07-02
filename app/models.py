@@ -79,7 +79,11 @@ class RouterMetadata(BaseModel):
     # Optional intent fields
     intent_label: str | None = Field(None, description="Predicted intent label")
     intent_confidence: float | None = Field(None, description="Intent confidence score")
+    intent_method: str | None = Field(
+        None, description="Intent classification method (cheap_llm, heuristic, etc.)"
+    )
     intent_signals: dict[str, Any] | None = Field(None, description="Raw feature signals")
+    routing_rule: str | None = Field(None, description="Matched declarative routing rule name")
     # Estimate metadata fields
     estimated_cost_usd: float | None = Field(None, description="Estimated cost from router in USD")
     estimated_eta_ms: int | None = Field(

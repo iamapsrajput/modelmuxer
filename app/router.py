@@ -13,6 +13,7 @@ from typing import Callable, TypedDict, cast
 from app.core.costing import Estimator, LatencyPriors, estimate_tokens, load_price_table
 from app.core.exceptions import BudgetExceededError, NoProvidersAvailableError
 from app.core.intent import classify_intent
+from app.core.routing_rules import load_routing_rules, validate_routing_rules
 from app.models import ChatMessage
 from app.providers.base import LLMProviderAdapter, ProviderResponse
 from app.settings import settings
@@ -253,8 +254,24 @@ class HeuristicRouter:
             for keyword in self.complexity_keywords
         ]
         self._validate_model_keys()
+        self.routing_rules = load_routing_rules(self.settings.router.routing_rules_path)
+        self._validate_routing_rules()
         # Provide legacy attribute expected by direct tests
         self.direct_model_preferences = self.model_preferences
+
+    def _validate_routing_rules(self) -> None:
+        """Validate declarative routing rules against price table and providers."""
+        try:
+            validate_routing_rules(
+                self.routing_rules,
+                mode=self.settings.features.mode,
+                price_table_keys=set(self.price_table.keys()),
+                available_providers=set(self.provider_registry_fn().keys()),
+            )
+        except Exception as e:
+            if self.settings.features.mode == "production":
+                raise
+            logger.warning("Routing rules validation issue: %s", e)
 
     def _validate_model_keys(self) -> None:
         """Validate that model keys in preferences have corresponding price table entries."""
@@ -442,7 +459,15 @@ class HeuristicRouter:
         }
         try:
             intent_metadata = await classify_intent(messages)
+            intent_metadata["task_type"] = analysis["task_type"]
             ROUTER_INTENT_TOTAL.labels(cast(str, intent_metadata["label"]).__str__()).inc()
+            logger.info(
+                "Intent classified: label=%s confidence=%.3f method=%s task_type=%s",
+                intent_metadata.get("label"),
+                float(intent_metadata.get("confidence", 0.0) or 0.0),
+                intent_metadata.get("method"),
+                analysis["task_type"],
+            )
         except Exception as e:
             logger.warning("Intent classification failed: %s", e)
 
@@ -519,6 +544,31 @@ class HeuristicRouter:
         route_label: str = "chat"
         ROUTER_REQUESTS.labels(route_label).inc()
         t0 = time.perf_counter()
+        budget = (
+            budget_constraint
+            if budget_constraint is not None
+            else self.settings.router_thresholds.max_estimated_usd_per_request
+        )
+        intent_label = str(intent_metadata.get("label", "unknown"))
+        rule_preferences, matched_rule = self.routing_rules.resolve_preferences(
+            intent_label=intent_label,
+            task_type=task_type,
+            requested_model=requested_model,
+            budget=budget,
+        )
+        if matched_rule:
+            intent_metadata["routing_rule"] = matched_rule
+            preferences = rule_preferences
+            logger.info(
+                "Applied routing rule '%s' for intent=%s task_type=%s",
+                matched_rule,
+                intent_label,
+                task_type,
+            )
+        else:
+            preferences = self.model_preferences.get(
+                task_type, self.model_preferences.get("general", [])
+            )
         # Normalize intent confidence to float for tracing
         _conf_val = intent_metadata.get("confidence", 0.0)
         _conf: float = float(_conf_val) if isinstance(_conf_val, int | float) else 0.0
@@ -536,15 +586,15 @@ class HeuristicRouter:
                 span.set_attribute("route.tokens_in", tokens_in)
                 span.set_attribute("route.tokens_out", tokens_out)
                 span.set_attribute("route.direct_providers_only", True)
+                if matched_rule:
+                    span.set_attribute("route.routing_rule", matched_rule)
                 if user_id is not None:
                     span.set_attribute("route.user_id_len", len(user_id))
-            preferences = self.model_preferences.get(
-                task_type, self.model_preferences.get("general", [])
-            )
             logger.debug(
-                "Selected direct provider preferences for task '%s': %d models",
+                "Selected direct provider preferences for task '%s': %d models%s",
                 task_type,
                 len(preferences),
+                f" (rule={matched_rule})" if matched_rule else "",
             )
             if not preferences:
                 available_providers = self.provider_registry_fn()

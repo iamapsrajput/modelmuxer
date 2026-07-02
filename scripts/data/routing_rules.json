@@ -1,0 +1,28 @@
+{
+  "rules": [
+    {
+      "name": "code_intent_cheap",
+      "intent": "code",
+      "prefer": [
+        "anthropic:claude-3-5-haiku-20241022",
+        "openai:gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "deep_reasoning",
+      "intent": "deep_reason",
+      "prefer": [
+        "anthropic:claude-3-5-sonnet-latest",
+        "openai:gpt-4o"
+      ]
+    },
+    {
+      "name": "simple_chat",
+      "task_type": "simple",
+      "prefer": [
+        "openai:gpt-4o-mini",
+        "anthropic:claude-3-5-haiku-20241022"
+      ]
+    }
+  ]
+}

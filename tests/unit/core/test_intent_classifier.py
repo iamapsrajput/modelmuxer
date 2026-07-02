@@ -96,6 +96,7 @@ async def test_intent_classifier_deterministic_and_labels(tmp_path: Path):
                 "heuristic",
                 "heuristic_fallback",
                 "disabled",
+                "cheap_llm",
             }, f"Unexpected method: {result['method']}"
 
             # Track counts and predictions

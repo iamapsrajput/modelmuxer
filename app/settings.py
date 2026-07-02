@@ -451,6 +451,26 @@ class RouterSettings(BaseSettings):
         "with practical routing decisions. Can be tuned based on production performance.",
         validation_alias=AliasChoices("INTENT_MIN_CONF_FOR_DIRECT"),
     )
+    intent_model: str | None = Field(
+        default=None,
+        description="Cheap LLM for intent assist in provider:model form (e.g. openai:gpt-4o-mini).",
+        validation_alias=AliasChoices("ROUTER_INTENT_MODEL", "INTENT_MODEL"),
+    )
+    intent_timeout_ms: int = Field(
+        default=3000,
+        description="Timeout in milliseconds for cheap-LLM intent classification calls.",
+        validation_alias=AliasChoices("ROUTER_INTENT_TIMEOUT_MS", "INTENT_TIMEOUT_MS"),
+    )
+    intent_max_tokens: int = Field(
+        default=64,
+        description="Maximum output tokens for cheap-LLM intent classification.",
+        validation_alias=AliasChoices("ROUTER_INTENT_MAX_TOKENS", "INTENT_MAX_TOKENS"),
+    )
+    routing_rules_path: str | None = Field(
+        default=None,
+        description="Path to JSON routing rules file (declarative intent/task preferences).",
+        validation_alias=AliasChoices("ROUTING_RULES_PATH", "ROUTER_ROUTING_RULES_PATH"),
+    )
     prefer_local: bool = Field(
         default=False,
         description="When true, prefer local Ollama models over cloud providers when available.",
@@ -462,7 +482,9 @@ class RouterSettings(BaseSettings):
         validation_alias=AliasChoices("LOCAL_DEFAULT_MODEL", "ROUTER_LOCAL_DEFAULT_MODEL"),
     )
 
-    @field_validator("max_tokens_default", "simple_query_max_length")
+    @field_validator(
+        "max_tokens_default", "simple_query_max_length", "intent_timeout_ms", "intent_max_tokens"
+    )
     @classmethod
     def _validate_positive_int(cls, value: int) -> int:
         if value <= 0:

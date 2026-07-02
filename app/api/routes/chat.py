@@ -328,9 +328,17 @@ async def chat_completions(
                                 if intent_metadata
                                 else None
                             ),
+                            intent_method=(
+                                str(intent_metadata.get("method")) if intent_metadata else None
+                            ),
                             intent_signals=(
                                 cast(dict[str, object], intent_metadata.get("signals", {}))
                                 if intent_metadata
+                                else None
+                            ),
+                            routing_rule=(
+                                str(intent_metadata.get("routing_rule"))
+                                if intent_metadata and intent_metadata.get("routing_rule")
                                 else None
                             ),
                             estimated_cost_usd=float(estimate_metadata.get("usd") or 0.0),
@@ -387,7 +395,9 @@ async def chat_completions(
                 response.router_metadata.intent_confidence = float(
                     intent_metadata.get("confidence", 0.0)
                 )
+                response.router_metadata.intent_method = intent_metadata.get("method")
                 response.router_metadata.intent_signals = intent_metadata.get("signals")
+                response.router_metadata.routing_rule = intent_metadata.get("routing_rule")
                 response.router_metadata.estimated_cost_usd = estimate_metadata.get("usd")
                 response.router_metadata.estimated_eta_ms = estimate_metadata.get("eta_ms")
                 response.router_metadata.estimated_tokens_in = estimate_metadata.get("tokens_in")
